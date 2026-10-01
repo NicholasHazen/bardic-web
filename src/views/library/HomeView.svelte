@@ -7,6 +7,8 @@
   import IconButton from '../../components/IconButton.svelte';
   import ProgressBar from '../../components/ProgressBar.svelte';
   import Glyph from '../shell/Glyph.svelte';
+  import OfflineNotice from '../offline/OfflineNotice.svelte';
+  import UnavailableBookCard from '../offline/UnavailableBookCard.svelte';
   import ListenerButton from './ListenerButton.svelte';
   import type { BookCardModel, ContinueModel, ListenerModel } from './types';
 
@@ -22,6 +24,10 @@
     /** Shows a message instead of the sections (the server could not be reached). */
     error?: string;
     sampleBusy?: boolean;
+    /** Away from home (phone): says so at the top, and `unavailable` books are shown dimmed instead of Recently added (O4). */
+    offline?: boolean;
+    /** Books that need the Bardic computer (only drawn while `offline`). */
+    unavailable?: BookCardModel[];
     onswitchlistener?: () => void;
     /** Opens the Add a book sheet. */
     onaddbook?: () => void;
@@ -40,6 +46,8 @@
     empty = false,
     error,
     sampleBusy = false,
+    offline = false,
+    unavailable = [],
     onswitchlistener,
     onaddbook,
     onchoosefile,
@@ -159,6 +167,7 @@
       <h1>Home</h1>
       <ListenerButton {listener} onclick={onswitchlistener} />
     </div>
+    {#if offline}<OfflineNotice />{/if}
     {#if error}
       <div class="msg">
         <Callout tone="error" title="Couldn’t load your books">
@@ -190,7 +199,14 @@
         <div class="row p">{#each onDevice as b (b.id)}<BookCard title={b.title} subtitle={b.subtitle} color={b.color} coverSrc={b.coverSrc} progress={b.progress} onDevice={b.onDevice} href={b.href} width={100} />{/each}</div>
       </section>
     {/if}
-    {#if recent.length}
+    {#if offline}
+      {#if unavailable.length}
+        <section>
+          <div class="sh p"><h2>Needs your Bardic computer</h2><span class="count">Reconnect to open</span></div>
+          <div class="row p">{#each unavailable as b (b.id)}<UnavailableBookCard title={b.title} subtitle={b.subtitle} color={b.color} coverSrc={b.coverSrc} width={100} />{/each}</div>
+        </section>
+      {/if}
+    {:else if recent.length}
       <section>
         <div class="sh p"><h2>Recently added</h2></div>
         <div class="row p">{#each recent as b (b.id)}<BookCard title={b.title} subtitle={b.subtitle} color={b.color} coverSrc={b.coverSrc} progress={b.progress} onDevice={b.onDevice} href={b.href} width={100} />{/each}</div>

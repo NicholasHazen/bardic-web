@@ -157,3 +157,28 @@ export interface HeldChapter {
   timings: { lineId: string; startMs: number; endMs: number }[];
   durationSeconds: number | null;
 }
+
+// ---------------------------------------------------------------------------------------------------------
+// Additions by the offline engine (src/offline/**). Nothing above this line changed.
+
+/**
+ * A downloaded book as the engine really produces it: a `DownloadedBook` plus one line saying what is going on,
+ * in words that begin with what is kept ("What finished is kept. Wi-Fi only is on ..."). null when there is nothing to say.
+ */
+export interface OfflineBook extends DownloadedBook {
+  message: string | null;
+}
+
+/** The engine's state: `OfflineState` with `books` carrying the message line. Assignable to `OfflineState`. */
+export interface OfflineStateX extends OfflineState {
+  books: OfflineBook[];
+  /** the last command that could not do what was asked, in words that begin with what is kept; null when there is none */
+  notice: string | null;
+}
+
+/** What a verify run found (the engine runs one on open). */
+export interface VerifyReport {
+  checked: number;
+  /** chapters whose copy was damaged and is no longer served; they show as "Couldn't download" until fetched again */
+  damaged: { audiobookId: string; chapterId: string; reason: string }[];
+}

@@ -100,3 +100,79 @@ export async function followEventStream(o: EventStreamOptions): Promise<void> {
     delay = Math.min(delay * 2, 15000);
   }
 }
+
+// ---------------------------------------------------------------------------------------------
+// One stream per listener, shared by everything on the page.
+//
+// A browser allows about six HTTP/1.1 connections to one server, and each open event stream holds one for as long
+// as the page lives. The library, the book page, the player and the offline engine each following their own
+// stream used the connections up, and ordinary requests then waited behind them: the page stopped updating.
+// Everything that wants notices now subscribes here; the first subscriber opens the stream and the last one
+// closes it.
+
+export interface SharedSubscriber {
+  onmessage: (msg: SseMessage) => void;
+  /** After each (re)connect, and right away for a subscriber that joins a stream that is already open. */
+  onopen?: () => void;
+}
+
+interface Hub {
+  subs: Set<SharedSubscriber>;
+  abort: AbortController;
+  opened: boolean;
+}
+
+const hubs = new Map<string, Hub>();
+
+/** One subscriber's failure must not stop the others from hearing the notice. */
+function guard(run: () => void): void {
+  try {
+    run();
+  } catch {
+    /* the subscriber's own problem */
+  }
+}
+
+export interface SharedStreamOptions {
+  headers: () => Record<string, string>;
+  fetchFn?: typeof fetch;
+  sleep?: (ms: number) => Promise<void>;
+}
+
+/** Follow the event stream of `listenerId` through the one shared connection. Returns the function that stops following. */
+export function subscribeSharedEvents(listenerId: string, sub: SharedSubscriber, opts: SharedStreamOptions): () => void {
+  let hub = hubs.get(listenerId);
+  if (!hub) {
+    const created: Hub = { subs: new Set(), abort: new AbortController(), opened: false };
+    hub = created;
+    hubs.set(listenerId, created);
+    const stream: EventStreamOptions = {
+      url: '/api/events',
+      headers: opts.headers,
+      signal: created.abort.signal,
+      onopen: () => {
+        created.opened = true;
+        for (const s of [...created.subs]) guard(() => s.onopen?.());
+      },
+      onmessage: (msg) => {
+        for (const s of [...created.subs]) guard(() => s.onmessage(msg));
+      },
+    };
+    if (opts.fetchFn) stream.fetchFn = opts.fetchFn;
+    if (opts.sleep) stream.sleep = opts.sleep;
+    void followEventStream(stream);
+  }
+  const mine = hub;
+  mine.subs.add(sub);
+  if (mine.opened) sub.onopen?.();
+  return () => {
+    mine.subs.delete(sub);
+    if (mine.subs.size === 0) {
+      mine.abort.abort();
+      if (hubs.get(listenerId) === mine) hubs.delete(listenerId);
+    }
+  };
+}
+
+/** For tests: how many listeners currently have an open shared stream. */
+export const sharedStreamCount = (): number => hubs.size;

@@ -4,7 +4,7 @@
 import { api } from '../api/client';
 import type { components } from '../api/schema';
 import { deviceId } from '../lib/device';
-import { followEventStream } from '../lib/sse';
+import { subscribeSharedEvents } from '../lib/sse';
 
 export type Book = components['schemas']['Book'];
 export type Chapter = components['schemas']['Chapter'];
@@ -109,21 +109,20 @@ export interface EventsPort {
 
 export const sseEvents: EventsPort = {
   subscribe(listenerId, onNotice, onOpen) {
-    const stop = new AbortController();
-    void followEventStream({
-      url: '/api/events',
-      headers: () => ({ 'X-Bardic-Listener': listenerId, 'X-Bardic-Device': deviceId() }),
-      signal: stop.signal,
-      onopen: () => onOpen?.(),
-      onmessage: (msg) => {
-        try {
-          const n = JSON.parse(msg.data) as Notice;
-          if (n && typeof n.type === 'string') onNotice(n);
-        } catch {
-          /* not a notice */
-        }
+    return subscribeSharedEvents(
+      listenerId,
+      {
+        onopen: () => onOpen?.(),
+        onmessage: (msg) => {
+          try {
+            const n = JSON.parse(msg.data) as Notice;
+            if (n && typeof n.type === 'string') onNotice(n);
+          } catch {
+            /* not a notice */
+          }
+        },
       },
-    });
-    return () => stop.abort();
+      { headers: () => ({ 'X-Bardic-Listener': listenerId, 'X-Bardic-Device': deviceId() }) },
+    );
   },
 };

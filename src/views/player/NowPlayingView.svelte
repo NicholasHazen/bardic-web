@@ -6,6 +6,7 @@
   import type { Palette } from '../../theme/derive';
   import type { Mode, NeedsYou, ReaderAppearance } from '../../player/types';
   import { TABLET_GLOWS } from '../shell/TabletShell.svelte';
+  import DownloadRing from '../offline/DownloadRing.svelte';
   import ControlsSheet from './ControlsSheet.svelte';
   import Glyph from './Glyph.svelte';
   import ListenPanel from './ListenPanel.svelte';
@@ -51,11 +52,15 @@
     oncollapse?: () => void;
     /** "Choose what to do" in the Needs you state; receives the state's own action */
     onneedsyou?: (action: NeedsYou['action']) => void;
+    /** A download is running in the background: the small progress ring beside the reader controls (Read, phone and tablet portrait). */
+    download?: { fraction: number | null; label: string } | null;
+    /** The ring opens the downloads. */
+    onopendownloads?: () => void;
   }
   let {
     state, appearance, layout, byline, markedLineIds = [], palette, glows, following = $bindable(true), controlsOpen = $bindable(false),
     now, ontoggle, onskip, onseek, onnext, onprevious, ongotoline, onsetmode, onopenSpeed, onopenSleep, onopenChapters, onopenVoice,
-    onopenAppearance, onopensearch, onmore, oncollapse, onneedsyou,
+    onopenAppearance, onopensearch, onmore, oncollapse, onneedsyou, download = null, onopendownloads,
   }: Props = $props();
 
   const PORTRAIT_GLOWS: Glow[] = [
@@ -149,6 +154,9 @@
           {:else}
             <IconButton label="More" icon="more" onclick={onmore} />
           {/if}
+          {#if state.mode === 'read' && download}
+            <DownloadRing fraction={download.fraction} label={download.label} onclick={onopendownloads} style="position: absolute; left: calc(50% + 89px); top: 14px" />
+          {/if}
         </div>
         {#if state.mode === 'listen'}
           <ListenPanel {state} {layout} {byline} {now} {ontoggle} {onskip} {onseek} {onnext} {onprevious} {onopenSpeed} {onopenSleep} {onopenChapters} {onopenVoice} {onneedsyou} />
@@ -172,7 +180,7 @@
   .dimmer { position: absolute; inset: 0; background: rgba(10, 8, 16, 0.35); }
   .layer { position: relative; height: 100%; }
   .column { display: flex; flex-direction: column; height: 100%; }
-  .bar { display: flex; align-items: center; }
+  .bar { position: relative; display: flex; align-items: center; }
   .bar.one { padding: 14px 20px 0; }
   .mid { flex: 1; display: flex; justify-content: center; }
   .landscape { display: flex; align-items: stretch; height: 100%; }

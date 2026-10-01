@@ -5,7 +5,7 @@ import { derived, writable, type Readable } from 'svelte/store';
 import { api } from '../api/client';
 import type { components } from '../api/schema';
 import { deviceId } from '../lib/device';
-import { followEventStream } from '../lib/sse';
+import { subscribeSharedEvents } from '../lib/sse';
 import { hslToHex } from '../theme/derive';
 import type { BookCardModel, ContinueModel, LibraryFilter, LibrarySort, ManageBookModel, SeriesModel } from '../views/library/types';
 
@@ -353,40 +353,39 @@ export function noticeConcerns(notice: { type?: string; listener_id?: string | n
   return !notice.listener_id || notice.listener_id === listenerId;
 }
 
+let stopFollowing: (() => void) | undefined;
 let subscribers = 0;
-let stop: AbortController | undefined;
 
 /**
- * Follow /api/events and reload the lists on library notices. Reference counted: the first caller opens
- * the stream, the last disposer closes it. Without the stream the screens still work; they just reload on
- * navigation.
+ * Follow /api/events and reload the lists on library notices, through the one stream shared by the whole page.
+ * Reference counted. Without the stream the screens still work; they just reload on navigation.
  */
 export function followLibraryEvents(listenerId: string): () => void {
   subscribers++;
   if (subscribers === 1) {
-    stop = new AbortController();
-    void followEventStream({
-      url: '/api/events',
-      headers: () => ({ 'X-Bardic-Listener': listenerId, 'X-Bardic-Device': deviceId() }),
-      signal: stop.signal,
-      onopen: () => {
-        for (const l of [libraryList, homeList, manageList]) l.refreshSoon(0);
+    stopFollowing = subscribeSharedEvents(
+      listenerId,
+      {
+        onopen: () => {
+          for (const l of [libraryList, homeList, manageList]) l.refreshSoon(0);
+        },
+        onmessage: (msg) => {
+          try {
+            const notice = JSON.parse(msg.data) as { type?: string; listener_id?: string | null };
+            if (noticeConcerns(notice, listenerId)) for (const l of [libraryList, homeList, manageList]) l.refreshSoon();
+          } catch {
+            /* not a notice */
+          }
+        },
       },
-      onmessage: (msg) => {
-        try {
-          const notice = JSON.parse(msg.data) as { type?: string; listener_id?: string | null };
-          if (noticeConcerns(notice, listenerId)) for (const l of [libraryList, homeList, manageList]) l.refreshSoon();
-        } catch {
-          /* not a notice */
-        }
-      },
-    });
+      { headers: () => ({ 'X-Bardic-Listener': listenerId, 'X-Bardic-Device': deviceId() }) },
+    );
   }
   return () => {
     subscribers--;
     if (subscribers === 0) {
-      stop?.abort();
-      stop = undefined;
+      stopFollowing?.();
+      stopFollowing = undefined;
     }
   };
 }

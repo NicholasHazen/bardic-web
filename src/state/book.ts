@@ -34,7 +34,7 @@ import {
   type ScopeBody,
 } from '../lib/bookAudio';
 import { deviceId } from '../lib/device';
-import { followEventStream } from '../lib/sse';
+import { subscribeSharedEvents } from '../lib/sse';
 import { coverColor, realCoverUrl } from './library';
 import type { AudiobookCardModel, BookHeaderModel, ChaptersModel, MakeSheetModel, OtherAudiobookModel } from '../views/book/types';
 
@@ -548,22 +548,21 @@ export const bookStore = new BookStore();
  * Returns the function that stops following.
  */
 export function followBookEvents(store: BookStore, listenerId: string, bookId: string, onnotice?: (notice: { type?: string }) => void): () => void {
-  const stop = new AbortController();
-  void followEventStream({
-    url: '/api/events',
-    headers: () => ({ 'X-Bardic-Listener': listenerId, 'X-Bardic-Device': deviceId() }),
-    signal: stop.signal,
-    onopen: () => store.refreshSoon('all', 0),
-    onmessage: (msg) => {
-      try {
-        const notice = JSON.parse(msg.data);
-        onnotice?.(notice);
-        const kind = noticeNeeds(notice, bookId, listenerId);
-        if (kind) store.refreshSoon(kind);
-      } catch {
-        /* not a notice */
-      }
+  return subscribeSharedEvents(
+    listenerId,
+    {
+      onopen: () => store.refreshSoon('all', 0),
+      onmessage: (msg) => {
+        try {
+          const notice = JSON.parse(msg.data);
+          onnotice?.(notice);
+          const kind = noticeNeeds(notice, bookId, listenerId);
+          if (kind) store.refreshSoon(kind);
+        } catch {
+          /* not a notice */
+        }
+      },
     },
-  });
-  return () => stop.abort();
+    { headers: () => ({ 'X-Bardic-Listener': listenerId, 'X-Bardic-Device': deviceId() }) },
+  );
 }
