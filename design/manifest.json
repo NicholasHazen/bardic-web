@@ -1,0 +1,453 @@
+{
+ "Overview": {
+  "title": "Bardic v2 · overview",
+  "w": 1280,
+  "h": 930,
+  "milestone": "reference"
+ },
+ "Vocab": {
+  "title": "Words and promises",
+  "w": 1280,
+  "h": 840,
+  "milestone": "reference"
+ },
+ "Main": {
+  "title": "Foundations",
+  "w": 1280,
+  "h": 1180,
+  "milestone": "reference"
+ },
+ "Components": {
+  "title": "Base components",
+  "w": 1280,
+  "h": 1120,
+  "milestone": "W0"
+ },
+ "B1Palette": {
+  "title": "Palette from the cover",
+  "w": 1280,
+  "h": 720,
+  "milestone": "W0",
+  "route": "#/board/B1Palette"
+ },
+ "FirstListener": {
+  "title": "Welcome · first listener",
+  "w": 390,
+  "h": 844,
+  "milestone": "W1"
+ },
+ "PickerFirstRun": {
+  "title": "Who is listening · choose",
+  "w": 390,
+  "h": 844,
+  "milestone": "W1"
+ },
+ "SwitchListener": {
+  "title": "Switch listener · phone",
+  "w": 390,
+  "h": 844,
+  "milestone": "W1"
+ },
+ "PickerManage": {
+  "title": "Settings · Listeners",
+  "w": 390,
+  "h": 844,
+  "milestone": "W1"
+ },
+ "PickerAdd": {
+  "title": "Add a listener",
+  "w": 390,
+  "h": 844,
+  "milestone": "W1"
+ },
+ "PickerNameTaken": {
+  "title": "Edit · name taken",
+  "w": 390,
+  "h": 844,
+  "milestone": "W1"
+ },
+ "PickerDelete": {
+  "title": "Delete a listener",
+  "w": 390,
+  "h": 844,
+  "milestone": "W1"
+ },
+ "PickerOnlyOne": {
+  "title": "Edit · only listener",
+  "w": 390,
+  "h": 844,
+  "milestone": "W1"
+ },
+ "SwitchTablet": {
+  "title": "Switch listener · tablet landscape",
+  "w": 1194,
+  "h": 834,
+  "milestone": "W1"
+ },
+ "HomeEmpty": {
+  "title": "Home · first run",
+  "w": 390,
+  "h": 844,
+  "milestone": "W1"
+ },
+ "Home": {
+  "title": "Home · phone",
+  "w": 390,
+  "h": 844,
+  "milestone": "W1"
+ },
+ "HomeOffline": {
+  "title": "Home · away from home",
+  "w": 390,
+  "h": 844,
+  "milestone": "W5"
+ },
+ "HomeTablet": {
+  "title": "Home · tablet landscape",
+  "w": 1194,
+  "h": 834,
+  "milestone": "W1"
+ },
+ "Library": {
+  "title": "Library · phone",
+  "w": 390,
+  "h": 844,
+  "milestone": "W1"
+ },
+ "LibraryDuplicate": {
+  "title": "Already in your library",
+  "w": 390,
+  "h": 844,
+  "milestone": "W1"
+ },
+ "LibraryTablet": {
+  "title": "Library · tablet landscape",
+  "w": 1194,
+  "h": 834,
+  "milestone": "W1"
+ },
+ "Import": {
+  "title": "Add a book · states",
+  "w": 1780,
+  "h": 700,
+  "milestone": "W1"
+ },
+ "Manage": {
+  "title": "Edit books · phone",
+  "w": 390,
+  "h": 844,
+  "milestone": "W1"
+ },
+ "BookTop": {
+  "title": "Book page · phone",
+  "w": 390,
+  "h": 844,
+  "milestone": "W2"
+ },
+ "BookChapters": {
+  "title": "Book page, scrolled · phone",
+  "w": 390,
+  "h": 844,
+  "milestone": "W2"
+ },
+ "BookRunning": {
+  "title": "Book page · making ready",
+  "w": 390,
+  "h": 844,
+  "milestone": "W2"
+ },
+ "BookTablet": {
+  "title": "Book page · tablet landscape",
+  "w": 1194,
+  "h": 834,
+  "milestone": "W2"
+ },
+ "VoiceFree": {
+  "title": "Choose a voice · free",
+  "w": 390,
+  "h": 844,
+  "milestone": "W2"
+ },
+ "VoicePremium": {
+  "title": "Choose a voice · premium",
+  "w": 390,
+  "h": 844,
+  "milestone": "W2"
+ },
+ "VoiceNoAccount": {
+  "title": "Premium · no account yet",
+  "w": 390,
+  "h": 844,
+  "milestone": "W2"
+ },
+ "PlanFree": {
+  "title": "Make it ready · free",
+  "w": 390,
+  "h": 844,
+  "milestone": "W2"
+ },
+ "PlanPremium": {
+  "title": "Make it ready · premium plan",
+  "w": 390,
+  "h": 844,
+  "milestone": "W4"
+ },
+ "PlanPaused": {
+  "title": "Making ready · paused at a limit",
+  "w": 390,
+  "h": 844,
+  "milestone": "W4"
+ },
+ "DownloadSheet": {
+  "title": "Download to this device",
+  "w": 390,
+  "h": 844,
+  "milestone": "W5"
+ },
+ "Downloads": {
+  "title": "Downloads",
+  "w": 390,
+  "h": 844,
+  "milestone": "W5"
+ },
+ "ServerOffline": {
+  "title": "Away from home · server unreachable",
+  "w": 390,
+  "h": 844,
+  "milestone": "W5"
+ },
+ "B1Listen": {
+  "title": "Now playing, Listen · phone",
+  "w": 390,
+  "h": 844,
+  "milestone": "W3"
+ },
+ "B1Read": {
+  "title": "Now playing, Read · phone",
+  "w": 390,
+  "h": 844,
+  "milestone": "W3"
+ },
+ "B1ReadControls": {
+  "title": "Read, controls revealed · phone",
+  "w": 390,
+  "h": 844,
+  "milestone": "W3"
+ },
+ "BarExpanded": {
+  "title": "Now playing bar, expanded · phone",
+  "w": 390,
+  "h": 844,
+  "milestone": "W3"
+ },
+ "B1Tablet": {
+  "title": "Now playing · tablet landscape",
+  "w": 1194,
+  "h": 834,
+  "milestone": "W3"
+ },
+ "B1TabletListen": {
+  "title": "Now playing, Listen · tablet portrait",
+  "w": 834,
+  "h": 1194,
+  "milestone": "W3"
+ },
+ "B1TabletRead": {
+  "title": "Now playing, Read · tablet portrait",
+  "w": 834,
+  "h": 1194,
+  "milestone": "W3"
+ },
+ "Status": {
+  "title": "Listening states",
+  "w": 1280,
+  "h": 680,
+  "milestone": "reference"
+ },
+ "ReaderAppearance": {
+  "title": "Reader appearance · phone",
+  "w": 390,
+  "h": 844,
+  "milestone": "W3"
+ },
+ "SleepTimer": {
+  "title": "Sleep timer · phone",
+  "w": 390,
+  "h": 844,
+  "milestone": "W3"
+ },
+ "ChaptersSheet": {
+  "title": "Chapters · phone",
+  "w": 390,
+  "h": 844,
+  "milestone": "W3"
+ },
+ "SpeedSheet": {
+  "title": "Playback speed · phone",
+  "w": 390,
+  "h": 844,
+  "milestone": "W3"
+ },
+ "BookSearch": {
+  "title": "Find in book",
+  "w": 390,
+  "h": 844,
+  "milestone": "W3"
+ },
+ "ReadAway": {
+  "title": "Read · scrolled away",
+  "w": 390,
+  "h": 844,
+  "milestone": "W3"
+ },
+ "ReaderAppearanceTablet": {
+  "title": "Reader appearance · tablet landscape",
+  "w": 1194,
+  "h": 834,
+  "milestone": "W3"
+ },
+ "Settings": {
+  "title": "Settings · phone",
+  "w": 390,
+  "h": 844,
+  "milestone": "W2"
+ },
+ "VoiceSources": {
+  "title": "Voices",
+  "w": 390,
+  "h": 844,
+  "milestone": "W2"
+ },
+ "PremiumAccount": {
+  "title": "Premium voices · account",
+  "w": 390,
+  "h": 844,
+  "milestone": "W4"
+ },
+ "Allowance": {
+  "title": "Allowance · no limit",
+  "w": 390,
+  "h": 844,
+  "milestone": "W4"
+ },
+ "AllowanceLimit": {
+  "title": "Allowance · with a limit",
+  "w": 390,
+  "h": 844,
+  "milestone": "W4"
+ },
+ "BreezeServer": {
+  "title": "Breeze server",
+  "w": 390,
+  "h": 844,
+  "milestone": "W2"
+ },
+ "ServerName": {
+  "title": "About this Bardic",
+  "w": 390,
+  "h": 844,
+  "milestone": "W6"
+ },
+ "FirstPlay": {
+  "title": "First play · getting ready",
+  "w": 390,
+  "h": 844,
+  "milestone": "W3"
+ },
+ "NoVoice": {
+  "title": "First play · no voice set up",
+  "w": 390,
+  "h": 844,
+  "milestone": "W3"
+ },
+ "BookMenu": {
+  "title": "Book menu",
+  "w": 390,
+  "h": 844,
+  "milestone": "W6"
+ },
+ "DownloadProgress": {
+  "title": "Downloading · failed · out of date",
+  "w": 390,
+  "h": 844,
+  "milestone": "W5"
+ },
+ "PlanBlocked": {
+  "title": "Plan would pass the Allowance",
+  "w": 390,
+  "h": 844,
+  "milestone": "W4"
+ },
+ "KeyProblem": {
+  "title": "Premium key rejected",
+  "w": 390,
+  "h": 844,
+  "milestone": "W4"
+ },
+ "PlaceConflict": {
+  "title": "Two places · choose one",
+  "w": 390,
+  "h": 844,
+  "milestone": "W3"
+ },
+ "UpdateAudio": {
+  "title": "Newer audio · what changed",
+  "w": 390,
+  "h": 844,
+  "milestone": "W5"
+ },
+ "VoiceDefault": {
+  "title": "Settings · default voice",
+  "w": 390,
+  "h": 844,
+  "milestone": "W2"
+ },
+ "EstimateExplained": {
+  "title": "How an estimate works",
+  "w": 390,
+  "h": 844,
+  "milestone": "W4"
+ },
+ "SetupVoice": {
+  "title": "First time · set up a voice",
+  "w": 390,
+  "h": 844,
+  "milestone": "W2"
+ },
+ "DeleteConfirm": {
+  "title": "Delete permanently",
+  "w": 390,
+  "h": 844,
+  "milestone": "W6"
+ },
+ "DeleteUndo": {
+  "title": "Deleting · undo for 60 s",
+  "w": 390,
+  "h": 844,
+  "milestone": "W6"
+ },
+ "EndOfBook": {
+  "title": "End of book",
+  "w": 390,
+  "h": 844,
+  "milestone": "W3"
+ },
+ "FreeSpace": {
+  "title": "Free up space",
+  "w": 390,
+  "h": 844,
+  "milestone": "W6"
+ },
+ "SearchEmpty": {
+  "title": "Search · no results",
+  "w": 390,
+  "h": 844,
+  "milestone": "W3"
+ },
+ "ReadDownloading": {
+  "title": "Read · downloading in the background",
+  "w": 390,
+  "h": 844,
+  "milestone": "W5"
+ }
+}

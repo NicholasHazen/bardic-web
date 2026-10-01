@@ -6,3 +6,5 @@ coverage/
 .env
 .DS_Store
 src/api/schema.d.ts
+design/refs/
+design/report/

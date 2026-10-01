@@ -1,0 +1,18 @@
+/* Design tokens (docs/UI-GUIDE.md). Box sizing is the browser default, as in the canvas: components say border-box where the design does. */
+:root {
+  --ink: #f5f1ea;
+  --muted: #d0cade;
+  --base: #1a0e0c;
+  --glow: #e65233;
+  --glow2: #dbbd24;
+  --accent: #f68f79;
+  --font-ui: 'Bricolage Grotesque', -apple-system, sans-serif;
+  --font-book: 'Newsreader', Georgia, serif;
+  --edge: rgba(255, 255, 255, 0.18);
+  --glass-control: rgba(255, 255, 255, 0.09);
+  --r-card: 20px;
+  --r-sheet: 32px;
+  --r-row: 12px;
+}
+html, body { margin: 0; background: var(--base); color: var(--ink); font-family: var(--font-ui); }
+button { font: inherit; color: inherit; }

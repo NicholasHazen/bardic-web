@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Bardic server API
-  version: 0.1.0
+  version: 0.3.2
   summary: Contract between the Bardic server and its clients (draft).
   description: |
     Normative, language-neutral contract for Bardic v2. It is derived from
@@ -40,6 +40,8 @@ paths:
       description: Returns 200 when the server can take requests. Needs no headers.
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Server is up.
           content:
@@ -52,6 +54,8 @@ paths:
       summary: Server identity and capabilities
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The server.
           content:
@@ -74,6 +78,7 @@ paths:
               properties:
                 name: {type: string, minLength: 1, maxLength: 60}
       responses:
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The updated server.
           content:
@@ -89,7 +94,8 @@ paths:
         A long-lived `text/event-stream`. Each event is a `Notice` carrying ids
         only; clients re-read the resource. Supports `Last-Event-ID` to resume;
         if the server cannot replay from that id it sends a `resync` notice and
-        clients reload what they show.
+        clients reload what they show. At most 64 streams are open at once; the
+        next is refused with 429 `too_many_streams` until one closes.
       x-bardic-cost: none
       parameters:
         - {$ref: '#/components/parameters/Listener'}
@@ -98,6 +104,10 @@ paths:
           required: false
           schema: {type: string}
       responses:
+        '404': {$ref: '#/components/responses/NotFound'}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Event stream.
           content:
@@ -111,6 +121,8 @@ paths:
       description: Devices register themselves on first request that carries `X-Bardic-Device`.
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Devices, most recently seen first.
           content:
@@ -123,6 +135,7 @@ paths:
       tags: [System]
       summary: Name a device
       x-bardic-cost: none
+      parameters: [{$ref: '#/components/parameters/Device'}]
       requestBody:
         required: true
         content:
@@ -133,6 +146,8 @@ paths:
               properties:
                 name: {type: string, minLength: 1, maxLength: 60}
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The device.
           content:
@@ -149,6 +164,8 @@ paths:
       description: Ordered by name. Includes `last_listened_at` so pickers can show recency.
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Listeners.
           content:
@@ -169,6 +186,7 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/ListenerInput'}
       responses:
+        '500': {$ref: '#/components/responses/ServerError'}
         '201':
           description: The new listener.
           content:
@@ -184,6 +202,8 @@ paths:
       summary: Get a listener
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The listener.
           content:
@@ -203,6 +223,7 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/ListenerInput'}
       responses:
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The listener.
           content:
@@ -222,6 +243,8 @@ paths:
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Device'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '204': {description: "Deleted."}
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
@@ -234,6 +257,8 @@ paths:
       description: Used by the delete confirmation ("6 books started").
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Counts.
           content:
@@ -254,6 +279,8 @@ paths:
       summary: Get a listener's settings
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Settings.
           content:
@@ -276,6 +303,7 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/ListenerSettings'}
       responses:
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Settings.
           content:
@@ -308,6 +336,8 @@ paths:
         - {$ref: '#/components/parameters/Limit'}
         - {$ref: '#/components/parameters/After'}
       responses:
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: A page of books.
           content:
@@ -328,6 +358,7 @@ paths:
         - {name: title, in: query, schema: {type: string}}
         - {name: author, in: query, schema: {type: string}}
       responses:
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Matches.
           content:
@@ -362,6 +393,7 @@ paths:
               properties:
                 file: {type: string, format: binary}
       responses:
+        '500': {$ref: '#/components/responses/ServerError'}
         '202':
           description: Accepted.
           content:
@@ -377,6 +409,8 @@ paths:
       summary: Read an import
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The import.
           content:
@@ -389,7 +423,10 @@ paths:
       summary: Cancel an import in progress
       description: No effect, and 204, when it already finished.
       x-bardic-cost: none
+      parameters: [{$ref: '#/components/parameters/Device'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '204': {description: "Cancelled or already finished."}
         '404': {$ref: '#/components/responses/NotFound'}
   /api/books/sample:
@@ -401,6 +438,8 @@ paths:
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Device'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '201':
           description: The book.
           content:
@@ -415,6 +454,8 @@ paths:
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Listener'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The book.
           content:
@@ -427,13 +468,14 @@ paths:
       summary: Edit title, author or series
       description: "Never changes text. Errors: `book_removed` (409)."
       x-bardic-cost: none
-      parameters: [{$ref: '#/components/parameters/Device'}]
+      parameters: [{$ref: '#/components/parameters/Device'}, {$ref: '#/components/parameters/ListenerOptional'}]
       requestBody:
         required: true
         content:
           application/json:
             schema: {$ref: '#/components/schemas/BookUpdate'}
       responses:
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The book.
           content:
@@ -453,6 +495,8 @@ paths:
         immutable and cacheable forever. 404 when the book has no cover.
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: JPEG thumbnail.
           content:
@@ -466,8 +510,10 @@ paths:
       tags: [Library]
       summary: Re-read the cover from the original file
       x-bardic-cost: none
-      parameters: [{$ref: '#/components/parameters/Device'}]
+      parameters: [{$ref: '#/components/parameters/Device'}, {$ref: '#/components/parameters/ListenerOptional'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The book.
           content:
@@ -482,8 +528,10 @@ paths:
       summary: Remove a book from the library (reversible)
       description: Keeps audio, places and downloads. Idempotent.
       x-bardic-cost: none
-      parameters: [{$ref: '#/components/parameters/Device'}]
+      parameters: [{$ref: '#/components/parameters/Device'}, {$ref: '#/components/parameters/ListenerOptional'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The book, state `removed`.
           content:
@@ -497,8 +545,10 @@ paths:
       tags: [Library]
       summary: Restore a removed book
       x-bardic-cost: none
-      parameters: [{$ref: '#/components/parameters/Device'}]
+      parameters: [{$ref: '#/components/parameters/Device'}, {$ref: '#/components/parameters/ListenerOptional'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The book.
           content:
@@ -513,6 +563,9 @@ paths:
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Listener'}]
       responses:
+        '404': {$ref: '#/components/responses/NotFound'}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Series.
           content:
@@ -532,6 +585,8 @@ paths:
       summary: Chapters of a book, in reading order
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Chapters.
           content:
@@ -559,6 +614,8 @@ paths:
         offline caches.
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Text and lines.
           content:
@@ -574,10 +631,12 @@ paths:
       description: Reads stored text only; sends nothing anywhere.
       x-bardic-cost: none
       parameters:
-        - {name: q, in: query, required: true, schema: {type: string, minLength: 1}}
+        - {name: q, in: query, required: true, schema: {type: string, minLength: 1, maxLength: 200}}
         - {$ref: '#/components/parameters/Limit'}
         - {$ref: '#/components/parameters/After'}
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Matches.
           content:
@@ -597,6 +656,8 @@ paths:
       description: 404 `place_not_found` when the listener never opened the book.
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The place.
           content:
@@ -615,7 +676,7 @@ paths:
         applies the listener's conflict policy (see README) and writes again with
         the server's revision. An identical write changes nothing and returns the
         current place. Queued writes from offline use the same protocol.
-        Other errors: `chapter_not_found`, `offset_out_of_range` (400).
+        Other errors: `chapter_not_found` (404), `offset_out_of_range` (400).
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Device'}]
       requestBody:
@@ -624,6 +685,7 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/PlaceInput'}
       responses:
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The stored place.
           content:
@@ -644,6 +706,9 @@ paths:
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Device'}]
       responses:
+        '404': {$ref: '#/components/responses/NotFound'}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '204': {description: "Cleared."}
   /api/books/{book_id}/place/finished:
     parameters:
@@ -669,6 +734,8 @@ paths:
               properties:
                 finished: {type: boolean}
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The place.
           content:
@@ -689,6 +756,9 @@ paths:
         entry's chapter and offset with `putPlace`.
       x-bardic-cost: none
       responses:
+        '404': {$ref: '#/components/responses/NotFound'}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: History.
           content:
@@ -713,6 +783,8 @@ paths:
         or not. `local` is `unavailable` when the computer has no usable voices.
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Sources.
           content:
@@ -732,6 +804,8 @@ paths:
       summary: Get a source
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The source.
           content:
@@ -743,10 +817,17 @@ paths:
       tags: [Voices]
       summary: Set up or change a source
       description: |
-        `breeze` needs `base_url`. `gemini` needs `api_key` (write-only: never
-        returned; omit to keep the stored key). `local` needs only `enabled`.
-        The server tests the new configuration before storing it and returns
-        `source_unreachable` or `key_rejected` (400) without storing on failure.
+        `breeze` needs `base_url` (a server root: no path, query or credentials)
+        and accepts an optional `api_key`. `gemini` needs `api_key`. A key is
+        write-only: never returned; omit it to keep the stored key, send an empty
+        string to clear it. `local` needs only `enabled`. The server tests the new
+        configuration before storing it and returns `source_unreachable` or
+        `key_rejected` (400) without storing on failure. Only cloned Breeze voices
+        are offered, because a designed voice sounds different on every request.
+        Gemini has no voice-list call: its 30 prebuilt voices are offered once the
+        key is accepted (checked against the free model list). Its voice `revision`
+        changes only when Bardic changes the model it speaks with.
+        Source ids equal their kind.
       x-bardic-cost: network
       parameters: [{$ref: '#/components/parameters/Device'}]
       requestBody:
@@ -755,6 +836,7 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/VoiceSourceConfig'}
       responses:
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The source.
           content:
@@ -770,6 +852,8 @@ paths:
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Device'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '204': {description: "Removed."}
         '404': {$ref: '#/components/responses/NotFound'}
   /api/voice-sources/{source_id}/test:
@@ -780,7 +864,10 @@ paths:
       summary: Check that a source works now
       description: Reads the voice list only. Never speaks, never spends.
       x-bardic-cost: network
+      parameters: [{$ref: '#/components/parameters/Device'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Result; the source state is updated too.
           content:
@@ -798,7 +885,10 @@ paths:
         once a day by the server. If the source is unreachable the last known
         voices stay listed with `available: false`.
       x-bardic-cost: network
+      parameters: [{$ref: '#/components/parameters/Device'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The source.
           content:
@@ -816,6 +906,8 @@ paths:
         - {name: tier, in: query, schema: {$ref: '#/components/schemas/Tier'}}
         - {name: language, in: query, schema: {type: string}}
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Voices.
           content:
@@ -836,12 +928,22 @@ paths:
       description: |
         Free voices cost nothing. A premium sample is a short real request: it
         counts toward spending and is cached per voice revision, so a repeat is
-        free. Errors: `source_not_set_up` (409), `key_rejected` (409),
+        free. Supports `Range` (206). Premium samples arrive with premium audio;
+        until then a Gemini voice answers 409 `source_not_set_up`. A free voice
+        whose server has changed it since the last refresh answers 409
+        `voice_changed`; a busy server answers 429 `rate_limited`. Errors: `source_not_set_up` (409), `key_rejected` (409),
         `provider_quota` (429).
       x-bardic-cost: may_charge
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Audio.
+          content:
+            audio/*:
+              schema: {type: string, format: binary}
+        '206':
+          description: Partial audio (the request had a `Range` header).
           content:
             audio/*:
               schema: {type: string, format: binary}
@@ -858,6 +960,8 @@ paths:
       summary: Audiobooks of a book
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Audiobooks.
           content:
@@ -877,8 +981,11 @@ paths:
       description: |
         Creating an audiobook is free and spends nothing; it makes no audio. For a
         voice at a given revision there is at most one audiobook per book; a repeat
-        returns the existing one (200). Errors: `voice_not_found` (404),
-        `book_removed` (409).
+        returns the existing one (200), even if the voice is unavailable now. The
+        audiobook keeps the voice's name and revision as they were. An audiobook
+        covers every chapter, front and back matter included. Errors:
+        `voice_not_found` (404), `book_removed` (409), `voice_unavailable` (409:
+        the voice's source is not set up or cannot be reached).
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Device'}]
       requestBody:
@@ -891,6 +998,8 @@ paths:
               properties:
                 voice_id: {type: string}
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Existing audiobook.
           content:
@@ -911,6 +1020,8 @@ paths:
       summary: Get an audiobook
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The audiobook.
           content:
@@ -926,6 +1037,8 @@ paths:
       description: One word per chapter (`not_yet`, `making`, `ready`); reasons are details.
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Chapters in reading order.
           content:
@@ -951,7 +1064,9 @@ paths:
         with the chapter at the front of the queue (202). Premium voices: spends
         only if the chapter is covered by an approved, running plan for this
         audiobook; otherwise 409 `plan_required`. Joins an already running job
-        for the same chapter. Errors: `source_not_set_up`, `source_unreachable`,
+        for the same audiobook: the chapter moves to the front and the job
+        becomes urgent (it is served before background jobs). The worker makes
+        one request at a time, because a voice server is one machine's GPU. Errors: `source_not_set_up`, `source_unreachable`,
         `plan_required`, `allowance_exceeded`, `limit_exceeded` (409).
       x-bardic-cost: may_charge
       parameters:
@@ -966,6 +1081,8 @@ paths:
               properties:
                 ahead: {type: integer, minimum: 0, maximum: 5, default: 1, description: "Also queue this many following chapters behind it."}
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Already ready.
           content:
@@ -1002,6 +1119,8 @@ paths:
               properties:
                 scope: {$ref: '#/components/schemas/Scope'}
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '202':
           description: Job started or joined.
           content:
@@ -1018,6 +1137,8 @@ paths:
       description: Drives the free-up-space sheet. Read-only.
       x-bardic-cost: network
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Usage.
           content:
@@ -1031,10 +1152,15 @@ paths:
       description: |
         Deletes audio on the server; keeps the book, places, plans, audit and
         downloads on devices. Returns the freed bytes. Refuses while a job is
-        running for it (409 `job_running`).
+        running for it (409 `job_running`). The records of the freed audio (size,
+        revision, duration) are kept, so `checkDownloads` can still describe a
+        copy a device holds. For a premium voice, see `getAudiobookSpace` for what
+        making it again costs.
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Device'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Result.
           content:
@@ -1058,6 +1184,8 @@ paths:
         ETag is the id.
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Whole audio.
           content:
@@ -1079,6 +1207,8 @@ paths:
       description: Drives read-along highlighting. Immutable like the audio.
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Timings.
           content:
@@ -1098,9 +1228,13 @@ paths:
         and an `estimate_id` valid for 15 minutes. Refreshes provider prices if
         they are stale. Spends nothing. When a monthly limit is set and the low
         end exceeds what is left, `blocked` explains and the plan cannot be
-        approved. Errors: `source_not_set_up`, `key_rejected` (409).
+        approved. The range is the likely cost from the price table (per million
+        characters of text spoken) with the low end at 75% and the high end at 140%
+        of it, covering how fast a voice speaks; it is an assumption, not a quote.
+        Only premium audiobooks take a plan. Errors (409): `plan_not_needed` (a
+        free voice), `source_not_set_up`, `key_rejected`.
       x-bardic-cost: network
-      parameters: [{$ref: '#/components/parameters/Listener'}]
+      parameters: [{$ref: '#/components/parameters/Listener'}, {$ref: '#/components/parameters/Device'}]
       requestBody:
         required: true
         content:
@@ -1111,6 +1245,8 @@ paths:
               properties:
                 scope: {$ref: '#/components/schemas/Scope'}
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The estimate.
           content:
@@ -1131,6 +1267,8 @@ paths:
         - {$ref: '#/components/parameters/Limit'}
         - {$ref: '#/components/parameters/After'}
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: A page of plans, newest first.
           content:
@@ -1143,10 +1281,30 @@ paths:
       description: |
         The approval. Needs the `estimate_id` from `previewPlan` and the `limit`
         the listener accepted, so what was shown is what is approved. Creates a
-        plan and its job. Errors (409): `estimate_expired`, `estimate_changed`
-        (prices moved past the stated range; preview again),
-        `allowance_exceeded`, `limit_below_estimate`, `key_rejected`,
-        `source_not_set_up`. Records listener and device.
+        plan and its job. An estimate can be approved once. The limit must be at
+        least the estimate's likely cost. Errors (409): `estimate_expired`,
+        `estimate_used`, `estimate_changed` (the chapters to make or the prices
+        moved past the stated range; preview again), `allowance_exceeded`,
+        `limit_below_estimate`, `nothing_to_make`, `plan_active` (one plan at a
+        time per audiobook; `context.plan_id` names it), `key_rejected`,
+        `source_not_set_up`. Unknown estimate is 404 `estimate_not_found`.
+        Records listener and device. An `Idempotency-Key` returns the first plan.
+
+        While the plan runs, money is held back before each request at its high
+        estimate, and a request that could pass the plan's limit or the monthly
+        limit is not sent: a chapter is started only if the rest of it fits. If a
+        provider's real cost is higher than the estimate, a limit can still be
+        passed by the cost of the request in flight. A request whose cost cannot be
+        stated (no usage reported, a timeout, a stop mid-request) is counted in
+        `spent.unknown_items`, never as zero. Gemini answering without audio counts
+        as spent and fails that chapter; it is not retried until you resume.
+
+        For the plan's limit and the monthly limit, a request whose cost is
+        unknown still counts at the amount that was held back for it (its high
+        estimate): it may have been billed, so it never makes room to send the
+        same request again. It is shown as an unknown item, not as spent.
+        Stopping a plan takes effect at the next request; one already sent
+        finishes and is kept.
       x-bardic-cost: may_charge
       parameters:
         - {$ref: '#/components/parameters/Listener'}
@@ -1158,6 +1316,7 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/PlanApproval'}
       responses:
+        '500': {$ref: '#/components/responses/ServerError'}
         '201':
           description: The plan, `running`.
           content:
@@ -1174,6 +1333,8 @@ paths:
       summary: Get a plan
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The plan.
           content:
@@ -1186,9 +1347,12 @@ paths:
       operationId: pausePlan
       tags: [Plans]
       summary: Pause at the next chapter boundary
+      description: The chapter being made is finished and kept, because it is already paid for. 409 `job_not_pausable` unless the plan is running or waiting.
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Listener'}, {$ref: '#/components/parameters/Device'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The plan.
           content:
@@ -1218,6 +1382,8 @@ paths:
               properties:
                 new_limit: {$ref: '#/components/schemas/Money'}
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The plan.
           content:
@@ -1235,6 +1401,8 @@ paths:
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Listener'}, {$ref: '#/components/parameters/Device'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The plan, `stopped`.
           content:
@@ -1248,6 +1416,8 @@ paths:
       summary: Allowance and this month's spending
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The allowance.
           content:
@@ -1270,6 +1440,8 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/AllowanceInput'}
       responses:
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The allowance.
           content:
@@ -1283,6 +1455,8 @@ paths:
       summary: Prices the server is using, with their dates
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Prices.
           content:
@@ -1302,9 +1476,15 @@ paths:
         Reads the provider's price interface (for Google, the Cloud Billing
         Catalog) and stores the result with its date. Also runs daily and
         whenever usage is fetched. A failure keeps the last prices and reports
-        their age in `Price.refresh_error`.
+        the reason in `Price.refresh_error`. No provider interface is connected
+        yet: every price is the manual table (`basis: manual`, seeded with a dated
+        list price for Gemini speech) and says so in `refresh_error`.
+        Prices are per `million_characters` of text spoken.
       x-bardic-cost: network
+      parameters: [{$ref: '#/components/parameters/Device'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Prices.
           content:
@@ -1334,6 +1514,8 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/PriceTable'}
       responses:
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The price.
           content:
@@ -1356,6 +1538,8 @@ paths:
         - {$ref: '#/components/parameters/Limit'}
         - {$ref: '#/components/parameters/After'}
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: A page of jobs, newest first.
           content:
@@ -1369,6 +1553,8 @@ paths:
       summary: Get a job
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The job.
           content:
@@ -1381,10 +1567,15 @@ paths:
       operationId: pauseJob
       tags: [Jobs]
       summary: Pause a free-voice job
-      description: A job belonging to a plan is paused with `pausePlan` (409 otherwise).
+      description: |
+        A job belonging to a plan is paused with `pausePlan` (409 `job_not_pausable`
+        otherwise, also for a finished job). The request in flight is dropped, so
+        the chapter it was making is started again on resume.
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Device'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The job.
           content:
@@ -1401,6 +1592,8 @@ paths:
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Device'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The job.
           content:
@@ -1418,6 +1611,8 @@ paths:
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Device'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The job.
           content:
@@ -1438,6 +1633,8 @@ paths:
         `getChapterText` for the chapters they choose.
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Manifest.
           content:
@@ -1452,9 +1649,14 @@ paths:
       summary: Which downloaded chapters are out of date
       description: |
         The device sends what it holds. For every chapter whose audio has been
-        made again, the response says what changed, so the client can show the
+        made again (later, by the same voice, in this or a newer audiobook of the
+        book), the response says what changed, so the client can show the
         comparison and let the listener decide. Read-only; nothing is replaced.
+        A held copy whose server copy was only freed, or that this server has
+        never heard of, is listed as up to date: a kept copy keeps playing.
+        404 `chapter_not_found` for a chapter of another book.
       x-bardic-cost: none
+      parameters: [{$ref: '#/components/parameters/Device'}]
       requestBody:
         required: true
         content:
@@ -1472,6 +1674,8 @@ paths:
                       chapter_id: {type: string}
                       audio_id: {type: string}
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Result.
           content:
@@ -1489,6 +1693,8 @@ paths:
       description: 404 `deletion_not_found` when none is scheduled.
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The schedule.
           content:
@@ -1502,8 +1708,10 @@ paths:
       description: |
         Hides the book immediately and schedules irreversible deletion of the
         book, its audio, places, history and plans `delay_seconds` later (default
-        and minimum 60). The schedule is stored and survives restarts. Cancel with
-        `cancelBookDeletion`. Audited.
+        and minimum 60, at most 7 days). The schedule is stored and survives
+        restarts. Cancel with `cancelBookDeletion`. Audited. The spending ledger
+        and the audit log are kept. Errors (409): `job_running` (audio is being
+        made for the book), `deletion_pending`, `book_adding`.
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Listener'}, {$ref: '#/components/parameters/Device'}]
       requestBody:
@@ -1515,6 +1723,8 @@ paths:
               properties:
                 delay_seconds: {type: integer, minimum: 60, default: 60}
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '202':
           description: Scheduled.
           content:
@@ -1530,6 +1740,8 @@ paths:
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Listener'}, {$ref: '#/components/parameters/Device'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '204': {description: "Cancelled."}
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
@@ -1541,7 +1753,13 @@ paths:
       summary: Export an audiobook as one audio file with chapters
       description: |
         Starts a job that encodes the ready chapters into one M4B with chapter
-        markers. Refuses if no chapter is ready (409 `nothing_ready`).
+        markers, using `ffmpeg` on the Bardic computer. Chapters not made yet are
+        left out. Errors (409): `nothing_ready`, `encoder_missing` (no ffmpeg).
+        A failed export has job state `failed` with `needs_you.code`
+        `export_failed`. One export per audiobook runs at a time (asking again
+        returns the one under way) and the computer encodes one at a time.
+        `downloadExport` is 409 `export_not_ready` until the
+        export is `ready`, and supports `Range`.
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Device'}]
       requestBody:
@@ -1553,6 +1771,8 @@ paths:
               properties:
                 format: {type: string, enum: [m4b], default: m4b}
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '202':
           description: The export.
           content:
@@ -1569,6 +1789,8 @@ paths:
       summary: Read an export
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The export.
           content:
@@ -1584,8 +1806,15 @@ paths:
       summary: Download the exported file
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: The file.
+          content:
+            audio/mp4:
+              schema: {type: string, format: binary}
+        '206':
+          description: Partial file (the request had a `Range` header).
           content:
             audio/mp4:
               schema: {type: string, format: binary}
@@ -1598,6 +1827,8 @@ paths:
       summary: Backups made by this server
       x-bardic-cost: none
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: Backups.
           content:
@@ -1614,12 +1845,20 @@ paths:
       tags: [Admin]
       summary: Make a consistent backup while running
       description: |
-        Writes a point-in-time copy of the database and audio index to the
-        server's backup folder. Audio files are immutable and referenced, not
-        copied twice. Returns a job-like `Backup`.
+        Writes a point-in-time copy of the database (one consistent snapshot) to
+        `backups/<id>/bardic.db` in the data folder, and links the original books
+        and the finished audio into `backups/<id>/media/`. Media files are
+        immutable, so they are hard links (a copy where the filesystem cannot
+        link), not second copies. The backup is a folder on the same computer: copy
+        it elsewhere to survive a lost disk. Returns a job-like `Backup`; poll
+        `listBackups` for `done`. The copy of the database does not contain API
+        keys (enter them again after a restore). Only one backup runs at a time; asking again
+        returns the one under way.
       x-bardic-cost: none
       parameters: [{$ref: '#/components/parameters/Device'}]
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '202':
           description: Started.
           content:
@@ -1640,6 +1879,8 @@ paths:
         - {$ref: '#/components/parameters/Limit'}
         - {$ref: '#/components/parameters/After'}
       responses:
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '500': {$ref: '#/components/responses/ServerError'}
         '200':
           description: A page of records, newest first.
           content:
@@ -1653,6 +1894,12 @@ components:
       in: header
       required: true
       description: Id of the listener acting. Scopes places and settings; unknown id is 404 `listener_not_found`.
+      schema: {type: string}
+    ListenerOptional:
+      name: X-Bardic-Listener
+      in: header
+      required: false
+      description: "Optional. When sent, the returned `Book.place` is that listener's place summary; without it `place` is null. Unknown id is 404 `listener_not_found`."
       schema: {type: string}
     Device:
       name: X-Bardic-Device
@@ -1700,6 +1947,11 @@ components:
           schema: {$ref: '#/components/schemas/Error'}
     Conflict:
       description: The request conflicts with current state; `code` says how.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    ServerError:
+      description: An unexpected failure on the server. Nothing you need to undo was changed; `retryable` is true.
       content:
         application/json:
           schema: {$ref: '#/components/schemas/Error'}
@@ -1785,7 +2037,8 @@ components:
         A change notice. `type` is an open enumeration; current values:
         `book.updated`, `import.updated`, `place.updated`, `audiobook.updated`,
         `chapter.updated`, `job.updated`, `plan.updated`, `allowance.updated`,
-        `source.updated`, `listener.updated`, `deletion.updated`, `resync`.
+        `source.updated`, `listener.updated`, `deletion.updated`, `server.updated`,
+        `device.updated`, `resync`.
         Only ids are carried; re-read the resource.
       properties:
         type: {type: string}
@@ -2040,12 +2293,16 @@ components:
         audiobook_id: {type: [string, 'null']}
         base_revision: {type: integer, minimum: 0}
     PlaceConflict:
-      allOf:
-        - $ref: '#/components/schemas/Error'
-        - type: object
-          required: [server_place]
-          properties:
-            server_place: {$ref: '#/components/schemas/Place'}
+      type: object
+      description: An `Error` (code `place_conflict`) that also carries the server's place.
+      required: [code, detail, server_place]
+      properties:
+        code: {type: string}
+        detail: {type: string}
+        retryable: {type: boolean}
+        retry_after_seconds: {type: [integer, 'null']}
+        context: {type: object, additionalProperties: true}
+        server_place: {$ref: '#/components/schemas/Place'}
 
     # ---- voices
     VoiceSourceKind: {type: string, enum: [breeze, gemini, local]}
@@ -2063,7 +2320,7 @@ components:
         checked_at: {type: [string, 'null'], format: date-time}
         detail: {type: [string, 'null'], description: "Safe to show; never contains a key."}
         base_url: {type: [string, 'null'], description: "Breeze only."}
-        has_key: {type: boolean, description: "Gemini only; true when a key is stored."}
+        has_key: {type: boolean, description: "True when a key is stored (Breeze or Gemini)."}
     VoiceSourceConfig:
       type: object
       properties:
@@ -2248,9 +2505,10 @@ components:
     Actor:
       type: object
       required: [listener_id, listener_name, device_id, device_name]
+      description: Who acted. The listener is null when no listener existed or applied (for example renaming the server, or creating the first listener).
       properties:
-        listener_id: {type: string}
-        listener_name: {type: string}
+        listener_id: {type: [string, 'null']}
+        listener_name: {type: [string, 'null']}
         device_id: {type: string}
         device_name: {type: string}
     AllowancePosition:
@@ -2416,7 +2674,7 @@ components:
         state: {type: string, enum: [running, done, failed]}
         created_at: {type: string, format: date-time}
         bytes: {type: [integer, 'null']}
-        path: {type: [string, 'null'], description: "Location on the Bardic computer."}
+        path: {type: [string, 'null'], description: "Location inside the Bardic data folder, e.g. `backups/<id>`."}
     AuditRecord:
       type: object
       required: [id, at, action, actor, target]
