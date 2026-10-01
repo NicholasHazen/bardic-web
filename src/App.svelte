@@ -4,7 +4,9 @@
   import Health from './views/Health.svelte';
   import { ListenerGate, ListenerSwitcher, ListenerManager } from './views/listeners';
   import { HomeScreen, LibraryScreen, ManageScreen, Shell, tabForRoute, isTablet } from './views/library';
-  import SettingsScreen from './views/settings/SettingsScreen.svelte';
+  import { SettingsScreen } from './views/settings';
+  import { VoiceSourcesScreen, BreezeServerScreen, DefaultVoiceScreen } from './views/voices';
+  import { BookScreen } from './views/book';
 
   let switching = $state(false);
   const open = () => (switching = true);
@@ -20,7 +22,10 @@
   <Health />
 {:else}
   <ListenerGate>
-    {#if $route === '/library/manage'}
+    {#if $route.startsWith('/book/')}
+      <!-- draws its own shell: the page takes its palette from the cover -->
+      <BookScreen bookId={$route.slice('/book/'.length)} onswitchlistener={open} />
+    {:else if $route === '/library/manage'}
       <ManageScreen />
     {:else if $route === '/settings/listeners'}
       <ListenerManager onback={() => go('#/settings')} />
@@ -30,6 +35,12 @@
           <LibraryScreen onswitchlistener={open} />
         {:else if $route === '/settings'}
           <SettingsScreen onswitchlistener={open} />
+        {:else if $route === '/settings/voices'}
+          <VoiceSourcesScreen />
+        {:else if $route === '/settings/voices/breeze'}
+          <BreezeServerScreen />
+        {:else if $route === '/settings/voices/default'}
+          <DefaultVoiceScreen />
         {:else}
           <HomeScreen onswitchlistener={open} />
         {/if}

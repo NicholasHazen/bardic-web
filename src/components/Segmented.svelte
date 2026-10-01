@@ -5,7 +5,8 @@
     options: string[];
     value: string;
     label: string;
-    width?: number;
+    /** Pixels, or any CSS width such as '100%'. */
+    width?: number | string;
     onchange?: (value: string) => void;
   }
   let { options, value = $bindable(), label, width = 180, onchange }: Props = $props();
@@ -15,7 +16,7 @@
   }
 </script>
 
-<Glass radius={22} role="radiogroup" aria-label={label} style="width: {width}px; padding: 3px; height: 44px">
+<Glass radius={22} role="radiogroup" aria-label={label} style="width: {typeof width === 'number' ? `${width}px` : width}; padding: 3px; height: 44px">
   <div class="row">
     {#each options as o}
       <button type="button" role="radio" aria-checked={o === value} class:on={o === value} onclick={() => pick(o)}>{o}</button>
