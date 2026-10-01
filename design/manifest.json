@@ -246,43 +246,50 @@
   "title": "Now playing, Listen · phone",
   "w": 390,
   "h": 844,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/B1Listen"
  },
  "B1Read": {
   "title": "Now playing, Read · phone",
   "w": 390,
   "h": 844,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/B1Read"
  },
  "B1ReadControls": {
   "title": "Read, controls revealed · phone",
   "w": 390,
   "h": 844,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/B1ReadControls"
  },
  "BarExpanded": {
   "title": "Now playing bar, expanded · phone",
   "w": 390,
   "h": 844,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/BarExpanded"
  },
  "B1Tablet": {
   "title": "Now playing · tablet landscape",
   "w": 1194,
   "h": 834,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/B1Tablet"
  },
  "B1TabletListen": {
   "title": "Now playing, Listen · tablet portrait",
   "w": 834,
   "h": 1194,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/B1TabletListen"
  },
  "B1TabletRead": {
   "title": "Now playing, Read · tablet portrait",
   "w": 834,
   "h": 1194,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/B1TabletRead"
  },
  "Status": {
   "title": "Listening states",
@@ -294,43 +301,50 @@
   "title": "Reader appearance · phone",
   "w": 390,
   "h": 844,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/ReaderAppearance"
  },
  "SleepTimer": {
   "title": "Sleep timer · phone",
   "w": 390,
   "h": 844,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/SleepTimer"
  },
  "ChaptersSheet": {
   "title": "Chapters · phone",
   "w": 390,
   "h": 844,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/ChaptersSheet"
  },
  "SpeedSheet": {
   "title": "Playback speed · phone",
   "w": 390,
   "h": 844,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/SpeedSheet"
  },
  "BookSearch": {
   "title": "Find in book",
   "w": 390,
   "h": 844,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/BookSearch"
  },
  "ReadAway": {
   "title": "Read · scrolled away",
   "w": 390,
   "h": 844,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/ReadAway"
  },
  "ReaderAppearanceTablet": {
   "title": "Reader appearance · tablet landscape",
   "w": 1194,
   "h": 834,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/ReaderAppearanceTablet"
  },
  "Settings": {
   "title": "Settings · phone",
@@ -381,13 +395,15 @@
   "title": "First play · getting ready",
   "w": 390,
   "h": 844,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/FirstPlay"
  },
  "NoVoice": {
   "title": "First play · no voice set up",
   "w": 390,
   "h": 844,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/NoVoice"
  },
  "BookMenu": {
   "title": "Book menu",
@@ -417,7 +433,8 @@
   "title": "Two places · choose one",
   "w": 390,
   "h": 844,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/PlaceConflict"
  },
  "UpdateAudio": {
   "title": "Newer audio · what changed",
@@ -461,7 +478,8 @@
   "title": "End of book",
   "w": 390,
   "h": 844,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/EndOfBook"
  },
  "FreeSpace": {
   "title": "Free up space",
@@ -473,7 +491,8 @@
   "title": "Search · no results",
   "w": 390,
   "h": 844,
-  "milestone": "W3"
+  "milestone": "W3",
+  "route": "#/board/SearchEmpty"
  },
  "ReadDownloading": {
   "title": "Read · downloading in the background",
