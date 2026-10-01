@@ -11,9 +11,11 @@
     "check": "svelte-check --tsconfig ./tsconfig.json && tsc --noEmit",
     "test": "vitest run",
     "design:refs": "node scripts/design-refs.mjs",
-    "design:check": "node scripts/design-check.mjs"
+    "design:check": "node scripts/design-check.mjs",
+    "e2e": "vite build && playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/node": "^26.6.3",
     "@types/pngjs": "^6.0.5",

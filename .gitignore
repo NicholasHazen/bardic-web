@@ -8,3 +8,5 @@ coverage/
 src/api/schema.d.ts
 design/refs/
 design/report/
+test-results/
+playwright-report/
