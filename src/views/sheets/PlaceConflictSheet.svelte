@@ -38,7 +38,7 @@
   const modeOf = (c: PlaceCardModel) => (c.who === 'theirs' ? conflict.theirs.mode : conflict.mine.mode);
 </script>
 
-<Sheet title="Where to continue?" eyebrow={bookTitle} {placement} {fixed} {onclose}>
+<Sheet title="Where to continue?" eyebrow={bookTitle} {placement} {fixed} scrim={fixed ? 0.6 : undefined} {onclose}>
   <p class="lead">Your place is different on two devices. Nothing is lost; pick the one you want.</p>
   <ul class="cards" aria-label="The two places">
     {#each cards as c (c.who)}

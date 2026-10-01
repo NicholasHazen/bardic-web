@@ -35,7 +35,7 @@
   const left = $derived(timeLeftTitle(timer, at));
 </script>
 
-<Sheet title="Sleep timer" eyebrow="Listen" {placement} {fixed} {onclose}>
+<Sheet title="Sleep timer" eyebrow="Listen" {placement} {fixed} scrim={fixed ? 0.3 : undefined} {onclose}>
   <span class="sub">Counts listening time, not the clock.</span>
   <div class="opts" role="radiogroup" aria-label="Sleep timer">
     {#each SLEEP_OPTIONS as o, i (o.id)}

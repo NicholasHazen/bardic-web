@@ -14,6 +14,11 @@ export interface QueuedWrite {
   queuedAt: number;
   /** grows with every replacement, so an acknowledgement for an older write cannot remove a newer one */
   seq: number;
+  /**
+   * Written right after this one is acknowledged, on the revision it gives. Used when this device's position lost to
+   * another device's place: it is written first (so the server keeps it in history), then the place that was chosen.
+   */
+  after?: Omit<PlaceInput, 'base_revision'>;
 }
 
 const KEY = 'bardic.placequeue';
@@ -70,16 +75,17 @@ export class PlaceQueue {
   }
 
   /** Queue a write, replacing any earlier one for the same book (it keeps its place in the order). */
-  put(listenerId: string, bookId: string, input: PlaceInput, now: number): QueuedWrite {
+  put(listenerId: string, bookId: string, input: PlaceInput, now: number, after?: QueuedWrite['after']): QueuedWrite {
     const items = this.load();
     const old = items.find((e) => same(e, listenerId, bookId));
     if (old) {
       old.input = input;
+      old.after = after;
       old.seq++;
       this.save();
       return old;
     }
-    const e: QueuedWrite = { listenerId, bookId, input, queuedAt: now, seq: 1 };
+    const e: QueuedWrite = { listenerId, bookId, input, queuedAt: now, seq: 1, ...(after ? { after } : {}) };
     items.push(e);
     this.save();
     return e;

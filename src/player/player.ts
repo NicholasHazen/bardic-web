@@ -30,7 +30,7 @@ import {
   previousPlayable,
   progressEstimate,
 } from './rules';
-import { SPEEDS, type LineTiming, type Mode, type NeedsYou, type PlaceConflictInfo, type PlaceSnapshot, type PlayerCommands, type PlayerState, type SleepTimer, type TextLine } from './types';
+import { SPEED_MAX, SPEED_MIN, type LineTiming, type Mode, type NeedsYou, type PlaceConflictInfo, type PlaceSnapshot, type PlayerCommands, type PlayerState, type SleepTimer, type TextLine } from './types';
 
 // --------------------------------------------------------------------------- dependencies
 
@@ -235,7 +235,7 @@ class PlayerImpl {
   private readSpeed(): number {
     try {
       const v = Number(this.d.storage.getItem(SPEED_KEY));
-      return (SPEEDS as readonly number[]).includes(v) ? v : 1;
+      return Number.isFinite(v) && v >= SPEED_MIN && v <= SPEED_MAX ? v : 1;
     } catch {
       return 1;
     }
@@ -687,7 +687,7 @@ class PlayerImpl {
 
   private requestFailed(r: Extract<R<unknown>, { ok: false }>): void {
     const route = this.route();
-    if (r.status === 0) this.needs = needsYou('offline_not_downloaded', 'This chapter is not on this device, and your Bardic computer cannot be reached.', route);
+    if (r.status === 0) this.needs = needsYou('offline', 'This chapter is not on this device, and your Bardic computer cannot be reached.', route);
     else if (r.code === 'plan_required') this.needs = premiumNeeds(route);
     else this.needs = needsFromServer({ code: r.code ?? 'other', text: r.detail }, route);
     this.refreshState();
@@ -1144,7 +1144,7 @@ class PlayerImpl {
   };
 
   setSpeed = (speed: number): void => {
-    const s = (SPEEDS as readonly number[]).reduce((best, v) => (Math.abs(v - speed) < Math.abs(best - speed) ? v : best), 1);
+    const s = Number.isFinite(speed) ? Math.round(clamp(speed, SPEED_MIN, SPEED_MAX) * 100) / 100 : 1;
     this.speed = s;
     try {
       this.d.storage.setItem(SPEED_KEY, String(s));

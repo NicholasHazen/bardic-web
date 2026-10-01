@@ -592,6 +592,7 @@ describe('a premium voice is never asked to make audio', () => {
     h.player.play();
     await h.clock.flush();
     expect(h.st().needsYou!.text).toContain('Premium audio is made under a plan');
+    expect(h.st().needsYou!.code).toBe('premium_plan_required');
   });
 
   it('a free voice keeps the next chapters made ahead', async () => {
@@ -620,7 +621,7 @@ describe('a premium voice is never asked to make audio', () => {
 });
 
 describe('speed', () => {
-  it('is applied, snapped to the list and kept per device', async () => {
+  it('is applied, clamped to 0.75 to 2.5 and kept per device', async () => {
     const h = make();
     await open(h);
     h.player.setSpeed(1.5);
@@ -628,9 +629,12 @@ describe('speed', () => {
     expect(h.el().playbackRate).toBe(1.5);
     expect(h.storage.getItem(SPEED_KEY)).toBe('1.5');
     h.player.setSpeed(1.6);
-    expect(h.st().speed).toBe(1.5);
+    expect(h.st().speed).toBe(1.6);
     h.player.setSpeed(0.2);
     expect(h.st().speed).toBe(0.75);
+    h.player.setSpeed(9);
+    expect(h.st().speed).toBe(2.5);
+    expect(h.el().playbackRate).toBe(2.5);
     h.player.setSpeed(1.75);
     // a new page on this device starts at the speed it had, and the next chapter keeps it
     const again = createPlayer({ ...h.deps, createAudio: new FakeAudioFactory().make });

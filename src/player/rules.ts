@@ -100,7 +100,7 @@ export function progressEstimate(chapters: readonly ProgressChapter[], chapterId
 
 const KEPT = 'Your place and the chapters already made are kept.';
 
-const KNOWN: ReadonlySet<NeedsYou['code']> = new Set(['no_voice', 'source_unreachable', 'key_rejected', 'limit_exceeded', 'allowance_exceeded', 'provider_refused', 'repeated_failure', 'voice_changed', 'offline_not_downloaded', 'other']);
+const KNOWN: ReadonlySet<NeedsYou['code']> = new Set(['no_voice', 'source_unreachable', 'key_rejected', 'limit_exceeded', 'allowance_exceeded', 'provider_refused', 'repeated_failure', 'voice_changed', 'offline_not_downloaded', 'premium_plan_required', 'offline', 'other']);
 
 /** The code a server detail maps to (open enumeration: unknown ones are 'other'). */
 export function needsCode(serverCode: string | null | undefined): NeedsYou['code'] {
@@ -115,7 +115,7 @@ export function needsYou(code: NeedsYou['code'], problem: string, route: string,
 
 /** What the premium rule says when a premium chapter has no audio: nothing is requested, nothing is spent. */
 export const premiumNeeds = (route: string): NeedsYou => ({
-  code: 'other',
+  code: 'premium_plan_required',
   text: 'Your place is kept. Premium audio is made under a plan.',
   action: { label: 'Open the book', route },
 });

@@ -5,6 +5,11 @@
   import { bookStore, currentAudiobook, deviceChapters, followBookEvents, makeSheet, pageModel } from '../../state/book';
   import { currentListener, listenerStore } from '../../state/listener';
   import { derivePalette } from '../../theme/derive';
+  import { player } from '../../player/player';
+  import FirstPlayView from '../sheets/FirstPlayView.svelte';
+  import NoVoiceView from '../sheets/NoVoiceView.svelte';
+  import MiniPlayerHost from '../nowplaying/MiniPlayerHost.svelte';
+  import { startListening } from '../nowplaying/start';
   import Shell from '../shell/Shell.svelte';
   import { isTablet } from '../shell/viewport';
   import VoiceChooserSheet from '../voices/VoiceChooserSheet.svelte';
@@ -59,9 +64,15 @@
   const sheet = $derived(makeOpen ? makeSheet(s, selected) : undefined);
   const premium = $derived(currentAudiobook(s)?.tier === 'premium');
 
+  // Pressing play starts the sound from this tap; Now Playing opens once sound is playing. Until then this page
+  // says what is happening: the first passage being made ([FirstPlay]) or what is needed ([NoVoice]).
   function play() {
-    location.hash = `#/listen/${bookId}`;
+    void startListening(bookId);
   }
+  const mine = $derived($player.book?.id === bookId);
+  const noVoice = $derived(mine && $player.needsYou?.code === 'no_voice');
+  const gettingReady = $derived(mine && $player.listening === 'getting_ready');
+  const otherNeed = $derived(mine && $player.needsYou && $player.needsYou.code !== 'no_voice' ? $player.needsYou : null);
 
   async function start() {
     if (!sheet) return;
@@ -88,9 +99,11 @@
 </script>
 
 <Shell active="library" {onswitchlistener} {palette}>
+  {#snippet player()}<MiniPlayerHost />{/snippet}
   {#if page}
     <BookView
       layout={$isTablet ? 'tablet' : 'phone'}
+      playback={playbackPanel}
       header={page.header}
       primaryLabel={page.primaryLabel}
       audiobook={page.audiobook}
@@ -147,6 +160,16 @@
     {#if chooser}<VoiceChooserSheet {bookId} onclose={closeChooser} />{/if}
   {/snippet}
 </Shell>
+
+{#snippet playbackPanel()}
+  {#if noVoice}
+    <NoVoiceView />
+  {:else if gettingReady}
+    <FirstPlayView voiceName={$player.voice?.name ?? 'your free voice'} onchoosevoice={() => (chooser = true)} />
+  {:else if otherNeed}
+    <Callout tone="error" title="Needs you">{otherNeed.text}</Callout>
+  {/if}
+{/snippet}
 
 <style>
   .note { margin: 72px 20px 0; font-family: var(--font-ui); color: var(--muted); font-size: 14px; }

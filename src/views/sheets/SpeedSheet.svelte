@@ -22,7 +22,7 @@
   const pick = (v: number) => onchange?.(clampSpeed(v));
 </script>
 
-<Sheet title="Playback speed" eyebrow="Listen" {placement} {fixed} {onclose}>
+<Sheet title="Playback speed" eyebrow="Listen" {placement} {fixed} scrim={fixed ? 0.3 : undefined} {onclose}>
   <div class="dial">
     <span class="big" aria-live="polite">{speedText(speed)}</span>
     <div class="fine">

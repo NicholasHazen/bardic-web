@@ -246,21 +246,51 @@ describe('conflicts', () => {
     expect(sync.queue.size).toBe(0);
   });
 
-  it("ask, 'theirs': adopts the server's place, writes nothing, loses nothing silently", async () => {
+  it("ask, 'theirs': adopts the server's place, and this device's unsynced position is kept in the server's history first", async () => {
     const { sync, places } = await conflicted('ask');
     const adopted = vi.fn();
     sync.onAdopt = adopted;
     const n = places.puts.length;
     await sync.resolve('theirs');
-    expect(places.puts).toHaveLength(n);
+    // ours is written on the server's revision (so the server keeps the place it replaced), then theirs on top of it
+    const writes = places.puts.slice(n);
+    expect(writes.map((w) => `${w.input.chapter_id}:${w.input.offset}:${w.input.base_revision}`)).toEqual(['c1:40:5', 'c3:20:6']);
+    expect(places.server).toMatchObject({ chapter_id: 'c3', offset: 20 });
+    expect(places.history.some((h) => h.chapter_id === 'c1' && h.offset === 40)).toBe(true);
+    expect(places.history.some((h) => h.chapter_id === 'c3' && h.offset === 20)).toBe(true);
     expect(adopted).toHaveBeenCalledWith(expect.objectContaining({ chapter_id: 'c3', offset: 20 }));
-    expect(sync.revision).toBe(5);
+    expect(sync.revision).toBe(7);
     expect(sync.queue.size).toBe(0);
     expect(get(sync.conflict)).toBeNull();
-    // and the next write builds on theirs
     sync.record({ chapterId: 'c3', offset: 25, time: null, mode: 'listening', audiobookId: 'ab1' }, false);
     await sync.flush();
-    expect(places.puts[places.puts.length - 1]!.input.base_revision).toBe(5);
+    expect(places.puts[places.puts.length - 1]!.input.base_revision).toBe(7);
+  });
+
+  it("ask, 'theirs' while offline: both writes wait in the queue and go out in order on reconnect", async () => {
+    const { sync, places, online, clock } = await conflicted('ask');
+    places.down = true;
+    await sync.resolve('theirs');
+    expect(sync.queue.get(L, B)!.after).toMatchObject({ chapter_id: 'c3', offset: 20 });
+    places.down = false;
+    places.puts.length = 0;
+    online[0]!();
+    await clock.flush();
+    expect(places.puts.map((w) => `${w.input.chapter_id}:${w.input.base_revision}`)).toEqual(['c1:5', 'c3:6']);
+    expect(places.history.some((h) => h.chapter_id === 'c1')).toBe(true);
+    expect(sync.queue.size).toBe(0);
+  });
+
+  it("ask, 'theirs' with nothing unsynced writes nothing", async () => {
+    const s = setup('ask');
+    s.places.server = place({ device_id: DEVICE, revision: 2, chapter_id: 'c1', offset: 1 });
+    s.sync.begin(L, B, s.places.server);
+    const theirs = s.places.other({ chapter_id: 'c3', offset: 20, revision: 5 });
+    s.sync.remote(theirs, false);
+    expect(get(s.sync.conflict)).not.toBeNull();
+    const n = s.places.puts.length;
+    await s.sync.resolve('theirs');
+    expect(s.places.puts).toHaveLength(n);
   });
 
   it('newest keeps this device when its change is later', async () => {
@@ -279,11 +309,12 @@ describe('conflicts', () => {
     s.sync.onAdopt = adopted;
     s.places.other({ chapter_id: 'c3', offset: 20, revision: 5, updated_at: '2090-01-01T00:00:00Z' });
     s.sync.record(s.pos(40), false);
-    const n = s.places.puts.length;
     await s.sync.flush();
-    expect(s.places.puts).toHaveLength(n + 1); // the one that conflicted, nothing after
+    await s.clock.flush();
     expect(adopted).toHaveBeenCalled();
     expect(s.places.server!.chapter_id).toBe('c3');
+    // this device's position lost, and is in the server's history all the same
+    expect(s.places.history.some((h) => h.chapter_id === 'c1' && h.offset === 40)).toBe(true);
     expect(get(s.sync.conflict)).toBeNull();
   });
 
@@ -293,6 +324,7 @@ describe('conflicts', () => {
     const last = places.puts[places.puts.length - 1]!;
     expect(last.input.base_revision).toBe(5);
     expect(places.server!.offset).toBe(40);
+    expect(places.history.some((h) => h.chapter_id === 'c3')).toBe(true);
   });
 
   it('the same spot on both is not a conflict', async () => {
@@ -360,6 +392,47 @@ describe('opening a book (C3)', () => {
     const s = setup('ask');
     seed(s);
     expect(s.sync.begin(L, B, place({ revision: 9, device_id: DEVICE })).kind).toBe('server');
+  });
+});
+
+describe('a position that loses is never dropped', () => {
+  const local = { chapterId: 'c1', offset: 5, time: 5, mode: 'listening' as const, audiobookId: 'ab1', rev: 3, updatedAt: Date.parse('2027-01-01T00:00:00Z') };
+
+  it('newest at open: a queued position that is older than the server place is written first, then theirs', async () => {
+    const s = setup('newest');
+    s.storage.setItem(`bardic.place.${L}.${B}`, JSON.stringify(local));
+    s.sync.queue.put(L, B, { chapter_id: 'c1', offset: 5, mode: 'listening', audiobook_id: 'ab1', base_revision: 3 }, 1);
+    s.places.server = place({ revision: 9, chapter_id: 'c3', offset: 0, updated_at: '2090-01-01T00:00:00Z' });
+    expect(s.sync.begin(L, B, s.places.server).kind).toBe('server');
+    await s.clock.flush();
+    expect(s.places.puts.map((w) => `${w.input.chapter_id}:${w.input.base_revision}`)).toEqual(['c1:9', 'c3:10']);
+    expect(s.places.history.some((h) => h.chapter_id === 'c1')).toBe(true);
+    expect(s.places.server).toMatchObject({ chapter_id: 'c3' });
+  });
+
+  it('a queued write of a book that is not open waits for that book, and is kept when it loses', async () => {
+    const s = setup('newest');
+    s.storage.setItem(`bardic.place.${L}.${B}`, JSON.stringify(local));
+    s.places.server = place({ revision: 9, chapter_id: 'c3', offset: 0, updated_at: '2090-01-01T00:00:00Z' });
+    s.sync.queue.put(L, B, { chapter_id: 'c1', offset: 5, mode: 'listening', audiobook_id: 'ab1', base_revision: 3 }, 1);
+    await s.sync.replayQueue(); // meets the conflict: stays queued
+    expect(s.sync.queue.has(L, B)).toBe(true);
+    expect(s.places.server!.chapter_id).toBe('c3');
+    s.sync.begin(L, B, s.places.server);
+    await s.clock.flush();
+    expect(s.places.history.some((h) => h.chapter_id === 'c1')).toBe(true);
+    expect(s.places.server!.chapter_id).toBe('c3');
+  });
+
+  it('the same spot is simply dropped', async () => {
+    const s = setup('newest');
+    s.storage.setItem(`bardic.place.${L}.${B}`, JSON.stringify(local));
+    s.sync.queue.put(L, B, { chapter_id: 'c3', offset: 0, mode: 'listening', audiobook_id: 'ab1', base_revision: 3 }, 1);
+    s.places.server = place({ revision: 9, chapter_id: 'c3', offset: 0, updated_at: '2090-01-01T00:00:00Z' });
+    s.sync.begin(L, B, s.places.server);
+    await s.clock.flush();
+    expect(s.places.puts).toHaveLength(0);
+    expect(s.sync.queue.size).toBe(0);
   });
 });
 

@@ -336,7 +336,7 @@ export class PlaceSync {
       s.rev = decision.place.revision;
       s.key = keyOfPlace(decision.place);
       s.updatedAt = Date.parse(decision.place.updated_at) || s.updatedAt;
-      this.queue.remove(listenerId, bookId);
+      if (this.keepLoser(s, decision.place)) void this.write(false);
     } else if (decision.kind === 'local' || decision.kind === 'ask') {
       s.pos = decision.local;
       s.key = keyOfPosition(decision.local);
@@ -427,6 +427,7 @@ export class PlaceSync {
       const input: PlaceInput = { ...entry.input, base_revision: s.rev };
       // the entry object is updated in place when a newer position replaces it: remember which write this one is
       const sentSeq = entry.seq;
+      const after = entry.after;
       this.statusStore.set('saving');
       const r = await this.api.put(s.listenerId, s.bookId, input, { keepalive });
       switch (r.kind) {
@@ -434,8 +435,14 @@ export class PlaceSync {
           this.offline = false;
           s.rev = r.place.revision;
           s.lastWriteAt = this.clock.now();
-          if (!this.queue.remove(s.listenerId, s.bookId, sentSeq)) this.queue.rebase(s.listenerId, s.bookId, s.rev);
+          const removed = this.queue.remove(s.listenerId, s.bookId, sentSeq);
+          if (!removed) this.queue.rebase(s.listenerId, s.bookId, s.rev);
           if (this.s === s) this.saveLocal(s);
+          if (removed && after) {
+            // this device's position is now in the server's history: write the place that was chosen on top of it
+            this.queue.put(s.listenerId, s.bookId, { ...after, base_revision: s.rev }, this.clock.now());
+            continue;
+          }
           return;
         }
         case 'offline':
@@ -472,26 +479,46 @@ export class PlaceSync {
       s.rev = server.revision;
       return 'retry';
     }
-    if (policy === 'newest') {
-      this.adopt(s, server);
-      return 'stop';
-    }
+    if (policy === 'newest') return this.adopt(s, server) ? 'retry' : 'stop';
     this.hold(s, mine, server);
     return 'stop';
   }
 
-  private adopt(s: Session, place: Place): void {
+  /**
+   * This device holds a position the server has not seen and the place being taken is elsewhere: the position is not
+   * dropped. It is queued to be written first, on the server's revision, with the taken place written after it, so the
+   * server's history keeps both. Returns true when such a write is waiting.
+   */
+  private keepLoser(s: Session, place: Place): boolean {
+    const entry = this.queue.get(s.listenerId, s.bookId);
+    if (!entry) return false;
+    const i = entry.input;
+    if (i.chapter_id === place.chapter_id && i.offset === place.offset && i.mode === place.mode) {
+      this.queue.remove(s.listenerId, s.bookId);
+      return false;
+    }
+    this.queue.put(s.listenerId, s.bookId, { ...i, base_revision: place.revision }, this.clock.now(), {
+      chapter_id: place.chapter_id,
+      offset: place.offset,
+      mode: place.mode,
+      audiobook_id: place.audiobook_id,
+    });
+    return true;
+  }
+
+  private adopt(s: Session, place: Place): boolean {
     s.rev = place.revision;
     s.conflict = null;
     s.remote = null;
     s.pos = positionOfPlace(place);
     s.key = keyOfPlace(place);
     s.updatedAt = Date.parse(place.updated_at) || this.clock.now();
-    this.queue.remove(s.listenerId, s.bookId);
+    const pending = this.keepLoser(s, place);
     this.setConflict(null);
     this.saveLocal(s);
     this.refreshStatus();
     this.onAdopt?.(place);
+    return pending;
   }
 
   // ----------------------------------------------------------------------------- the listener's answer
@@ -507,7 +534,7 @@ export class PlaceSync {
     s.conflict = null;
     this.setConflict(null);
     if (choice === 'theirs') {
-      this.adopt(s, c.theirs);
+      if (this.adopt(s, c.theirs)) await this.write(false);
       return c.theirs;
     }
     s.rev = c.theirs.revision;
@@ -555,7 +582,7 @@ export class PlaceSync {
       const mine: LocalPlace = { ...(s.pos ?? { chapterId: place.chapter_id, offset: 0, time: null, mode: place.mode, audiobookId: place.audiobook_id }), rev: s.rev, updatedAt: s.updatedAt };
       this.hold(s, mine, place);
     } else if (policy === 'newest' && s.updatedAt < Date.parse(place.updated_at)) {
-      this.adopt(s, place);
+      if (this.adopt(s, place)) void this.write(false);
     }
     // this_device: nothing; the next write meets the conflict and keeps this device's place
   }
@@ -580,11 +607,20 @@ export class PlaceSync {
         if (s && s.listenerId === e.listenerId && s.bookId === e.bookId) {
           await this.write(false);
         } else {
-          const sentSeq = e.seq;
-          const r = await this.api.put(e.listenerId, e.bookId, e.input);
-          if (r.kind === 'ok' || r.kind === 'rejected') this.queue.remove(e.listenerId, e.bookId, sentSeq);
-          // a conflict on a book that is not open waits for the listener to open it (begin applies the setting)
-          if (r.kind === 'offline') this.offline = true;
+          let cur = e;
+          for (;;) {
+            const sentSeq = cur.seq;
+            const after = cur.after;
+            const r = await this.api.put(cur.listenerId, cur.bookId, cur.input);
+            if (r.kind === 'ok' || r.kind === 'rejected') this.queue.remove(cur.listenerId, cur.bookId, sentSeq);
+            // a conflict on a book that is not open waits for the listener to open it (begin applies the setting)
+            if (r.kind === 'offline') this.offline = true;
+            if (r.kind === 'ok' && after) {
+              cur = this.queue.put(cur.listenerId, cur.bookId, { ...after, base_revision: r.place.revision }, this.clock.now());
+              continue;
+            }
+            break;
+          }
         }
         if (this.offline) {
           this.scheduleRetry();

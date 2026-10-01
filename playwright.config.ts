@@ -4,8 +4,8 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: 'e2e',
   fullyParallel: true,
-  workers: 4,
-  retries: 0,
+  workers: 3,
+  retries: 1,
   reporter: [['list']],
   use: { viewport: { width: 390, height: 844 }, trace: 'retain-on-failure' },
 });

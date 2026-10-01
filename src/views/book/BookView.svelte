@@ -36,6 +36,8 @@
     onback?: () => void;
     onmore?: () => void;
     onplay?: () => void;
+    /** What is happening with playback (Getting ready, Needs you) shown under the primary action. */
+    playback?: import('svelte').Snippet;
     onchangevoice?: () => void;
     onmakeready?: () => void;
     ondownload?: () => void;
@@ -61,6 +63,7 @@
     onback,
     onmore,
     onplay,
+    playback,
     onchangevoice,
     onmakeready,
     ondownload,
@@ -97,6 +100,7 @@
 
 {#snippet play()}
   <Button size={52} icon="play" style="width: 100%" onclick={onplay}>{primaryLabel}</Button>
+  {@render playback?.()}
 {/snippet}
 
 {#snippet audiobookSection()}

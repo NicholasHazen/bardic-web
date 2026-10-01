@@ -68,6 +68,8 @@ export interface NeedsYou {
     | 'repeated_failure'
     | 'voice_changed'
     | 'offline_not_downloaded'
+    | 'premium_plan_required'
+    | 'offline'
     | 'other';
   /** what is kept, then what is wrong, then (optionally) the one thing to do */
   text: string;
@@ -172,7 +174,7 @@ export interface PlayerCommands {
 export interface ReaderAppearance {
   /** 19 to 23 px; the guide's reading sizes */
   size: number;
-  theme: 'dark' | 'dim' | 'light' | 'sepia';
+  theme: 'dark' | 'dim' | 'light' | 'sepia' | 'night';
   font: 'serif' | 'sans';
   /** line spacing multiple around 1.7 */
   spacing: number;
@@ -181,3 +183,6 @@ export interface ReaderAppearance {
 }
 
 export const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2] as const;
+/** any speed in this range is accepted (the list above is what the speed sheet offers) */
+export const SPEED_MIN = 0.75;
+export const SPEED_MAX = 2.5;

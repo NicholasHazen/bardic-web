@@ -43,7 +43,7 @@
   });
 </script>
 
-<Sheet title="Chapters" eyebrow={bookTitle} {placement} {fixed} {onclose}>
+<Sheet title="Chapters" eyebrow={bookTitle} {placement} {fixed} scrim={fixed ? 0.3 : undefined} {onclose}>
   {#if matter}
     <SwitchRow label="Hide front and back matter" checked={hide} onchange={(c) => ((hide = c), onstoryonly?.(c))} />
   {/if}

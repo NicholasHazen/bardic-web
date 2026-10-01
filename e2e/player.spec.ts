@@ -378,3 +378,30 @@ test('S9: the end of the book keeps the place at the end; finishing is the serve
   expect((await st(page)).finishedBook).toBe(false);
   await cmd(page, 'pause');
 });
+
+test('C3: choosing theirs keeps this device\'s unsynced position in the place history', async ({ page, stack, breeze }) => {
+  const w = await world(stack.api, breeze);
+  await signIn(page);
+  await open(page, w.bookId);
+  await tap(page);
+  await cmd(page, 'play');
+  await expect.poll(async () => (await st(page)).position, { timeout: 10000 }).toBeGreaterThan(1);
+  await cmd(page, 'pause');
+  await expect.poll(async () => (await placeOf(stack.api, w)).json?.revision).toBeGreaterThan(0);
+  const synced = (await placeOf(stack.api, w)).json;
+  // the tablet writes chapter three; this device then moves on while it cannot reach the server
+  await apiCall(stack.api, 'PUT', `/api/books/${w.bookId}/place`, { chapter_id: w.chapters[2]!.id, offset: 0, mode: 'listening', audiobook_id: w.ready.id, base_revision: synced.revision }, OTHER, w.listener);
+  // the notice offers the tablet's place while paused; the listener moves on here in the meantime
+  await expect.poll(async () => (await st(page)).conflict, { timeout: 10000 }).not.toBeNull();
+  const dur = (await st(page)).duration;
+  await cmd(page, 'seek', dur - 2);
+  await page.waitForTimeout(1000);
+  const unsynced = await page.evaluate(() => JSON.parse(localStorage.getItem('bardic.placequeue') ?? '[]')[0].input.offset as number);
+  expect(unsynced).toBeGreaterThan(synced.offset);
+  expect((await placeOf(stack.api, w)).json.chapter_id).toBe(w.chapters[2]!.id); // nothing written while the listener decides
+  await cmd(page, 'resolveConflict', 'theirs');
+  await expect.poll(async () => (await st(page)).chapter.id).toBe(w.chapters[2]!.id);
+  await expect.poll(async () => (await historyOf(stack.api, w) as { chapter_id: string; offset: number }[]).some((h) => h.chapter_id === w.chapters[0]!.id && h.offset === unsynced)).toBe(true);
+  const now = (await placeOf(stack.api, w)).json;
+  expect(now.chapter_id).toBe(w.chapters[2]!.id);
+});

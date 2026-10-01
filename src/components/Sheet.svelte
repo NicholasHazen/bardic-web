@@ -11,9 +11,11 @@
     placement?: 'bottom' | 'popover';
     /** Position against the viewport (the app) instead of the nearest positioned parent (design boards). */
     fixed?: boolean;
+    /** How dark the backdrop is (0 to 1); the default suits sheets over a light screen. Now Playing sheets use 0.3, place conflict 0.6. */
+    scrim?: number;
     children: Snippet;
   }
-  let { title = '', eyebrow, onclose, placement = 'bottom', fixed = false, children }: Props = $props();
+  let { title = '', eyebrow, onclose, placement = 'bottom', fixed = false, scrim, children }: Props = $props();
 
   let dialog: HTMLDivElement;
   let opener: Element | null = null;
@@ -54,7 +56,7 @@
 
 <!-- The scrim closes the sheet on tap; keyboard users have Escape and the close button. -->
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<div class="scrim {placement}" class:fixed onclick={() => onclose?.()}></div>
+<div class="scrim {placement}" class:fixed style:background={scrim === undefined ? undefined : `rgba(10, 8, 16, ${scrim})`} onclick={() => onclose?.()}></div>
 <div
   bind:this={dialog}
   class="sheet {placement}"

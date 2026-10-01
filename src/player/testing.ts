@@ -289,9 +289,13 @@ export class FakeApi implements PlayerApi {
 }
 
 /** An in-memory place server with the contract's rule: a write on a stale base from another device conflicts. */
+const identical = (s: Place, i: PlaceInput) => s.chapter_id === i.chapter_id && s.offset === i.offset && s.mode === i.mode;
+
 export class FakePlaces implements PlaceApi {
   server: Place | null = null;
   puts: { listenerId: string; bookId: string; input: PlaceInput; keepalive: boolean }[] = [];
+  /** earlier places the server kept, newest first */
+  history: Place[] = [];
   down = false;
   deviceId = DEVICE;
   private t = 0;
@@ -307,6 +311,7 @@ export class FakePlaces implements PlaceApi {
       if (!identical && input.base_revision !== s.revision && s.device_id !== this.deviceId) return { kind: 'conflict', server: s };
     }
     this.t++;
+    if (s && !identical(s, input)) this.history.unshift(s);
     this.server = place({
       chapter_id: input.chapter_id,
       offset: input.offset,

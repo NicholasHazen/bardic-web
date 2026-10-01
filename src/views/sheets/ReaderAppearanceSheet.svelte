@@ -152,7 +152,7 @@
     {@render body()}
   </Popover>
 {:else}
-  <Sheet title="Text and colour" eyebrow="Reader" {fixed} {onclose}>
+  <Sheet title="Text and colour" eyebrow="Reader" {fixed} scrim={fixed ? 0.3 : undefined} {onclose}>
     {@render body()}
     <Button size={52} style="width:100%" onclick={() => onclose?.()}>Done</Button>
   </Sheet>
