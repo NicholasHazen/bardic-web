@@ -216,13 +216,15 @@
   "title": "Make it ready · premium plan",
   "w": 390,
   "h": 844,
-  "milestone": "W4"
+  "milestone": "W4",
+  "route": "#/board/PlanPremium"
  },
  "PlanPaused": {
   "title": "Making ready · paused at a limit",
   "w": 390,
   "h": 844,
-  "milestone": "W4"
+  "milestone": "W4",
+  "route": "#/board/PlanPaused"
  },
  "DownloadSheet": {
   "title": "Download to this device",
@@ -364,19 +366,22 @@
   "title": "Premium voices · account",
   "w": 390,
   "h": 844,
-  "milestone": "W4"
+  "milestone": "W4",
+  "route": "#/board/PremiumAccount"
  },
  "Allowance": {
   "title": "Allowance · no limit",
   "w": 390,
   "h": 844,
-  "milestone": "W4"
+  "milestone": "W4",
+  "route": "#/board/Allowance"
  },
  "AllowanceLimit": {
   "title": "Allowance · with a limit",
   "w": 390,
   "h": 844,
-  "milestone": "W4"
+  "milestone": "W4",
+  "route": "#/board/AllowanceLimit"
  },
  "BreezeServer": {
   "title": "Breeze server",
@@ -421,13 +426,15 @@
   "title": "Plan would pass the Allowance",
   "w": 390,
   "h": 844,
-  "milestone": "W4"
+  "milestone": "W4",
+  "route": "#/board/PlanBlocked"
  },
  "KeyProblem": {
   "title": "Premium key rejected",
   "w": 390,
   "h": 844,
-  "milestone": "W4"
+  "milestone": "W4",
+  "route": "#/board/KeyProblem"
  },
  "PlaceConflict": {
   "title": "Two places · choose one",
@@ -453,7 +460,8 @@
   "title": "How an estimate works",
   "w": 390,
   "h": 844,
-  "milestone": "W4"
+  "milestone": "W4",
+  "route": "#/board/EstimateExplained"
  },
  "SetupVoice": {
   "title": "First time · set up a voice",
