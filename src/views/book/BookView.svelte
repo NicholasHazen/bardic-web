@@ -44,6 +44,14 @@
     onpause?: () => void;
     onresume?: () => void;
     onstop?: () => void;
+    /** Open the plan sheet (a premium audiobook). */
+    onplan?: () => void;
+    onplanfrom?: () => void;
+    planFromLabel?: string;
+    /** The plan of the current audiobook (src/views/plans/RunningPlan). */
+    plan?: import('svelte').Snippet;
+    /** A plan is going: the plan card takes the place of the audiobook card ([PlanPaused]). */
+    planActive?: boolean;
     onchoose?: (audiobookId: string) => void;
     onshowall?: () => void;
     onfilter?: (storyOnly: boolean) => void;
@@ -70,6 +78,11 @@
     onpause,
     onresume,
     onstop,
+    onplan,
+    onplanfrom,
+    planFromLabel,
+    plan,
+    planActive = false,
     onchoose,
     onshowall,
     onfilter,
@@ -105,19 +118,24 @@
 
 {#snippet audiobookSection()}
   <section class="block" data-section="audiobook">
-    <SectionLabelMuted>Audiobook</SectionLabelMuted>
-    {#if audiobook}
-      <AudiobookCard model={audiobook} onchange={onchangevoice} {onmakeready} {ondownload} {onpause} {onresume} {onstop} {busy} note={audiobook.tier === 'premium' ? premiumNote : undefined} />
+    {#if planActive && plan}
+      {@render plan()}
     {:else}
-      <Glass radius={16} style="margin: var(--card-margin, 0 20px); padding: 14px">
-        <div class="none">
-          <div class="nonetext">
-            <span class="voice">No audiobook yet</span>
-            <span class="sub">Choose a voice to make this book ready.</span>
+      <SectionLabelMuted>Audiobook</SectionLabelMuted>
+      {#if audiobook}
+        <AudiobookCard model={audiobook} onchange={onchangevoice} {onmakeready} {ondownload} {onpause} {onresume} {onstop} {onplan} {onplanfrom} {planFromLabel} {busy} note={audiobook.tier === 'premium' ? premiumNote : undefined} />
+        {@render plan?.()}
+      {:else}
+        <Glass radius={16} style="margin: var(--card-margin, 0 20px); padding: 14px">
+          <div class="none">
+            <div class="nonetext">
+              <span class="voice">No audiobook yet</span>
+              <span class="sub">Choose a voice to make this book ready.</span>
+            </div>
+            <Button variant="glass" onclick={onchangevoice}>Choose a voice</Button>
           </div>
-          <Button variant="glass" onclick={onchangevoice}>Choose a voice</Button>
-        </div>
-      </Glass>
+        </Glass>
+      {/if}
     {/if}
   </section>
 {/snippet}

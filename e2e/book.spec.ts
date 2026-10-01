@@ -149,10 +149,11 @@ test('B3: switching audiobook keeps the place; a premium audiobook starts nothin
   expect(after.revision).toBe(before.revision + 1);
   // the free one is now in the list of others, and switching back works
   await expect(page.getByRole('button', { name: new RegExp(`^Use ${w.free.voice_name}`) })).toBeVisible();
-  // a premium audiobook cannot be started from here: no Make ready, a disabled plan entry with its note
+  // a premium audiobook cannot be made ready from here: no Make ready; "Plan the whole book" opens the plan sheet
+  // (pressed in e2e/plans.spec.ts) and says nothing is spent until a plan is approved
   await expect(card.getByRole('button', { name: 'Make ready' })).toHaveCount(0);
-  await expect(card.getByRole('button', { name: 'Plan the whole book' })).toBeDisabled();
-  await expect(card.getByText(/Plans arrive in a later update/)).toBeVisible();
+  await expect(card.getByRole('button', { name: 'Plan the whole book' })).toBeEnabled();
+  await expect(card.getByText(/Nothing is spent until you do/)).toBeVisible();
   // nothing that can cost money was called, and the provider heard nothing
   expect(posts.filter((p) => /make-ready|plan|request/.test(p))).toEqual([]);
   expect(gemini.received()).toBe(0);

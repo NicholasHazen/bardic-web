@@ -47,9 +47,19 @@ for (const [name, b] of Object.entries(manifest)) {
   await shoot(browser, `http://localhost:${PORT}/${b.route}`, b.w, b.h, ours);
   fs.copyFileSync(ref, path.join(out, `${name}.ref.png`));
   fs.copyFileSync(path.join(root, `design/boards/${name}.png`), path.join(out, `${name}.export.png`));
-  const d = diff(ours, ref, path.join(out, `${name}.diff.png`));
+  let d = diff(ours, ref, path.join(out, `${name}.diff.png`));
   const dev = deviations[name];
   const tolerance = dev?.reason ? (dev.tolerance ?? DEFAULT_TOLERANCE) : DEFAULT_TOLERANCE;
+  // A real difference fails every time; a render caught mid-load does not. Look once more before failing,
+  // and say so, so flakiness is visible rather than hidden.
+  let retried = false;
+  if (d.percent > tolerance) {
+    const first = d.percent;
+    await shoot(browser, `http://localhost:${PORT}/${b.route}`, b.w, b.h, ours);
+    d = diff(ours, ref, path.join(out, `${name}.diff.png`));
+    retried = d.percent <= tolerance;
+    if (retried) d.note = `passed on retry (first render ${first.toFixed(2)}%)`;
+  }
   const ok = d.percent <= tolerance;
   if (!ok) failed++;
   rows.push({ name, b, status: ok ? 'ok' : 'FAIL', percent: d.percent, tolerance, note: d.note, deviation: dev?.reason });

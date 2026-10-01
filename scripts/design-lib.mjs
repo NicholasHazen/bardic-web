@@ -14,7 +14,11 @@ export async function shoot(browser, url, w, h, out) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, reducedMotion: 'reduce' });
   const page = await ctx.newPage();
   await page.goto(url, { waitUntil: 'networkidle' });
+  // Fonts load lazily as text is laid out: wait until none is still loading, then for two frames, so a
+  // screenshot never catches a fallback glyph (this made some boards flicker between 0.5% and 1.0%).
   await page.evaluate(() => document.fonts.ready);
+  await page.waitForFunction(() => [...document.fonts].every((f) => f.status !== 'loading'));
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   await page.waitForTimeout(400);
   await page.screenshot({ path: out });
   await ctx.close();

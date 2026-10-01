@@ -135,7 +135,7 @@ test('V3: choosing a free voice makes the audiobook for the book, and the first 
   expect(await defaultVoice()).toBe(tobias);
 });
 
-test('V4: choosing a premium voice starts nothing: no audiobook, no job, no speech request, nothing spent', async ({ page, stack, breeze, gemini }) => {
+test('V4: choosing a premium voice starts nothing; the plan button opens the plan sheet and starts nothing either: no job, no plan, no speech request, nothing spent', async ({ page, stack, breeze, gemini }) => {
   const listener = await signIn(page, stack);
   await setupBreeze(stack, breeze);
   await setupGemini(stack);
@@ -146,11 +146,15 @@ test('V4: choosing a premium voice starts nothing: no audiobook, no job, no spee
   await dialog.getByRole('radio', { name: 'Premium' }).click();
   await dialog.getByRole('radio', { name: /Kore/ }).click();
   await expect(dialog.getByRole('radio', { name: /Kore/ })).toHaveAttribute('aria-checked', 'true');
+  // before a plan button is pressed nothing exists yet
+  expect(await audiobooks(stack, listener, book)).toEqual([]);
+  // "Plan the whole book" makes the (free, empty) audiobook for the voice and opens the plan sheet; that is all it does
   await dialog.getByRole('button', { name: 'Plan the whole book' }).click();
+  await expect(page.getByRole('dialog', { name: 'Make ready' })).toBeVisible();
 
   expect(gemini.received()).toBe(0);
   expect(breeze.received()).toBe(0);
-  expect(await audiobooks(stack, listener, book)).toEqual([]);
+  expect(await audiobooks(stack, listener, book)).toMatchObject([{ voice_name: 'Kore', tier: 'premium' }]);
   expect((await apiCall(stack.api, 'GET', '/api/jobs', undefined, DEV, listener)).json.items).toEqual([]);
   expect((await apiCall(stack.api, 'GET', '/api/plans', undefined, DEV, listener)).json.items).toEqual([]);
   expect(await spent(stack)).toEqual({ known: expect.objectContaining({ micros: 0 }), unknown_items: 0 });

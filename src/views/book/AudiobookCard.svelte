@@ -17,12 +17,17 @@
     onpause?: () => void;
     onresume?: () => void;
     onstop?: () => void;
+    /** Open the plan sheet for the whole book (a premium audiobook). It starts nothing: the plan sheet does, when approved. */
+    onplan?: () => void;
+    /** "Plan from chapter 4": open the plan sheet from the chapter the listener is in. */
+    onplanfrom?: () => void;
+    planFromLabel?: string;
     /** A request is in flight. */
     busy?: boolean;
     /** A line under the buttons (why an action is not available). */
     note?: string;
   }
-  let { model, onchange, onmakeready, ondownload, onpause, onresume, onstop, busy = false, note }: Props = $props();
+  let { model, onchange, onmakeready, ondownload, onpause, onresume, onstop, onplan, onplanfrom, planFromLabel = 'Plan from here', busy = false, note }: Props = $props();
 
   const run = $derived(model.running);
   const premium = $derived(model.tier === 'premium');
@@ -73,12 +78,15 @@
       </div>
       <div class="actions">
         {#if premium}
-          <Button variant="glass" style="flex: 1" disabled aria-describedby="plan-note"><BookGlyph name="sparkle" />Plan the whole book</Button>
+          <Button variant="glass" style="flex: 1" disabled={busy || !onplan} onclick={onplan} aria-describedby="plan-note"><BookGlyph name="sparkle" />Plan the whole book</Button>
         {:else}
           <Button variant="glass" style="flex: 1" onclick={onmakeready} disabled={busy || !model.canMakeReady}><BookGlyph name="sparkle" />Make ready</Button>
         {/if}
         <Button variant="glass" style="flex: 1" onclick={ondownload} disabled={!ondownload}><Glyph name="download" size={18} />Download</Button>
       </div>
+      {#if premium && onplanfrom}
+        <Button variant="glass" style="width: 100%" disabled={busy} onclick={onplanfrom}><BookGlyph name="sparkle" />{planFromLabel}</Button>
+      {/if}
       {#if note}<span class="sub" id="plan-note">{note}</span>{/if}
     {/if}
   </div>

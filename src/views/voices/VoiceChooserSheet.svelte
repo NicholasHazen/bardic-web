@@ -28,8 +28,9 @@
    *
    * - A free voice: choosing it makes (or finds) the book's audiobook, which is free and makes no audio.
    *   "Start listening" and "Make the whole book ready" call `onstart` / `onmakeready` with that audiobook.
-   * - A premium voice: choosing it only selects it. Nothing is requested, played or spent; "Plan the whole book" and
-   *   "Plan from chapter N" call `onplan`, which the plan flow (W4) supplies.
+   * - A premium voice: choosing it only selects it. Nothing is requested, played or spent. "Plan the whole book" and
+   *   "Plan from chapter N" first make the book's audiobook for that voice (free: no audio, no job), then call `onplan`
+   *   to open the plan sheet, which is where the cost is shown and approved.
    * - An example button asks the server for a short sample; a premium one counts toward spending and needs a Gemini key.
    */
   interface Props {
@@ -39,8 +40,11 @@
     onstart?: (audiobook: Audiobook) => void;
     /** Make this free audiobook ready (the confirmation, W2 book page). Defaults to closing the sheet. */
     onmakeready?: (audiobook: Audiobook) => void;
-    /** Open the plan sheet (W4) for a premium voice. Without it the plan buttons do nothing yet. */
-    onplan?: (plan: { voice: Voice; scope: 'whole_book' | 'from_chapter' }) => void;
+    /**
+     * Open the plan sheet (W4) for a premium voice, with the audiobook that was made for it (free, no audio, no job).
+     * Only the plan buttons call it; choosing a voice never does.
+     */
+    onplan?: (plan: { voice: Voice; scope: 'whole_book' | 'from_chapter'; audiobook: Audiobook }) => void;
     placement?: 'bottom' | 'popover';
   }
   let { bookId, onclose, onstart, onmakeready, onplan, placement = 'bottom' }: Props = $props();
@@ -136,9 +140,12 @@
     if (onmakeready) onmakeready(ab);
     else onclose?.();
   }
-  function plan(scope: 'whole_book' | 'from_chapter') {
+  async function plan(scope: 'whole_book' | 'from_chapter') {
     const v = selectedId ? voiceOf(selectedId) : undefined;
-    if (v && v.tier === 'premium') onplan?.({ voice: v, scope });
+    if (!v || v.tier !== 'premium' || busy) return;
+    // The audiobook is a free record of voice and book; the plan sheet that opens next is where anything is approved.
+    const ab = await audiobookFor(v.id);
+    if (ab) onplan?.({ voice: v, scope, audiobook: ab });
   }
   function leaveTo(hash: string) {
     location.hash = hash;

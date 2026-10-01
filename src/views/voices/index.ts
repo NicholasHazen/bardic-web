@@ -5,7 +5,7 @@
 //   #/settings/voices          VoiceSourcesScreen
 //   #/settings/voices/breeze   BreezeServerScreen
 //   #/settings/voices/default  DefaultVoiceScreen
-//   #/settings/premium         W4 (the Gemini key); links to it are left inert until it is built
+//   #/settings/premium         PremiumAccountScreen (W4, src/views/account); #/settings/allowance is AllowanceScreen
 // Sheets: VoiceChooserSheet is opened by the book page ({bookId, onclose}); SetupVoice is shown by the chooser when no
 // source is set up, and may be opened on its own.
 export { default as VoiceChooserSheet } from './VoiceChooserSheet.svelte';

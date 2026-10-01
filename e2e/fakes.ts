@@ -82,12 +82,33 @@ export async function startBreeze(opts: { key?: string } = {}): Promise<Fake> {
   return { url, spoken, received: () => received, setDown: (d) => (down = d), stop: () => new Promise((r) => (server.closeAllConnections(), server.close(() => r()))) };
 }
 
+/** How the fake answers one speech request instead of the usual way (see `queue`). */
+export type GeminiBehaviour =
+  /** 429 with Retry-After in seconds: a quota or rate limit (nothing made, nothing billed). `daily` says so in the body. */
+  | { kind: 'quota'; retryAfter: number; daily?: boolean }
+  /** 400: the content was refused (nothing billed). */
+  | { kind: 'refuse' }
+  /** 200 with audio but no usage report: the cost cannot be stated. */
+  | { kind: 'no_usage' }
+  /** 403: the key is rejected. */
+  | { kind: 'forbidden' };
+
+export type GeminiFake = Fake & {
+  setKey: (k: string) => void;
+  /** The next speech requests are answered like this, one each, in order; after them the fake behaves as usual again. */
+  queue: (...b: GeminiBehaviour[]) => void;
+  /** Wait this long before answering every speech request (ms). */
+  setDelay: (ms: number) => void;
+};
+
 /** The Gemini key check (free model list) and speech with a usage report the server can price. */
-export async function startGemini(opts: { key?: string } = { key: 'test-key' }): Promise<Fake & { setKey: (k: string) => void }> {
+export async function startGemini(opts: { key?: string } = { key: 'test-key' }): Promise<GeminiFake> {
   const spoken: string[] = [];
   let received = 0;
   let key = opts.key ?? 'test-key';
   let down = false;
+  let delay = 0;
+  const queued: GeminiBehaviour[] = [];
   const server = http.createServer(async (req, res) => {
     const ok = req.headers['x-goog-api-key'] === key;
     if (req.url?.startsWith('/v1beta/models')) {
@@ -96,17 +117,26 @@ export async function startGemini(opts: { key?: string } = { key: 'test-key' }):
     }
     if (req.url === '/v1beta/interactions' && req.method === 'POST') {
       received++;
+      if (delay > 0) await new Promise((r) => setTimeout(r, delay));
       if (down) return json(res, 503, {});
       if (!ok) return json(res, 403, {});
       const body = JSON.parse(await readBody(req));
+      const behaviour = queued.shift();
+      if (behaviour?.kind === 'quota') {
+        return json(res, 429, { error: { message: behaviour.daily ? 'Quota exceeded: requests per day' : 'Rate limit: requests per minute' } }, { 'retry-after': String(behaviour.retryAfter) });
+      }
+      if (behaviour?.kind === 'refuse') return json(res, 400, { error: { message: 'blocked' } });
+      if (behaviour?.kind === 'forbidden') return json(res, 403, {});
       const text: string = body.input?.[0]?.content?.[0]?.text ?? '';
       spoken.push(text);
       const chars = [...text].length;
       const pcm = Buffer.alloc(chars * 10 * 48, 1);
       const out = Math.round(chars * 2);
       const inp = Math.ceil(chars / 4);
+      const steps = [{ type: 'model_output', content: [{ type: 'audio', mime_type: 'audio/L16;codec=pcm;rate=24000', data: pcm.toString('base64') }] }];
+      if (behaviour?.kind === 'no_usage') return json(res, 200, { steps });
       return json(res, 200, {
-        steps: [{ type: 'model_output', content: [{ type: 'audio', mime_type: 'audio/L16;codec=pcm;rate=24000', data: pcm.toString('base64') }] }],
+        steps,
         usage: {
           total_input_tokens: inp + 201,
           total_output_tokens: out,
@@ -119,5 +149,14 @@ export async function startGemini(opts: { key?: string } = { key: 'test-key' }):
     json(res, 404, {});
   });
   const url = await listen(server);
-  return { url, spoken, received: () => received, setDown: (d) => (down = d), setKey: (k) => (key = k), stop: () => new Promise((r) => (server.closeAllConnections(), server.close(() => r()))) };
+  return {
+    url,
+    spoken,
+    received: () => received,
+    setDown: (d) => (down = d),
+    setKey: (k) => (key = k),
+    queue: (...b) => void queued.push(...b),
+    setDelay: (ms) => (delay = ms),
+    stop: () => new Promise((r) => (server.closeAllConnections(), server.close(() => r()))),
+  };
 }

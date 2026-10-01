@@ -71,10 +71,10 @@ export interface BookGateway {
   putPlace(listenerId: string, bookId: string, input: PlaceInput): Promise<R<Place>>;
 }
 
-const hdr = (listenerId: string) => ({ 'X-Bardic-Listener': listenerId, 'X-Bardic-Device': deviceId() });
-const dev = () => ({ 'X-Bardic-Device': deviceId() });
+export const hdr = (listenerId: string) => ({ 'X-Bardic-Listener': listenerId, 'X-Bardic-Device': deviceId() });
+export const dev = () => ({ 'X-Bardic-Device': deviceId() });
 
-async function call<T>(run: () => Promise<{ data?: T; error?: unknown; response: Response }>): Promise<R<T>> {
+export async function call<T>(run: () => Promise<{ data?: T; error?: unknown; response: Response }>): Promise<R<T>> {
   try {
     const r = await run();
     if (r.response.ok && r.data !== undefined) return { ok: true, value: r.data };
@@ -288,7 +288,8 @@ export function pageModel(s: BookState, ui: PageUi, device: ReadonlyMap<string, 
       ready: r.fraction,
       canMakeReady: r.ready < r.total,
     };
-    if (s.job && s.job.audiobook_id === current.id && isActiveJob(s.job.state as JobStateName)) {
+    // A job that belongs to a plan is shown by the plan card (src/views/plans), which pauses and stops it as a plan.
+    if (s.job && s.job.audiobook_id === current.id && !s.job.plan_id && isActiveJob(s.job.state as JobStateName)) {
       card.running = runningModel(s.job, { chapters_ready: r.ready, chapters_total: r.total }, nowMs);
     }
   }
@@ -348,7 +349,7 @@ export type ActionResult = { ok: true } | { ok: false; detail: string; code?: st
 const fail = (r: { detail: string; code?: string }): ActionResult => ({ ok: false, detail: r.detail, code: r.code });
 
 /** Notices that change what the book page shows; the first group only changes audio. */
-const AUDIO_NOTICES = new Set(['audiobook.updated', 'chapter.updated', 'job.updated']);
+const AUDIO_NOTICES = new Set(['audiobook.updated', 'chapter.updated', 'job.updated', 'plan.updated']);
 const PAGE_NOTICES = new Set(['book.updated', 'place.updated', 'resync', 'listener.updated', 'source.updated']);
 
 export function noticeNeeds(notice: { type?: string; book_id?: string | null; listener_id?: string | null }, bookId: string, listenerId: string): 'audio' | 'all' | null {
@@ -546,7 +547,7 @@ export const bookStore = new BookStore();
  * Follow /api/events for one book while it is shown: audio notices reload the audio state, the others the whole page.
  * Returns the function that stops following.
  */
-export function followBookEvents(store: BookStore, listenerId: string, bookId: string): () => void {
+export function followBookEvents(store: BookStore, listenerId: string, bookId: string, onnotice?: (notice: { type?: string }) => void): () => void {
   const stop = new AbortController();
   void followEventStream({
     url: '/api/events',
@@ -555,7 +556,9 @@ export function followBookEvents(store: BookStore, listenerId: string, bookId: s
     onopen: () => store.refreshSoon('all', 0),
     onmessage: (msg) => {
       try {
-        const kind = noticeNeeds(JSON.parse(msg.data), bookId, listenerId);
+        const notice = JSON.parse(msg.data);
+        onnotice?.(notice);
+        const kind = noticeNeeds(notice, bookId, listenerId);
         if (kind) store.refreshSoon(kind);
       } catch {
         /* not a notice */

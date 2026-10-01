@@ -5,6 +5,7 @@
   import { ListenerGate, ListenerSwitcher, ListenerManager } from './views/listeners';
   import { HomeScreen, LibraryScreen, ManageScreen, Shell, tabForRoute, isTablet } from './views/library';
   import { SettingsScreen } from './views/settings';
+  import { AllowanceScreen, PremiumAccountScreen } from './views/account';
   import { VoiceSourcesScreen, BreezeServerScreen, DefaultVoiceScreen } from './views/voices';
   import { BookScreen } from './views/book';
   import { MiniPlayerHost, NowPlayingScreen, startListening } from './views/nowplaying';
@@ -45,6 +46,10 @@
           <BreezeServerScreen />
         {:else if $route === '/settings/voices/default'}
           <DefaultVoiceScreen />
+        {:else if $route === '/settings/premium'}
+          <PremiumAccountScreen />
+        {:else if $route === '/settings/allowance'}
+          <AllowanceScreen />
         {:else}
           <HomeScreen onswitchlistener={open} onplay={(id) => void startListening(id)} />
         {/if}

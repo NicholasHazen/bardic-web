@@ -5,12 +5,13 @@
   import { allowanceSummary, defaultVoiceSummary } from '../../lib/voiceText';
   import { currentListener, listenerStore } from '../../state/listener';
   import { listenerSettings, settingsActions, sources, voiceActions, voices } from '../../state/voices';
+  import { KeyProblemBanner } from '../account';
   import SettingsView from './SettingsView.svelte';
 
   /**
    * Settings ([Settings]): the listener, voices, Allowance and this device. Shown in the Shell on `#/settings`.
    * The rows link to `#/settings/listeners`, `#/settings/voices/default`, `#/settings/voices/breeze`,
-   * `#/settings/premium` (W4), `#/settings/voices`, `#/settings/allowance` (W4), `#/settings/downloads` (W5) and
+   * `#/settings/premium` (PremiumAccountScreen), `#/settings/voices`, `#/settings/allowance` (AllowanceScreen), `#/settings/downloads` (W5) and
    * `#/settings/reader` (W3).
    */
   interface Props {
@@ -43,6 +44,8 @@
   });
 </script>
 
+<!-- shown only while the Google key is rejected; what is kept comes first -->
+<KeyProblemBanner />
 <SettingsView
   listener={{ name: who?.name ?? '', hue: who ? avatarHue(who.id) : undefined }}
   {defaultVoice}
