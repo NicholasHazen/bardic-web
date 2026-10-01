@@ -398,7 +398,8 @@
   "title": "About this Bardic",
   "w": 390,
   "h": 844,
-  "milestone": "W6"
+  "milestone": "W6",
+  "route": "#/board/ServerName"
  },
  "FirstPlay": {
   "title": "First play · getting ready",
@@ -418,7 +419,8 @@
   "title": "Book menu",
   "w": 390,
   "h": 844,
-  "milestone": "W6"
+  "milestone": "W6",
+  "route": "#/board/BookMenu"
  },
  "DownloadProgress": {
   "title": "Downloading · failed · out of date",
@@ -480,13 +482,15 @@
   "title": "Delete permanently",
   "w": 390,
   "h": 844,
-  "milestone": "W6"
+  "milestone": "W6",
+  "route": "#/board/DeleteConfirm"
  },
  "DeleteUndo": {
   "title": "Deleting · undo for 60 s",
   "w": 390,
   "h": 844,
-  "milestone": "W6"
+  "milestone": "W6",
+  "route": "#/board/DeleteUndo"
  },
  "EndOfBook": {
   "title": "End of book",
@@ -499,7 +503,8 @@
   "title": "Free up space",
   "w": 390,
   "h": 844,
-  "milestone": "W6"
+  "milestone": "W6",
+  "route": "#/board/FreeSpace"
  },
  "SearchEmpty": {
   "title": "Search · no results",

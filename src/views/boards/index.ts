@@ -4,6 +4,7 @@ import Components from './Components.svelte';
 import { accountBoards } from './account';
 import { bookBoards } from './book';
 import { libraryBoards } from './library';
+import { manageBoards } from './manage';
 import { listenerBoards } from './listeners';
 import { offlineBoards } from './offline';
 import { playerBoards } from './player';
@@ -24,4 +25,5 @@ export const boards: Record<string, Component> = {
   ...plansBoards,
   ...accountBoards,
   ...offlineBoards,
+  ...manageBoards,
 };
