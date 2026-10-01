@@ -1,1 +1,9 @@
-{}
+{
+  "_note": "Deliberate differences from a board. Entries need a reason; without one the default tolerance applies. Key = board name. Accessibility notes that do not change pixels are recorded here too under 'a11y:' keys and are not read by the check.",
+  "a11y:Components/Chip": {
+    "reason": "Filter chips are 40 px tall (42 px with border) as drawn, under the 44 px touch-target rule in docs/UI-GUIDE.md. Kept as the board shows them; revisit if the owner wants 44."
+  },
+  "a11y:Components/Toggle": {
+    "reason": "The toggle row is 30 px tall as drawn; an invisible 44 px hit area is added so the target meets the rule."
+  }
+}

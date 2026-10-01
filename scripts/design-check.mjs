@@ -21,7 +21,7 @@ const only = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--miles
 const canvas = JSON.parse(fs.readFileSync(path.join(root, 'design/canvas/canvas.json'), 'utf8')).boards;
 const uncovered = Object.keys(canvas).map((f) => f.replace('.dc.html', '')).filter((n) => !manifest[n]);
 
-const PORT = 5199;
+const PORT = Number(process.env.DESIGN_PORT ?? 5199);
 const dev = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { cwd: root, stdio: 'ignore' });
 const stop = () => dev.kill();
 process.on('exit', stop);

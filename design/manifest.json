@@ -35,67 +35,78 @@
   "title": "Welcome · first listener",
   "w": 390,
   "h": 844,
-  "milestone": "W1"
+  "milestone": "W1",
+  "route": "#/board/FirstListener"
  },
  "PickerFirstRun": {
   "title": "Who is listening · choose",
   "w": 390,
   "h": 844,
-  "milestone": "W1"
+  "milestone": "W1",
+  "route": "#/board/PickerFirstRun"
  },
  "SwitchListener": {
   "title": "Switch listener · phone",
   "w": 390,
   "h": 844,
-  "milestone": "W1"
+  "milestone": "W1",
+  "route": "#/board/SwitchListener"
  },
  "PickerManage": {
   "title": "Settings · Listeners",
   "w": 390,
   "h": 844,
-  "milestone": "W1"
+  "milestone": "W1",
+  "route": "#/board/PickerManage"
  },
  "PickerAdd": {
   "title": "Add a listener",
   "w": 390,
   "h": 844,
-  "milestone": "W1"
+  "milestone": "W1",
+  "route": "#/board/PickerAdd"
  },
  "PickerNameTaken": {
   "title": "Edit · name taken",
   "w": 390,
   "h": 844,
-  "milestone": "W1"
+  "milestone": "W1",
+  "route": "#/board/PickerNameTaken"
  },
  "PickerDelete": {
   "title": "Delete a listener",
   "w": 390,
   "h": 844,
-  "milestone": "W1"
+  "milestone": "W1",
+  "route": "#/board/PickerDelete"
  },
  "PickerOnlyOne": {
   "title": "Edit · only listener",
   "w": 390,
   "h": 844,
-  "milestone": "W1"
+  "milestone": "W1",
+  "route": "#/board/PickerOnlyOne"
  },
  "SwitchTablet": {
   "title": "Switch listener · tablet landscape",
   "w": 1194,
   "h": 834,
-  "milestone": "W1"
+  "milestone": "W1",
+  "route": "#/board/SwitchTablet"
  },
  "HomeEmpty": {
   "title": "Home · first run",
   "w": 390,
   "h": 844,
-  "milestone": "W1"
+  "milestone": "W1",
+  "route": "#/board/HomeEmpty"
  },
  "Home": {
   "title": "Home · phone",
   "w": 390,
   "h": 844,
-  "milestone": "W1"
+  "milestone": "W1",
+  "route": "#/board/Home"
  },
  "HomeOffline": {
   "title": "Home · away from home",
@@ -107,37 +118,43 @@
   "title": "Home · tablet landscape",
   "w": 1194,
   "h": 834,
-  "milestone": "W1"
+  "milestone": "W1",
+  "route": "#/board/HomeTablet"
  },
  "Library": {
   "title": "Library · phone",
   "w": 390,
   "h": 844,
-  "milestone": "W1"
+  "milestone": "W1",
+  "route": "#/board/Library"
  },
  "LibraryDuplicate": {
   "title": "Already in your library",
   "w": 390,
   "h": 844,
-  "milestone": "W1"
+  "milestone": "W1",
+  "route": "#/board/LibraryDuplicate"
  },
  "LibraryTablet": {
   "title": "Library · tablet landscape",
   "w": 1194,
   "h": 834,
-  "milestone": "W1"
+  "milestone": "W1",
+  "route": "#/board/LibraryTablet"
  },
  "Import": {
   "title": "Add a book · states",
   "w": 1780,
   "h": 700,
-  "milestone": "W1"
+  "milestone": "W1",
+  "route": "#/board/Import"
  },
  "Manage": {
   "title": "Edit books · phone",
   "w": 390,
   "h": 844,
-  "milestone": "W1"
+  "milestone": "W1",
+  "route": "#/board/Manage"
  },
  "BookTop": {
   "title": "Book page · phone",
