@@ -79,3 +79,20 @@ Exported at 1x from the canvas source in `canvas/`. Each row names the board as 
 | `FreeSpace` | Free up space | 390×844 | [png](boards/FreeSpace.png) |
 | `SearchEmpty` | Search · no results | 390×844 | [png](boards/SearchEmpty.png) |
 | `ReadDownloading` | Read · downloading in the background | 390×844 | [png](boards/ReadDownloading.png) |
+
+## Checking the client against the design
+
+Every board is listed in [manifest.json](manifest.json) with its size and the milestone that builds it (`reference` for the four boards that are documentation: Overview, Vocab, Main, Status). A board is *built* when the manifest gives it a `route`: a client hash route (`#/board/<Name>`) that renders the screen from fixtures at the board's own size.
+
+```sh
+npm run design:refs                     # render all canvas sources in this machine's Chromium (design/refs/, not committed)
+npm run design:check                    # diff every built board against its reference, write design/report/index.html
+npm run design:check -- Home            # one board
+npm run design:check -- --milestone W1  # a milestone
+```
+
+- The client is diffed against `design/refs/` (the canvas source rendered in the same browser: noise floor 0.000%), not against the exported PNGs, whose blur and glow differ slightly. The report shows the client, the reference, the difference and the exported board side by side; the exported board is what a person judges.
+- Default tolerance is 1% of pixels. A board over tolerance fails the check, and so does a canvas board missing from the manifest.
+- A deliberate difference is written in [deviations.json](deviations.json) as `{"Board": {"reason": "...", "tolerance": 3}}`. The reason is required; without one the default tolerance applies. This is the only way to loosen a check.
+- Palette rules live in `src/theme/derive.ts` and are tested against the `B1Palette` board's four worked examples.
+- Canvas facts learned the hard way: the canvas uses the browser default `content-box` sizing (it says `border-box` where intended), so the client must not add a global `border-box` reset; and the client must not set `-webkit-font-smoothing`.

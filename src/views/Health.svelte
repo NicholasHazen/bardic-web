@@ -1,7 +1,7 @@
 <script lang="ts">
   import { api } from '../api/client';
 
-  let state = $state<'checking' | 'ok' | 'down'>('checking');
+  let status = $state<'checking' | 'ok' | 'down'>('checking');
   let name = $state('');
   let version = $state('');
 
@@ -13,9 +13,9 @@
         const s = await api.GET('/api/server');
         name = s.data?.name ?? '';
         version = s.data?.api_version ?? '';
-        state = 'ok';
+        status = 'ok';
       } catch {
-        state = 'down';
+        status = 'down';
       }
     })();
   });
@@ -23,9 +23,9 @@
 
 <main>
   <h1>Bardic</h1>
-  {#if state === 'checking'}
+  {#if status === 'checking'}
     <p>Looking for your Bardic computer…</p>
-  {:else if state === 'ok'}
+  {:else if status === 'ok'}
     <p>Connected to {name} (contract {version}).</p>
   {:else}
     <p>Can’t reach your Bardic computer.</p>

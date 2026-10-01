@@ -19,4 +19,4 @@ Entry point for coding agents. User instructions for the current task take prece
 - Use original synthetic text in tests and fixtures; never commit a user's books or audio.
 
 ## Workflow
-Keep changes scoped, update the docs when behaviour or a screen changes, run the type check, lint and tests, and report what was verified.
+Keep changes scoped, update the docs when behaviour or a screen changes, and report what was verified. Run `npm run check` (types), `npx vitest run` (logic) and `npm run design:check` (boards). A screen is done when its board passes `design:check` at the tolerance in `design/deviations.json` (default 1%) and a person has looked at the side-by-side report; a deliberate difference needs a reason in `design/deviations.json`. See `design/README.md`.
