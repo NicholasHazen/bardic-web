@@ -340,8 +340,12 @@ export function makeOptions(input: MakeInput): MakeOption[] {
 
 /** Speech runs at about this many words a minute when read aloud. */
 export const WORDS_PER_MINUTE = 150;
-/** How much faster than speaking a free voice makes audio, until a job has measured it. An assumption, said as "About". */
-export const ASSUMED_SPEED_UP = 10;
+/**
+ * Seconds of audio a free voice makes per second of waiting, until a job has measured it. Breeze on
+ * the reference machine runs at about 0.9: slightly slower than real time (measured live: 10.2 s of
+ * audio in 10.8 s). An assumption, said as "About". So a long book takes about as long as it lasts.
+ */
+export const ASSUMED_MAKE_RATE = 0.9;
 /** 24 kHz 16-bit mono WAV, what the server stores today; used for the size until audio of this server has been measured. */
 export const ASSUMED_BYTES_PER_SECOND = 48_000;
 
@@ -379,7 +383,7 @@ export function estimateMake(
   const spoken = (words / WORDS_PER_MINUTE) * 60;
   return {
     toMake: todo.length,
-    seconds: spoken / ASSUMED_SPEED_UP,
+    seconds: spoken / ASSUMED_MAKE_RATE,
     bytes: Math.round(spoken * (bytesPerSecond ?? ASSUMED_BYTES_PER_SECOND)),
     measured: bytesPerSecond !== undefined,
   };

@@ -190,8 +190,8 @@ describe('the free Make ready sheet', () => {
     const e = estimateMake(chapters, chapters.map((c) => c.id), audio, 8000);
     expect(e.toMake).toBe(9);
     expect(e.measured).toBe(true);
-    // 9 x 1500 words at 150 wpm = 90 min of speech; 10x faster = 9 min; 5400 s x 8000 B = 43.2 MB
-    expect(e.seconds).toBeCloseTo(540);
+    // 9 x 1500 words at 150 wpm = 90 min of speech; made at 0.9 s of audio per second = 100 min; 5400 s x 8000 B = 43.2 MB
+    expect(e.seconds).toBeCloseTo(6000);
     expect(e.bytes).toBe(43_200_000);
   });
   it('falls back to a stated default rate when nothing was measured', () => {
