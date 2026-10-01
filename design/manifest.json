@@ -21,7 +21,8 @@
   "title": "Base components",
   "w": 1280,
   "h": 1120,
-  "milestone": "W0"
+  "milestone": "W0",
+  "route": "#/board/Components"
  },
  "B1Palette": {
   "title": "Palette from the cover",
