@@ -30,12 +30,19 @@ export interface Running {
 
 const TYPES: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 
-export async function startStack(): Promise<Running> {
+export interface StackOptions {
+  /** Extra environment for the server, e.g. { BARDIC_GEMINI_URL: fake.url }. */
+  env?: Record<string, string>;
+  /** Extra server arguments. */
+  args?: string[];
+}
+
+export async function startStack(opts: StackOptions = {}): Promise<Running> {
   if (!fs.existsSync(SERVER_BIN)) throw new Error(`server binary not found: ${SERVER_BIN} (cargo build --release in bardic-server, or set BARDIC_SERVER_BIN)`);
   if (!fs.existsSync(path.join(DIST, 'index.html'))) throw new Error('dist/ is missing: run `npm run build` first');
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bardic-e2e-'));
   const serverPort = await freePort();
-  const child: ChildProcess = spawn(SERVER_BIN, ['--data-dir', dataDir, '--bind', `127.0.0.1:${serverPort}`], { stdio: 'ignore' });
+  const child: ChildProcess = spawn(SERVER_BIN, ['--data-dir', dataDir, '--bind', `127.0.0.1:${serverPort}`, ...(opts.args ?? [])], { stdio: 'ignore', env: { ...process.env, ...opts.env } });
   const api = `http://127.0.0.1:${serverPort}`;
   for (let i = 0; i < 100; i++) {
     try {

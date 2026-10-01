@@ -160,49 +160,57 @@
   "title": "Book page · phone",
   "w": 390,
   "h": 844,
-  "milestone": "W2"
+  "milestone": "W2",
+  "route": "#/board/BookTop"
  },
  "BookChapters": {
   "title": "Book page, scrolled · phone",
   "w": 390,
   "h": 844,
-  "milestone": "W2"
+  "milestone": "W2",
+  "route": "#/board/BookChapters"
  },
  "BookRunning": {
   "title": "Book page · making ready",
   "w": 390,
   "h": 844,
-  "milestone": "W2"
+  "milestone": "W2",
+  "route": "#/board/BookRunning"
  },
  "BookTablet": {
   "title": "Book page · tablet landscape",
   "w": 1194,
   "h": 834,
-  "milestone": "W2"
+  "milestone": "W2",
+  "route": "#/board/BookTablet"
  },
  "VoiceFree": {
   "title": "Choose a voice · free",
   "w": 390,
   "h": 844,
-  "milestone": "W2"
+  "milestone": "W2",
+  "route": "#/board/VoiceFree"
  },
  "VoicePremium": {
   "title": "Choose a voice · premium",
   "w": 390,
   "h": 844,
-  "milestone": "W2"
+  "milestone": "W2",
+  "route": "#/board/VoicePremium"
  },
  "VoiceNoAccount": {
   "title": "Premium · no account yet",
   "w": 390,
   "h": 844,
-  "milestone": "W2"
+  "milestone": "W2",
+  "route": "#/board/VoiceNoAccount"
  },
  "PlanFree": {
   "title": "Make it ready · free",
   "w": 390,
   "h": 844,
-  "milestone": "W2"
+  "milestone": "W2",
+  "route": "#/board/PlanFree"
  },
  "PlanPremium": {
   "title": "Make it ready · premium plan",
@@ -328,13 +336,15 @@
   "title": "Settings · phone",
   "w": 390,
   "h": 844,
-  "milestone": "W2"
+  "milestone": "W2",
+  "route": "#/board/Settings"
  },
  "VoiceSources": {
   "title": "Voices",
   "w": 390,
   "h": 844,
-  "milestone": "W2"
+  "milestone": "W2",
+  "route": "#/board/VoiceSources"
  },
  "PremiumAccount": {
   "title": "Premium voices · account",
@@ -358,7 +368,8 @@
   "title": "Breeze server",
   "w": 390,
   "h": 844,
-  "milestone": "W2"
+  "milestone": "W2",
+  "route": "#/board/BreezeServer"
  },
  "ServerName": {
   "title": "About this Bardic",
@@ -418,7 +429,8 @@
   "title": "Settings · default voice",
   "w": 390,
   "h": 844,
-  "milestone": "W2"
+  "milestone": "W2",
+  "route": "#/board/VoiceDefault"
  },
  "EstimateExplained": {
   "title": "How an estimate works",
@@ -430,7 +442,8 @@
   "title": "First time · set up a voice",
   "w": 390,
   "h": 844,
-  "milestone": "W2"
+  "milestone": "W2",
+  "route": "#/board/SetupVoice"
  },
  "DeleteConfirm": {
   "title": "Delete permanently",

@@ -1,8 +1,10 @@
 import type { Component } from 'svelte';
 import B1Palette from './B1Palette.svelte';
 import Components from './Components.svelte';
+import { bookBoards } from './book';
 import { libraryBoards } from './library';
 import { listenerBoards } from './listeners';
+import { voiceBoards } from './voices';
 
 /** Board name (as the product spec cites it) to the view that renders it from fixtures. */
 export const boards: Record<string, Component> = {
@@ -10,4 +12,6 @@ export const boards: Record<string, Component> = {
   Components,
   ...listenerBoards,
   ...libraryBoards,
+  ...bookBoards,
+  ...voiceBoards,
 };
