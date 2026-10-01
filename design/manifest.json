@@ -112,7 +112,8 @@
   "title": "Home · away from home",
   "w": 390,
   "h": 844,
-  "milestone": "W5"
+  "milestone": "W5",
+  "route": "#/board/HomeOffline"
  },
  "HomeTablet": {
   "title": "Home · tablet landscape",
@@ -230,19 +231,22 @@
   "title": "Download to this device",
   "w": 390,
   "h": 844,
-  "milestone": "W5"
+  "milestone": "W5",
+  "route": "#/board/DownloadSheet"
  },
  "Downloads": {
   "title": "Downloads",
   "w": 390,
   "h": 844,
-  "milestone": "W5"
+  "milestone": "W5",
+  "route": "#/board/Downloads"
  },
  "ServerOffline": {
   "title": "Away from home · server unreachable",
   "w": 390,
   "h": 844,
-  "milestone": "W5"
+  "milestone": "W5",
+  "route": "#/board/ServerOffline"
  },
  "B1Listen": {
   "title": "Now playing, Listen · phone",
@@ -420,7 +424,8 @@
   "title": "Downloading · failed · out of date",
   "w": 390,
   "h": 844,
-  "milestone": "W5"
+  "milestone": "W5",
+  "route": "#/board/DownloadProgress"
  },
  "PlanBlocked": {
   "title": "Plan would pass the Allowance",
@@ -447,7 +452,8 @@
   "title": "Newer audio · what changed",
   "w": 390,
   "h": 844,
-  "milestone": "W5"
+  "milestone": "W5",
+  "route": "#/board/UpdateAudio"
  },
  "VoiceDefault": {
   "title": "Settings · default voice",
@@ -506,6 +512,7 @@
   "title": "Read · downloading in the background",
   "w": 390,
   "h": 844,
-  "milestone": "W5"
+  "milestone": "W5",
+  "route": "#/board/ReadDownloading"
  }
 }

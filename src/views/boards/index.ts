@@ -5,6 +5,7 @@ import { accountBoards } from './account';
 import { bookBoards } from './book';
 import { libraryBoards } from './library';
 import { listenerBoards } from './listeners';
+import { offlineBoards } from './offline';
 import { playerBoards } from './player';
 import { plansBoards } from './plans';
 import { sheetsBoards } from './sheets';
@@ -22,4 +23,5 @@ export const boards: Record<string, Component> = {
   ...sheetsBoards,
   ...plansBoards,
   ...accountBoards,
+  ...offlineBoards,
 };
