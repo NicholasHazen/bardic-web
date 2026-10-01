@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const SERVER_BIN = process.env.BARDIC_SERVER_BIN ?? path.resolve(import.meta.dirname, '../../bardic-server/target/release/bardic-server');
-const DIST = path.resolve(import.meta.dirname, '../dist');
+const DIST = path.resolve(import.meta.dirname, '..', process.env.BARDIC_DIST ?? 'dist');
 
 const freePort = () =>
   new Promise<number>((resolve, reject) => {

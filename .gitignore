@@ -10,3 +10,4 @@ design/refs/
 design/report/
 test-results/
 playwright-report/
+dist-*/
