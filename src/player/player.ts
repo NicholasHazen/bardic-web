@@ -9,13 +9,14 @@
 //   Free voices are made on demand and ahead, which costs nothing.
 // - Four listening states only: Playing, Getting ready, Waiting, Needs you (rules.ts).
 // - The place is saved through src/sync/place.ts, always with base_revision, never discarding the other place.
-import { get, writable, type Readable } from 'svelte/store';
+import { derived, get, writable, type Readable } from 'svelte/store';
 import { chapterWord, type AudioWord } from '../lib/bookAudio';
 import { browserStorage, systemClock, type Clock, type KeyValueStorage } from '../lib/clock';
 import { cpLength } from '../lib/codepoints';
 import { lineAtOffset, lineAtTime, normalizeTimings, offsetAtTime, spreadTimings, timeForOffset } from '../lib/timings';
 import { listenerStore } from '../state/listener';
-import { chosenAudiobook, deviceChapters } from '../state/book';
+import { chosenAudiobook } from '../state/book';
+import { offline } from '../offline/offline';
 import { PlaceSync, apiPlaceApi, type HeldConflict, type Place, type PlaceApi, type Position, type Lifecycle } from '../sync/place';
 import { AudioEngine, SKIP_SECONDS, browserAudioFactory, browserMediaSession, type AudioLike, type MediaSessionPort } from './engine';
 import { apiPlayerApi, sseEvents, type Audiobook, type AudiobookChapter, type Book, type Chapter, type EventsPort, type Job, type ListenerSettings, type Notice, type PlayerApi, type R } from './gateway';
@@ -30,6 +31,7 @@ import {
   previousPlayable,
   progressEstimate,
 } from './rules';
+import type { HeldBookInfo, HeldChapter } from '../offline/types';
 import { SPEED_MAX, SPEED_MIN, type LineTiming, type Mode, type NeedsYou, type PlaceConflictInfo, type PlaceSnapshot, type PlayerCommands, type PlayerState, type SleepTimer, type TextLine } from './types';
 
 // --------------------------------------------------------------------------- dependencies
@@ -52,6 +54,12 @@ export interface PlayerDeps {
   lifecycle?: Lifecycle | null;
   /** chapter ids this device holds (offline, W5); none until then */
   heldChapters?: (audiobookId: string) => ReadonlySet<string>;
+  /** a downloaded chapter's audio, text and timings, usable with no server; null when this device does not hold it */
+  held?: (audiobookId: string, chapterId: string) => Promise<HeldChapter | null>;
+  /** a downloaded book as the device remembers it, for opening it with no server; null when nothing of it is held */
+  heldBook?: (bookId: string, preferAudiobookId?: string | null) => HeldBookInfo | null;
+  /** false while the Bardic computer is known to be unreachable; going back to true reconnects quietly */
+  online?: Readable<boolean>;
   /** the audiobook the listener chose for a book on this device */
   chosenAudiobook?: (listenerId: string, bookId: string) => string | null;
   /** a place writer to use instead of making one (tests) */
@@ -85,6 +93,7 @@ export const IDLE_PRELOAD_MS = 3000;
 export const SEEK_FLUSH_MS = 600;
 export const FADE_MS = 1500;
 
+const HELD_PREFIX = 'held:';
 const DEFAULT_SETTINGS: ListenerSettings = { default_voice_id: null, place_conflict: 'ask', continue_into_next_chapter: true };
 
 const toMode = (m: Place['mode']): Mode => (m === 'reading' ? 'read' : 'listen');
@@ -92,6 +101,7 @@ const toPlaceMode = (m: Mode): Place['mode'] => (m === 'read' ? 'reading' : 'lis
 
 export function initialState(speed = 1): PlayerState {
   return {
+    offlineNext: null,
     loaded: false,
     book: null,
     chapter: null,
@@ -173,6 +183,13 @@ class PlayerImpl {
   private waiting: { until: number | null } | null = null;
   private buffering = false;
   private held: HeldConflict | null = null;
+  /** the Bardic computer could not be reached on the last try */
+  private serverDown = false;
+  /** false for an audiobook opened from this device's memory: its tier is not known, so nothing is requested for it */
+  private tierKnown = true;
+  private offer: { chapterId: string; title: string } | null = null;
+  private lastOnline: boolean | undefined;
+  private heldCache = new Map<string, Promise<HeldChapter | null>>();
 
   private textCache = new Map<string, Promise<TextEntry | null>>();
   private timingsCache = new Map<string, Promise<LineTiming[]>>();
@@ -221,6 +238,15 @@ class PlayerImpl {
       this.sync.conflict.subscribe((c) => this.onConflict(c)),
       this.sync.status.subscribe((s) => this.push({ placeSync: s })),
     );
+    if (d.online) {
+      this.unsubs.push(
+        d.online.subscribe((on) => {
+          const was = this.lastOnline;
+          this.lastOnline = on;
+          if (was === false && on) void this.reconnect();
+        }),
+      );
+    }
   }
 
   // ----------------------------------------------------------------------------- state
@@ -257,7 +283,8 @@ class PlayerImpl {
       aheadSeconds: this.st.aheadSeconds,
       now: this.clock.now(),
     });
-    if (listening !== this.st.listening || detail !== this.st.detail || this.needs !== this.st.needsYou) this.push({ listening, detail, needsYou: this.needs });
+    const offer = this.needs?.code === 'offline_not_downloaded' ? this.offer : null;
+    if (listening !== this.st.listening || detail !== this.st.detail || this.needs !== this.st.needsYou || offer !== (this.st.offlineNext ?? null)) this.push({ listening, detail, needsYou: this.needs, offlineNext: offer });
     // the countdown of Waiting moves by itself
     this.clock.clearTimeout(this.tickTimer ?? 0);
     this.tickTimer = undefined;
@@ -330,12 +357,58 @@ class PlayerImpl {
 
   // ----------------------------------------------------------------------------- loading data
 
+  /** What this device holds of a chapter of the current audiobook (cached; a chapter not held is asked again next time). */
+  private heldOf(chapterId: string): Promise<HeldChapter | null> {
+    const ab = this.audiobook;
+    if (!ab || !this.d.held) return Promise.resolve(null);
+    const key = `${ab.id}:${chapterId}`;
+    const hit = this.heldCache.get(key);
+    if (hit) return hit;
+    const p = this.d.held(ab.id, chapterId).catch(() => null);
+    this.heldCache.set(key, p);
+    void p.then((v) => {
+      if (!v) this.heldCache.delete(key);
+    });
+    return p;
+  }
+
+  private isHeld(chapterId: string): boolean {
+    const ab = this.audiobook;
+    return !!ab && !!this.d.heldChapters?.(ab.id).has(chapterId);
+  }
+
+  /** A held chapter in the shape of a made one, so playing it goes the same way. */
+  private heldAudio(chapterId: string, h: HeldChapter): AudiobookChapter {
+    const ab = this.audiobook!;
+    return {
+      chapter_id: chapterId,
+      state: 'ready',
+      audio: {
+        id: `${HELD_PREFIX}${ab.id}:${chapterId}`,
+        duration_seconds: h.durationSeconds ?? 0,
+        bytes: 0,
+        sha256: '',
+        content_type: 'audio/*',
+        voice_revision: ab.voice_revision,
+        url: h.audioUrl,
+      },
+      newer_audio: null,
+      detail: null,
+    };
+  }
+
   private getText(chapterId: string): Promise<TextEntry | null> {
     const bookId = this.bookId;
     const hit = this.textCache.get(chapterId);
     if (hit) return hit;
     if (!bookId) return Promise.resolve(null);
-    const p = this.d.api.chapterText(bookId, chapterId).then((r): TextEntry | null => (r.ok ? { text: r.value.text, lines: r.value.lines.map((l) => ({ id: l.id, start: l.start, end: l.end })) } : null));
+    // the copy on this device first: it needs no server, and saves the bandwidth
+    const p = (async (): Promise<TextEntry | null> => {
+      const h = await this.heldOf(chapterId);
+      if (h) return { text: h.text, lines: h.lines.map((l) => ({ id: l.id, start: l.start, end: l.end })) };
+      const r = await this.d.api.chapterText(bookId, chapterId);
+      return r.ok ? { text: r.value.text, lines: r.value.lines.map((l) => ({ id: l.id, start: l.start, end: l.end })) } : null;
+    })();
     this.textCache.set(chapterId, p);
     void p.then((v) => {
       if (!v) this.textCache.delete(chapterId);
@@ -343,7 +416,7 @@ class PlayerImpl {
     return p;
   }
 
-  /** Line timings of a chapter's audio; spread by line length when the server has none. */
+  /** Line timings of a chapter's audio; spread by line length when there are none. */
   private getTimings(a: AudiobookChapter): Promise<LineTiming[]> {
     const ref = a.audio;
     if (!ref) return Promise.resolve([]);
@@ -352,22 +425,97 @@ class PlayerImpl {
     const p = (async (): Promise<LineTiming[]> => {
       const t = await this.getText(a.chapter_id);
       const lines = t?.lines ?? [];
-      const r = await this.d.api.timings(ref.id);
-      const norm = r.ok ? normalizeTimings(r.value.lines, lines) : [];
+      let raw: { line_id: string; start_ms: number; end_ms: number }[] = [];
+      if (ref.id.startsWith(HELD_PREFIX)) {
+        const h = await this.heldOf(a.chapter_id);
+        raw = (h?.timings ?? []).map((x) => ({ line_id: x.lineId, start_ms: x.startMs, end_ms: x.endMs }));
+      } else {
+        const r = await this.d.api.timings(ref.id);
+        if (r.ok) raw = r.value.lines;
+      }
+      const norm = normalizeTimings(raw, lines);
       return norm.length ? norm : spreadTimings(lines, ref.duration_seconds * 1000);
     })();
     this.timingsCache.set(ref.id, p);
     return p;
   }
 
+  /** The server's word on each chapter, with the chapters this device holds counted as ready whatever the server says. */
   private async loadAudio(): Promise<boolean> {
     const ab = this.audiobook;
     if (!ab) return false;
     const r = await this.d.api.audioChapters(ab.id);
-    if (!r.ok || this.audiobook?.id !== ab.id) return false;
-    this.audio = new Map(r.value.map((c) => [c.chapter_id, c]));
+    if (this.audiobook?.id !== ab.id) return false;
+    const map = r.ok ? new Map(r.value.map((c) => [c.chapter_id, c])) : new Map(this.audio);
+    if (!r.ok && r.status === 0) this.serverDown = true;
+    for (const id of this.d.heldChapters?.(ab.id) ?? []) {
+      if (map.get(id)?.state === 'ready') continue;
+      const h = await this.heldOf(id);
+      if (h && this.audiobook?.id === ab.id) map.set(id, this.heldAudio(id, h));
+    }
+    this.audio = map;
     this.push({ chapters: this.chapterList() });
-    return true;
+    if (r.ok && this.serverDown) {
+      this.serverDown = false;
+      void this.upgrade();
+    }
+    return r.ok;
+  }
+
+  /** The server is reachable again: read the real book, chapters and audiobooks, without moving the listener. */
+  private async upgrade(): Promise<void> {
+    const l = this.listenerId;
+    const b = this.bookId;
+    if (!l || !b) return;
+    const [book, chapters, audiobooks, settings] = await Promise.all([this.d.api.book(l, b), this.d.api.chapters(b), this.d.api.audiobooks(b), this.d.api.settings(l)]);
+    if (this.bookId !== b || this.listenerId !== l) return;
+    if (book.ok) {
+      this.book = book.value;
+      this.push({ book: bookInfo(book.value) });
+    }
+    if (chapters.ok) {
+      this.chapters = [...chapters.value].sort((a, c) => a.index - c.index);
+      const cur = this.chapters.find((c) => c.id === this.curChapterId);
+      if (cur) this.push({ chapter: this.chapterInfo(cur) });
+    }
+    if (audiobooks.ok) {
+      this.audiobooks = audiobooks.value;
+      const fresh = audiobooks.value.find((a) => a.id === this.audiobook?.id);
+      if (fresh) {
+        this.audiobook = fresh;
+        this.tierKnown = true;
+        this.push({ voice: { id: fresh.voice_id, name: fresh.voice_name, tier: fresh.tier } });
+      }
+    }
+    if (settings.ok) this.settings = settings.value;
+    if (this.needs && (this.needs.code === 'offline' || this.needs.code === 'offline_not_downloaded')) {
+      this.needs = null;
+      this.offer = null;
+    }
+    await this.loadAudio();
+    this.recompute();
+    this.refreshState();
+  }
+
+  /** The Bardic computer is back (the offline engine says so): reconnect the notices and send the waiting place, quietly. */
+  private async reconnect(): Promise<void> {
+    const l = this.listenerId;
+    if (!l || !this.bookId) return;
+    this.serverDown = false;
+    this.stopEvents?.();
+    this.stopEvents = this.d.events?.subscribe(l, (n) => this.onNotice(n), () => this.afterReconnect()) ?? null;
+    void this.sync.replayQueue();
+    await this.upgrade();
+    void this.checkRemotePlace();
+    this.kickRefresh(0);
+  }
+
+  private unreachable(): boolean {
+    return this.serverDown || (!!this.d.online && get(this.d.online) === false);
+  }
+
+  private nextHeldAfter(chapterId: string): Chapter | undefined {
+    return this.following(chapterId).find((c) => this.isHeld(c.id));
   }
 
   // ----------------------------------------------------------------------------- opening
@@ -394,20 +542,35 @@ class PlayerImpl {
       this.d.api.settings(l),
     ]);
     if (run !== this.run) return;
+    const localPlace = this.sync.readLocal(l, bookId);
     if (!book.ok || !chapters.ok) {
       const bad = !book.ok ? book : (chapters as Extract<typeof chapters, { ok: false }>);
-      this.needs = needsYou(bad.status === 0 ? 'offline_not_downloaded' : 'other', bad.status === 0 ? 'This book is not on this device, and your Bardic computer cannot be reached.' : bad.detail, '/');
-      this.push({ loaded: false });
-      this.refreshState();
-      return;
+      const held = bad.status === 0 ? this.d.heldBook?.(bookId, localPlace?.audiobookId) : null;
+      if (!held) {
+        this.needs =
+          bad.status === 0
+            ? { code: 'offline_not_downloaded', text: "Your place is kept. This book is not on this device, and your Bardic computer can't be reached.", action: { label: 'Open the library', route: '/' } }
+            : needsYou('other', bad.detail, '/');
+        this.serverDown = bad.status === 0;
+        this.push({ loaded: false });
+        this.refreshState();
+        return;
+      }
+      // opened from what this device holds
+      this.serverDown = true;
+      this.tierKnown = false;
+      this.book = bookFromHeld(held);
+      this.chapters = held.chapters.map((c) => ({ id: c.id, index: c.index, title: c.title, kind: c.kind, word_count: 1, text_sha256: '' }));
+      this.audiobooks = [audiobookFromHeld(held)];
+    } else {
+      this.book = book.value;
+      this.chapters = [...chapters.value].sort((a, b) => a.index - b.index);
+      this.audiobooks = audiobooks.ok ? audiobooks.value : [];
     }
-    this.book = book.value;
-    this.chapters = [...chapters.value].sort((a, b) => a.index - b.index);
-    this.audiobooks = audiobooks.ok ? audiobooks.value : [];
     this.settings = settings.ok ? settings.value : DEFAULT_SETTINGS;
     const serverPlace = place.kind === 'ok' ? place.place : null;
 
-    const decision = this.sync.begin(l, bookId, serverPlace, opts.chapterId ? 'this_device' : undefined);
+    const decision = this.sync.begin(l, bookId, serverPlace, opts.chapterId ? 'this_device' : undefined, { unreachable: place.kind !== 'ok' });
     if (run !== this.run) return;
     let start: { chapterId: string; offset: number; time: number | null; mode: Place['mode']; audiobookId: string | null };
     const first = firstPlayable(this.chapters);
@@ -423,8 +586,11 @@ class PlayerImpl {
       case 'ask':
         start = { chapterId: decision.local.chapterId, offset: decision.local.offset, time: decision.local.time, mode: decision.local.mode, audiobookId: decision.local.audiobookId };
         break;
-      default:
-        start = { chapterId: first?.id ?? '', offset: 0, time: null, mode: 'listening', audiobookId: null };
+      default: {
+        // nothing saved yet: from the start, or from the first chapter on this device when the server cannot be reached
+        const firstHeld = this.serverDown ? this.chapters.find((c) => c.kind === 'story' && !!this.d.heldChapters?.(this.audiobooks[0]?.id ?? '').has(c.id)) : undefined;
+        start = { chapterId: (firstHeld ?? first)?.id ?? '', offset: 0, time: null, mode: 'listening', audiobookId: null };
+      }
     }
     if (opts.chapterId) start = { ...start, chapterId: opts.chapterId, offset: opts.offset ?? 0, time: null };
     if (!this.chapters.some((c) => c.id === start.chapterId)) start = { ...start, chapterId: first?.id ?? '', offset: 0, time: null };
@@ -514,6 +680,10 @@ class PlayerImpl {
     this.textCache = new Map();
     this.timingsCache = new Map();
     this.held = null;
+    this.heldCache = new Map();
+    this.offer = null;
+    this.serverDown = false;
+    this.tierKnown = true;
     this.bookId = null;
     this.listenerId = null;
     this.book = null;
@@ -572,9 +742,20 @@ class PlayerImpl {
     this.sync.record({ chapterId, offset: this.cursorOffset, time: target.time ?? null, mode: toPlaceMode(this.st.mode), audiobookId: this.audiobook?.id ?? null }, this.st.playing);
     if (flush) void this.sync.flush();
 
-    const a = this.audio.get(chapterId);
-    if (a?.state === 'ready' && a.audio) await this.attach(a, target, my);
-    else await this.awaitAudio(chapterId, target, my);
+    // this device's copy is used whenever it has one, online or not
+    const heldCopy = await this.heldOf(chapterId);
+    if (my !== this.chapterRun) return;
+    if (heldCopy) {
+      const a = this.heldAudio(chapterId, heldCopy);
+      if (this.audio.get(chapterId)?.state !== 'ready') this.audio.set(chapterId, a);
+      await this.attach(a, target, my);
+    } else if (this.unreachable()) {
+      this.notOnDevice(chapterId, target);
+    } else {
+      const a = this.audio.get(chapterId);
+      if (a?.state === 'ready' && a.audio) await this.attach(a, target, my);
+      else await this.awaitAudio(chapterId, target, my);
+    }
     if (my === this.chapterRun) this.transition = false;
     this.recompute();
     this.refreshState();
@@ -588,7 +769,7 @@ class PlayerImpl {
     const durMs = ref.duration_seconds * 1000;
     let time = target.time ?? null;
     if (time === null && target.offset !== undefined) time = (timeForOffset(timings, this.lines, target.offset, durMs) ?? 0) / 1000;
-    time = clamp(time ?? 0, 0, ref.duration_seconds);
+    time = clamp(time ?? 0, 0, ref.duration_seconds > 0 ? ref.duration_seconds : Infinity);
     this.timings = timings;
     this.anchor = target.offset !== undefined ? { chapterId: a.chapter_id, offset: target.offset, time } : null;
     this.pending = null;
@@ -628,7 +809,7 @@ class PlayerImpl {
     this.refreshState();
   }
 
-  private async awaitAudio(chapterId: string, target: Target, my: number): Promise<void> {
+  private dropAudio(): void {
     if (this.audioChapterId !== null) {
       this.engine.pause();
       this.engine.unload();
@@ -636,6 +817,29 @@ class PlayerImpl {
       this.engine.setActions(null);
       this.installSession();
     }
+  }
+
+  /** O5: the chapter is not on this device and the server cannot be reached. Say so, and offer the next one that is held. */
+  private notOnDevice(chapterId: string, target: Target): void {
+    this.dropAudio();
+    this.pending = { chapterId, target, requested: false, tries: 0 };
+    const ch = this.chapters.find((c) => c.id === chapterId);
+    const n = ch && ch.kind === 'story' ? this.chapterInfo(ch)?.storyNumber : null;
+    const label = n ? `Chapter ${n}` : `“${ch?.title ?? 'This chapter'}”`;
+    const next = this.nextHeldAfter(chapterId);
+    this.offer = next ? { chapterId: next.id, title: next.title } : null;
+    this.needs = {
+      code: 'offline_not_downloaded',
+      text: `Your place is kept. ${label} isn't on this device. Your Bardic computer can't be reached.`,
+      action: { label: next ? `Go to ${next.title}` : 'Open the book', route: this.route() },
+    };
+    this.wantPlay = false;
+    this.push({ playing: false, timings: [], position: target.time ?? 0 });
+    this.refreshState();
+  }
+
+  private async awaitAudio(chapterId: string, target: Target, my: number): Promise<void> {
+    this.dropAudio();
     this.pending = { chapterId, target, requested: false, tries: 0 };
     this.push({ playing: false, timings: [], position: target.time ?? 0 });
     this.refreshState();
@@ -648,12 +852,16 @@ class PlayerImpl {
     const l = this.listenerId;
     if (!p || !l) return;
     const ab = this.audiobook;
+    if (this.unreachable() && !this.isHeld(p.chapterId)) {
+      this.notOnDevice(p.chapterId, p.target);
+      return;
+    }
     if (!ab) {
       this.needs = needsYou('no_voice', 'Choose a voice to start listening.', this.route(), 'Choose a voice');
       this.refreshState();
       return;
     }
-    if (ab.tier !== 'free') {
+    if (ab.tier !== 'free' || !this.tierKnown) {
       // P2: nothing paid starts without an approved plan; requestChapterAudio may charge for a premium voice
       this.needs = premiumNeeds(this.route());
       this.refreshState();
@@ -687,6 +895,7 @@ class PlayerImpl {
 
   private requestFailed(r: Extract<R<unknown>, { ok: false }>): void {
     const route = this.route();
+    if (r.status === 0) this.serverDown = true;
     if (r.status === 0) this.needs = needsYou('offline', 'This chapter is not on this device, and your Bardic computer cannot be reached.', route);
     else if (r.code === 'plan_required') this.needs = premiumNeeds(route);
     else this.needs = needsFromServer({ code: r.code ?? 'other', text: r.detail }, route);
@@ -741,7 +950,10 @@ class PlayerImpl {
     const books = await this.d.api.audiobooks(this.bookId!);
     if (books.ok && this.audiobook?.id === ab.id) {
       const fresh = books.value.find((a) => a.id === ab.id);
-      if (fresh) this.audiobook = fresh;
+      if (fresh) {
+        this.audiobook = fresh;
+        this.tierKnown = true;
+      }
       this.audiobooks = books.value;
     }
     const ok = await this.loadAudio();
@@ -801,7 +1013,7 @@ class PlayerImpl {
   private afterRefresh(): void {
     const active = !!this.pending || !!this.audiobook?.active_job_id;
     if (!active) return;
-    this.schedulePoll(this.pending ? POLL_MS : ACTIVE_JOB_POLL_MS);
+    this.schedulePoll(this.pending && !this.serverDown ? POLL_MS : ACTIVE_JOB_POLL_MS);
   }
 
   private onNotice(n: Notice): void {
@@ -832,7 +1044,7 @@ class PlayerImpl {
     const ab = this.audiobook;
     const l = this.listenerId;
     const cur = this.curChapterId;
-    if (!ab || ab.tier !== 'free' || !l || !cur) return;
+    if (!ab || ab.tier !== 'free' || !this.tierKnown || this.unreachable() || !l || !cur) return;
     const missing = this.following(cur)
       .slice(0, KEEP_AHEAD)
       .filter((c) => {
@@ -853,6 +1065,12 @@ class PlayerImpl {
     const next = nextPlayable(this.chapters, cur);
     const a = next ? this.audio.get(next.id) : undefined;
     if (!next || a?.state !== 'ready' || !a.audio) return;
+    if (a.audio.id.startsWith(HELD_PREFIX) || this.isHeld(next.id)) {
+      // on this device: nothing to download, only get it ready
+      void this.heldOf(next.id);
+      void this.getText(next.id);
+      return;
+    }
     this.engine.preload(a.audio.url ?? `/api/audio/${a.audio.id}`, mode);
     if (this.preloadedFor !== next.id) {
       this.preloadedFor = next.id;
@@ -1238,6 +1456,30 @@ function pickAudiobook(
   return best?.id ?? null;
 }
 
+/** A book opened from what the device remembers: just enough of a `Book` for the player. */
+function bookFromHeld(h: HeldBookInfo): Book {
+  const cover = { url: h.coverSrc ?? '', generated: !h.coverSrc, sha256: '', width: 0, height: 0, sample: { hex: h.coverColor, hue: 0, saturation: 0, lightness: 0, vivid: true, version: 1 } };
+  return { id: h.bookId, title: h.title, author: h.author, cover } as unknown as Book;
+}
+
+/** The audiobook of a held book. Its tier is not remembered: `tierKnown` stays false, so nothing is requested for it. */
+function audiobookFromHeld(h: HeldBookInfo): Audiobook {
+  return {
+    id: h.audiobookId,
+    book_id: h.bookId,
+    voice_id: h.voiceName,
+    voice_name: h.voiceName,
+    source_id: '',
+    tier: 'free',
+    voice_revision: '',
+    chapters_total: h.chapters.length,
+    chapters_ready: 0,
+    bytes: 0,
+    created_at: '1970-01-01T00:00:00Z',
+    active_job_id: null,
+  };
+}
+
 function bookInfo(book: Book): NonNullable<PlayerState['book']> {
   const info: NonNullable<PlayerState['book']> = { id: book.id, title: book.title, author: book.author, coverColor: book.cover?.sample?.hex ?? '#c65a43' };
   if (book.cover && !book.cover.generated) info.coverSrc = book.cover.url;
@@ -1285,7 +1527,10 @@ export function browserDeps(): PlayerDeps {
     events: sseEvents,
     mediaSession: browserMediaSession(),
     listener: () => get(listenerStore).currentId,
-    heldChapters: (audiobookId) => new Set([...(get(deviceChapters).get(audiobookId) ?? [])].filter(([, v]) => v === 'held').map(([id]) => id)),
+    heldChapters: (audiobookId) => offline.heldChapters(audiobookId),
+    held: (audiobookId, chapterId) => offline.heldChapter(audiobookId, chapterId),
+    heldBook: (bookId, prefer) => offline.heldBook(bookId, prefer),
+    online: derived(offline, (o) => o.online),
     chosenAudiobook,
   };
 }

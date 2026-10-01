@@ -85,7 +85,10 @@
   span { line-height: 1.35; }
   .scrim { position: absolute; inset: 0; background: rgba(10, 8, 16, 0.55); }
   .scrim.popover { background: rgba(10, 8, 16, 0.5); }
+  /* In the app (fixed to the viewport) a sheet and its backdrop sit above the tab bar and the mini-player. */
   .scrim.fixed, .sheet.fixed { position: fixed; }
+  .scrim.fixed { z-index: 50; }
+  .sheet.fixed { z-index: 51; }
   .sheet {
     position: absolute;
     box-sizing: border-box;

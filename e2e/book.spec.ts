@@ -120,8 +120,8 @@ test('B2: the audiobook card shows voice, tier, ready and on-device counts, and 
   await expect(card.getByText('0 of 5 chapters ready')).toBeVisible();
   await expect(card.getByText('0 on this device')).toBeVisible();
   await expect(card.getByRole('button', { name: 'Make ready' })).toBeEnabled();
-  // Download arrives with offline storage (W5): offered, not yet usable
-  await expect(card.getByRole('button', { name: 'Download' })).toBeDisabled();
+  // Download is offered and usable (offline storage, W5)
+  await expect(card.getByRole('button', { name: 'Download' })).toBeEnabled();
   // Change opens the voice chooser
   await card.getByRole('button', { name: /^Change/ }).click();
   await expect(page.getByRole('dialog')).toBeVisible();

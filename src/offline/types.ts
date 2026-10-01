@@ -182,3 +182,18 @@ export interface VerifyReport {
   /** chapters whose copy was damaged and is no longer served; they show as "Couldn't download" until fetched again */
   damaged: { audiobookId: string; chapterId: string; reason: string }[];
 }
+
+/**
+ * What the device remembers about a downloaded book, enough for the player to open it with no server: the book, the
+ * voice name and the chapters in order with their kind (front and back matter are skipped by "next").
+ */
+export interface HeldBookInfo {
+  bookId: string;
+  audiobookId: string;
+  title: string;
+  author: string;
+  coverColor: string;
+  coverSrc?: string;
+  voiceName: string;
+  chapters: { id: string; index: number; title: string; kind: 'story' | 'front_matter' | 'back_matter' }[];
+}

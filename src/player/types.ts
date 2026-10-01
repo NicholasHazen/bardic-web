@@ -123,6 +123,11 @@ export interface PlayerState {
   finishedBook: boolean;
   /** saving the place failed or is waiting for the network; the local copy is kept */
   placeSync: 'saved' | 'saving' | 'queued_offline';
+  /**
+   * Set with needsYou.code 'offline_not_downloaded' when the chapter asked for is not on this device and the Bardic computer
+   * cannot be reached: the next chapter that is on this device. The screen offers it (gotoChapter(chapterId)).
+   */
+  offlineNext?: { chapterId: string; title: string } | null;
 }
 
 export interface PlaceSnapshot {

@@ -1,5 +1,9 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { browserStorage } from './lib/clock';
   import { route } from './lib/router';
+  import { offline } from './offline/offline';
+  import { currentListener, listenerStore } from './state/listener';
   import Board from './views/Board.svelte';
   import Health from './views/Health.svelte';
   import { ListenerGate, ListenerSwitcher, ListenerManager } from './views/listeners';
@@ -9,6 +13,11 @@
   import { VoiceSourcesScreen, BreezeServerScreen, DefaultVoiceScreen } from './views/voices';
   import { BookScreen } from './views/book';
   import { MiniPlayerHost, NowPlayingScreen, startListening } from './views/nowplaying';
+  import DownloadsHost from './views/offline/connected/DownloadsHost.svelte';
+  import OfflineBookPage from './views/offline/connected/OfflineBookPage.svelte';
+  import OfflineHome from './views/offline/connected/OfflineHome.svelte';
+  import OfflineServerHost from './views/offline/connected/OfflineServerHost.svelte';
+  import { rememberListenerName } from './views/offline/connected/listenerName';
 
   let switching = $state(false);
   const open = () => (switching = true);
@@ -16,6 +25,21 @@
 
   const active = $derived(tabForRoute($route));
   const go = (hash: string) => (location.hash = hash);
+
+  // Away from home (O4): the Bardic computer cannot be reached and this device remembers who is listening. The listener
+  // list lives on the server, so this view does not wait for it; the app comes back by itself when the server does.
+  const away = $derived(!$offline.online && !!$listenerStore.currentId);
+  const awayBookId = $derived($route.startsWith('/book/') ? $route.slice('/book/'.length) : '');
+  const awayHolds = $derived(!!awayBookId && $offline.books.some((b) => b.bookId === awayBookId && b.chapters.some((c) => c.state === 'on_device' || c.state === 'out_of_date')));
+  onMount(() => {
+    // Safe to repeat: the remembered listener is selected at once, before the server answers.
+    void listenerStore.load();
+  });
+  // The name is kept so Home can greet the listener when the list cannot be read.
+  $effect(() => {
+    const me = currentListener($listenerStore);
+    if (me) rememberListenerName(browserStorage(), me.id, me.name);
+  });
 </script>
 
 {#if $route.startsWith('/board/')}
@@ -23,6 +47,26 @@
 {:else if $route === '/health'}
   <Health />
 {:else}
+  {#if away}
+    {#if $route.startsWith('/listen/')}
+      <NowPlayingScreen bookId={$route.slice('/listen/'.length)} />
+    {:else if awayHolds}
+      <OfflineBookPage bookId={awayBookId} />
+    {:else}
+      <Shell {active}>
+        {#snippet player()}<MiniPlayerHost />{/snippet}
+        {#if $route === '/'}
+          <OfflineHome />
+        {:else if $route === '/settings'}
+          <SettingsScreen />
+        {:else if $route === '/settings/downloads'}
+          <DownloadsHost />
+        {:else}
+          <OfflineServerHost />
+        {/if}
+      </Shell>
+    {/if}
+  {:else}
   <ListenerGate>
     {#if $route.startsWith('/listen/')}
       <NowPlayingScreen bookId={$route.slice('/listen/'.length)} />
@@ -46,6 +90,8 @@
           <BreezeServerScreen />
         {:else if $route === '/settings/voices/default'}
           <DefaultVoiceScreen />
+        {:else if $route === '/settings/downloads'}
+          <DownloadsHost />
         {:else if $route === '/settings/premium'}
           <PremiumAccountScreen />
         {:else if $route === '/settings/allowance'}
@@ -66,4 +112,5 @@
       />
     {/if}
   </ListenerGate>
+  {/if}
 {/if}

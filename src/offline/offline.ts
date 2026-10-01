@@ -17,6 +17,7 @@ import type {
   DownloadPreview,
   DownloadScope,
   DownloadStatus,
+  HeldBookInfo,
   HeldChapter,
   OfflineBook,
   OfflineCommands,
@@ -60,6 +61,11 @@ export interface OfflineEngine extends Readable<OfflineStateX>, OfflineCommands 
   heldChapter(audiobookId: string, chapterId: string): Promise<HeldChapter | null>;
   /** chapter ids of an audiobook with a copy that plays (on this device, including out of date); for the player's `heldChapters` */
   heldChapters(audiobookId: string): ReadonlySet<string>;
+  /**
+   * The downloaded book with this book id (the audiobook preferred if it is held, else the one holding the most
+   * chapters), for opening it with no server. Read-only; null when nothing of the book is held.
+   */
+  heldBook(bookId: string, preferAudiobookId?: string | null): HeldBookInfo | null;
   /** audiobook ids that hold at least one chapter */
   heldAudiobookIds(): string[];
   /** check held chapters again; `deep` hashes the whole audio */
@@ -552,6 +558,25 @@ export function createOffline(deps: OfflineDeps): OfflineEngine {
     heldChapter,
     heldChapters: (audiobookId) => downloads.heldIds(audiobookId),
     heldAudiobookIds: () => [...downloads.held.keys()],
+    heldBook(bookId, preferAudiobookId) {
+      const held = (id: string) => downloads.held.get(id)?.size ?? 0;
+      const candidates = [...downloads.metas.values()].filter((m) => m.bookId === bookId && held(m.audiobookId) > 0);
+      const meta = candidates.find((m) => m.audiobookId === preferAudiobookId) ?? candidates.sort((a, b) => held(b.audiobookId) - held(a.audiobookId))[0];
+      if (!meta) return null;
+      const kinds = ['story', 'front_matter', 'back_matter'] as const;
+      const info: HeldBookInfo = {
+        bookId: meta.bookId,
+        audiobookId: meta.audiobookId,
+        title: meta.title,
+        author: meta.author,
+        coverColor: meta.coverColor,
+        voiceName: meta.voiceName,
+        chapters: [...meta.chapters].sort((a, b) => a.index - b.index).map((c) => ({ id: c.id, index: c.index, title: c.title, kind: kinds.find((k) => k === c.kind) ?? 'story' })),
+      };
+      const cover = coverUrls.get(meta.bookId) ?? meta.coverUrl;
+      if (cover) info.coverSrc = cover;
+      return info;
+    },
     verify: (audiobookId, opts) => runVerify(audiobookId, opts),
     listenerChanged() {
       stopEvents?.();

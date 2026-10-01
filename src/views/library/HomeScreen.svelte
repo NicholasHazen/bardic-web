@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { browserStorage } from '../../lib/clock';
+  import { rememberHome } from '../offline/connected/mapping';
   import { avatarHue } from '../../lib/listenerText';
   import { bookActions, chapterLine, followLibraryEvents, homeCard, homeList, homeSections, onDeviceIds, toCard, toContinue, DEFAULT_QUERY, type Chapter } from '../../state/library';
   import { currentListener, listenerStore } from '../../state/listener';
@@ -38,6 +40,13 @@
     const b = sections.continueBook;
     if (!b || !b.place) return null;
     return toContinue(b, chaptersFor === b.id ? chapterLine(chapters, b.place.chapter_id) : undefined);
+  });
+
+  // Home keeps a short memory of the library so that, away from home, it can say which books are out of reach (O4).
+  $effect(() => {
+    const id = listenerId;
+    if (!id || $homeList.status !== 'ready' || $homeList.books.length === 0) return;
+    rememberHome(browserStorage(), id, $homeList.books.map((b) => toCard(b, $onDeviceIds)), continueItem);
   });
 
   // Load when shown (or when the listener changes) and follow change notices while shown.

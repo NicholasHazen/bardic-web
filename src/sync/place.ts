@@ -281,7 +281,7 @@ export class PlaceSync {
    * Decide which place to start from (C3). `server` is what the server said (null: none, or unreachable).
    * `policy` overrides the setting for this decision (an explicit jump is the listener's own choice).
    */
-  begin(listenerId: string, bookId: string, server: Place | null, policy: SyncPolicy = this.policy()): OpenDecision {
+  begin(listenerId: string, bookId: string, server: Place | null, policy: SyncPolicy = this.policy(), opts: { unreachable?: boolean } = {}): OpenDecision {
     const local = this.readLocal(listenerId, bookId);
     const dirty = this.queue.has(listenerId, bookId);
     const s: Session = {
@@ -305,8 +305,9 @@ export class PlaceSync {
         // the server has none (or could not be asked): ours is the place, and it is written when it can be
         s.rev = local.rev;
         s.pos = local;
-        s.key = null;
-        this.queue.put(listenerId, bookId, inputOf(local, s.rev), this.clock.now());
+        s.key = keyOfPosition(local);
+        // when the server could not be asked, ours is not news to it: only what was already waiting is sent
+        if (!opts.unreachable) this.queue.put(listenerId, bookId, inputOf(local, s.rev), this.clock.now());
         return { kind: 'local', local };
       }
       const srv = server!;

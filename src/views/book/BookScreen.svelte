@@ -10,6 +10,11 @@
   import { voices } from '../../state/voices';
   import { derivePalette } from '../../theme/derive';
   import { player } from '../../player/player';
+  import { offline } from '../../offline/offline';
+  import BookDownloads from '../offline/connected/BookDownloads.svelte';
+  import DownloadSheetHost from '../offline/connected/DownloadSheetHost.svelte';
+  import UpdateAudioHost from '../offline/connected/UpdateAudioHost.svelte';
+  import { pickChapters } from '../offline/connected/mapping';
   import FirstPlayView from '../sheets/FirstPlayView.svelte';
   import NoVoiceView from '../sheets/NoVoiceView.svelte';
   import MiniPlayerHost from '../nowplaying/MiniPlayerHost.svelte';
@@ -66,6 +71,8 @@
   let busy = $state(false);
   let sheetError = $state<string | undefined>();
   let problem = $state<{ title: string; text: string } | undefined>();
+  let downloadOpen = $state(false);
+  let updateOpen = $state(false);
 
   // A different book starts with the short list and nothing open.
   $effect(() => {
@@ -75,6 +82,8 @@
     chooser = false;
     makeOpen = false;
     problem = undefined;
+    downloadOpen = false;
+    updateOpen = false;
   });
 
   const page = $derived(pageModel(s, { expanded, storyOnly }, $deviceChapters));
@@ -89,6 +98,14 @@
     const o = makeOptions({ chapters: s.chapters.map((c) => ({ id: c.id, title: c.title, kind: c.kind, word_count: c.word_count })), audio: s.audio, currentId: s.place?.chapter_id }).find((x) => x.id === 'from');
     return o ? o.title.replace(/^From/, 'Plan from') : undefined;
   });
+  // Compare what this device holds of the audiobook with the server when the page opens.
+  const currentId = $derived(current?.id);
+  $effect(() => {
+    const id = currentId;
+    if (id) void offline.checkUpdates(id);
+  });
+  const deviceBook = $derived(currentId ? $offline.books.find((b) => b.audiobookId === currentId) : undefined);
+  const downloadChapters = $derived(pickChapters(s.chapters, s.audio, deviceBook));
   const freeVoiceName = $derived($voices.items.find((v) => v.id === s.defaultVoiceId && v.tier === 'free')?.name ?? null);
 
   /** Open the plan sheet. This prices the plan (free) and starts nothing; the sheet's Approve button is the only way on. */
@@ -169,6 +186,8 @@
       onmore={() => (location.hash = '#/library/manage')}
       onplay={play}
       onchangevoice={() => (chooser = true)}
+      ondownload={current && !planGoing ? () => (downloadOpen = true) : undefined}
+      {downloads}
       onmakeready={() => {
         selected = 'whole';
         sheetError = undefined;
@@ -210,6 +229,16 @@
         onclose={() => (makeOpen = false)}
       />
     {/if}
+    {#if downloadOpen && current}
+      <DownloadSheetHost
+        audiobookId={current.id}
+        voiceName={current.voice_name}
+        chapters={downloadChapters}
+        onopendownloads={() => (location.hash = '#/settings/downloads')}
+        onclose={() => (downloadOpen = false)}
+      />
+    {/if}
+    {#if updateOpen && current}<UpdateAudioHost audiobookId={current.id} onclose={() => (updateOpen = false)} />{/if}
     {#if chooser}<VoiceChooserSheet {bookId} onclose={closeChooser} onplan={planFromChooser} />{/if}
     <PlanFlow placement={$isTablet ? 'popover' : 'bottom'} />
   {/snippet}
@@ -225,6 +254,10 @@
       onfree={() => (chooser = true)}
     />
   {/if}
+{/snippet}
+
+{#snippet downloads()}
+  {#if current}<BookDownloads audiobookId={current.id} onupdate={() => (updateOpen = true)} />{/if}
 {/snippet}
 
 {#snippet playbackPanel()}

@@ -52,6 +52,10 @@
     plan?: import('svelte').Snippet;
     /** A plan is going: the plan card takes the place of the audiobook card ([PlanPaused]). */
     planActive?: boolean;
+    /** The download of the current audiobook (src/views/offline/connected/BookDownloads), under the audiobook card. */
+    downloads?: import('svelte').Snippet;
+    /** Replaces the audiobook card (a held book opened with no server, where its tier and what the server holds are not known). */
+    audiobookSlot?: import('svelte').Snippet;
     onchoose?: (audiobookId: string) => void;
     onshowall?: () => void;
     onfilter?: (storyOnly: boolean) => void;
@@ -83,6 +87,8 @@
     planFromLabel,
     plan,
     planActive = false,
+    downloads,
+    audiobookSlot,
     onchoose,
     onshowall,
     onfilter,
@@ -118,7 +124,10 @@
 
 {#snippet audiobookSection()}
   <section class="block" data-section="audiobook">
-    {#if planActive && plan}
+    {#if audiobookSlot}
+      <SectionLabelMuted>Audiobook</SectionLabelMuted>
+      {@render audiobookSlot()}
+    {:else if planActive && plan}
       {@render plan()}
     {:else}
       <SectionLabelMuted>Audiobook</SectionLabelMuted>
@@ -137,6 +146,7 @@
         </Glass>
       {/if}
     {/if}
+    {@render downloads?.()}
   </section>
 {/snippet}
 

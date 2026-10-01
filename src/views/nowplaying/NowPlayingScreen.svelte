@@ -6,6 +6,9 @@
   import { browserStorage } from '../../lib/clock';
   import { listenerStore } from '../../state/listener';
   import { player } from '../../player/player';
+  import { offline } from '../../offline/offline';
+  import UnavailableChapterNotice from '../offline/UnavailableChapterNotice.svelte';
+  import { nextForNotice, ringFor } from '../offline/connected/mapping';
   import type { ReaderAppearance } from '../../player/types';
   import { paletteFromHex } from '../../theme/fromHex';
   import NowPlayingView from '../player/NowPlayingView.svelte';
@@ -126,6 +129,17 @@
     }
   }
 
+  // ---- downloads (W5): the ring in Read while this audiobook downloads, and O5 when a chapter is not on this device
+  let noticeDismissed = $state(false);
+  const ring = $derived(ringFor($offline, s.audiobookId));
+  const notDownloaded = $derived((s.needsYou?.code as string | undefined) === 'offline_not_downloaded' && !noticeDismissed);
+  $effect(() => {
+    void s.chapter?.id;
+    noticeDismissed = false;
+  });
+  const deviceBook = $derived(s.audiobookId ? $offline.books.find((b) => b.audiobookId === s.audiobookId) : undefined);
+  const next = $derived(nextForNotice((s as { offlineNext?: { chapterId: string; title: string } | null }).offlineNext, deviceBook, s.chapter?.index ?? 0));
+
   const go = (route: string) => (location.hash = `#${route}`);
   const back = () => (history.length > 1 ? history.back() : go('/'));
 </script>
@@ -155,8 +169,21 @@
       onopensearch={() => (sheet = 'search')}
       onmore={() => go(`/book/${s.book?.id}`)}
       oncollapse={back}
+      download={ring}
+      onopendownloads={() => go('/settings/downloads')}
       onneedsyou={(action) => go(action?.route ?? `/book/${s.book?.id}`)}
     />
+
+    {#if notDownloaded && s.chapter}
+      <div class="unavailable">
+        <UnavailableChapterNotice
+          chapterNumber={s.chapter.storyNumber ?? s.chapter.index + 1}
+          {next}
+          onplaynext={(id) => player.gotoChapter(id)}
+          ondismiss={() => (noticeDismissed = true)}
+        />
+      </div>
+    {/if}
 
     {#if sheet === 'speed'}
       <SpeedSheet fixed {placement} speed={s.speed} onchange={(v) => player.setSpeed(v)} onclose={() => (sheet = null)} />
@@ -223,5 +250,6 @@
 <style>
   .screen { position: fixed; inset: 0; }
   .overlay { position: fixed; inset: 0; z-index: 30; background: var(--base); overflow: auto; }
+  .unavailable { position: fixed; left: 16px; right: 16px; bottom: 24px; z-index: 20; }
   .loading { position: fixed; inset: 0; display: grid; place-items: center; color: var(--muted); }
 </style>

@@ -5,6 +5,8 @@
   import { allowanceSummary, defaultVoiceSummary } from '../../lib/voiceText';
   import { currentListener, listenerStore } from '../../state/listener';
   import { listenerSettings, settingsActions, sources, voiceActions, voices } from '../../state/voices';
+  import { offline } from '../../offline/offline';
+  import { downloadsSummary } from '../offline/connected/mapping';
   import { KeyProblemBanner } from '../account';
   import SettingsView from './SettingsView.svelte';
 
@@ -17,10 +19,11 @@
   interface Props {
     /** Opens the listener switcher. The Listener row opens Listeners (where switching lives), so this is not used on a phone. */
     onswitchlistener?: () => void;
-    /** "1.2 GB · 3 books": supplied by the downloads work (W5). */
+    /** Overrides the summary of the Downloads row (by default "1.2 GB · 3 books", from what this device holds). */
     downloads?: string;
   }
-  let { onswitchlistener, downloads = 'Books kept on this device' }: Props = $props();
+  let { onswitchlistener, downloads }: Props = $props();
+  const downloadsLine = $derived(downloads ?? downloadsSummary($offline));
 
   const who = $derived(currentListener($listenerStore));
   const listenerId = $derived($listenerStore.currentId);
@@ -51,6 +54,6 @@
   {defaultVoice}
   sources={$sources.items}
   allowance={allowance || 'Monthly limit and what was spent'}
-  {downloads}
+  downloads={downloadsLine}
   {onswitchlistener}
 />

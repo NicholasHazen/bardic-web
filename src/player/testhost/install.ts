@@ -12,7 +12,9 @@ declare global {
 
 export function installE2E(): void {
   if (typeof window === 'undefined') return;
-  if (new URLSearchParams(window.location.search).get('e2e') !== 'player') return;
+  const hook = new URLSearchParams(window.location.search).get('e2e');
+  if (hook !== 'player' && hook !== 'offline') return; // 'offline' pages need the player too
+
   window.__player = player;
   // remember the element that plays real audio (not the silent unlock clip)
   const play = HTMLMediaElement.prototype.play;
