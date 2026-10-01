@@ -83,6 +83,15 @@ export function coverColor(book: Pick<Book, 'id' | 'cover'>): string {
   return hslToHex(h % 360, 0.38, 0.4);
 }
 
+/**
+ * The image to show for a book: a real cover only. A generated cover (a book with none of its own)
+ * is drawn as the flat colour of its sample with the title over it, as the boards show; the sample
+ * still colours the screen.
+ */
+export function realCoverUrl(cover: Pick<NonNullable<Book['cover']>, 'url' | 'generated'> | null | undefined): string | undefined {
+  return cover && !cover.generated ? cover.url : undefined;
+}
+
 export function volumeLabel(order: number): string {
   return `Vol. ${order}`;
 }
@@ -114,7 +123,8 @@ export function toCard(book: Book, onDevice: ReadonlySet<string> = new Set()): B
   };
   const p = progressOf(book);
   if (p !== undefined) card.progress = p;
-  if (book.cover?.url) card.coverSrc = book.cover.url;
+  const src = realCoverUrl(book.cover);
+  if (src) card.coverSrc = src;
   return card;
 }
 
@@ -192,7 +202,8 @@ export function toContinue(book: Book, line: string | undefined): ContinueModel 
     href: bookHref(book.id),
   };
   if (line) m.chapterLine = line;
-  if (book.cover?.url) m.coverSrc = book.cover.url;
+  const src = realCoverUrl(book.cover);
+  if (src) m.coverSrc = src;
   return m;
 }
 
@@ -212,7 +223,7 @@ export function toManage(book: Book): ManageBookModel {
     title: book.title,
     author: book.author,
     color: coverColor(book),
-    coverSrc: book.cover?.url,
+    coverSrc: realCoverUrl(book.cover),
     chapters: book.chapter_count,
     seriesName: book.series?.name ?? '',
     seriesOrder: book.series?.order === null || book.series?.order === undefined ? '' : String(book.series.order),

@@ -53,13 +53,16 @@ export function zip(files: Record<string, string>): Buffer {
 }
 
 /** A tiny original EPUB. `drm` adds the encryption manifest that DRM-protected files carry. */
-export function epub(opts: { drm?: boolean } = {}): Buffer {
+export function epub(opts: { drm?: boolean; titles?: string[]; title?: string } = {}): Buffer {
+  const titles = opts.titles ?? ['The Crossing'];
   const files: Record<string, string> = {
     mimetype: 'application/epub+zip',
     'META-INF/container.xml': '<?xml version="1.0"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>',
-    'OEBPS/content.opf': '<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>The Test Ferry</dc:title><dc:creator>A. Writer</dc:creator></metadata><manifest><item id="c0" href="c0.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="c0"/></spine></package>',
-    'OEBPS/c0.xhtml': '<html><body><h1>The Crossing</h1><p>The ferry left at dusk.</p></body></html>',
+    'OEBPS/content.opf': `<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>${opts.title ?? 'The Test Ferry'}</dc:title><dc:creator>A. Writer</dc:creator></metadata><manifest>${titles.map((_, i) => `<item id="c${i}" href="c${i}.xhtml" media-type="application/xhtml+xml"/>`).join('')}</manifest><spine>${titles.map((_, i) => `<itemref idref="c${i}"/>`).join('')}</spine></package>`,
   };
+  titles.forEach((title, i) => {
+    files[`OEBPS/c${i}.xhtml`] = `<html><body><h1>${title}</h1><p>Original words for ${title}, enough to be a chapter.</p></body></html>`;
+  });
   if (opts.drm) {
     files['META-INF/encryption.xml'] = '<encryption xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><EncryptedData xmlns="http://www.w3.org/2001/04/xmlenc#"><EncryptionMethod Algorithm="http://www.w3.org/2001/04/xmlenc#aes128-cbc"/></EncryptedData></encryption>';
   }

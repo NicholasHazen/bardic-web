@@ -32,6 +32,7 @@ const book: Book = {
   series: { name: 'The Ashmark Cycle', order: 2 },
   cover: null,
   chapter_count: 4,
+  story_chapter_count: 4,
   word_count: 74200,
   source_sha256: null,
   place: null,

@@ -35,7 +35,7 @@ import {
 } from '../lib/bookAudio';
 import { deviceId } from '../lib/device';
 import { followEventStream } from '../lib/sse';
-import { coverColor } from './library';
+import { coverColor, realCoverUrl } from './library';
 import type { AudiobookCardModel, BookHeaderModel, ChaptersModel, MakeSheetModel, OtherAudiobookModel } from '../views/book/types';
 
 export type Book = components['schemas']['Book'];
@@ -180,7 +180,8 @@ export function toHeader(book: Book): BookHeaderModel {
   };
   const s = seriesLine(book.series);
   if (s) m.seriesLine = s;
-  if (book.cover?.url) m.coverSrc = book.cover.url;
+  const src = realCoverUrl(book.cover);
+  if (src) m.coverSrc = src;
   return m;
 }
 

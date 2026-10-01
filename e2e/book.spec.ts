@@ -92,7 +92,8 @@ test('B1: the book page shows the book, the primary action, the audiobook card a
   await expect(page.getByText('Harbour Lights').first()).toBeVisible();
   await expect(page.getByText('A. Writer')).toBeVisible();
   await expect(page.getByText('The Harbour Cycle · Volume 2')).toBeVisible();
-  await expect(page.getByText('3 chapters · ')).toBeVisible();
+  // the header counts every chapter (5), the same set the Audiobook card counts ("0 of 5")
+  await expect(page.getByText('5 chapters · ')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Audiobook', exact: true })).toBeVisible();
   const card = page.locator('[data-section="audiobook"]');
   await expect(card.getByText('Mara')).toBeVisible();

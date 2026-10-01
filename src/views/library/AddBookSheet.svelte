@@ -1,7 +1,7 @@
 <script lang="ts">
   import Sheet from '../../components/Sheet.svelte';
   import { limitLabel, loadServerLimits, serverLimit, type ImportState } from '../../state/imports';
-  import { coverColor } from '../../state/library';
+  import { coverColor, realCoverUrl } from '../../state/library';
   import { dismissToast, showToast } from '../../state/toast';
   import { isTablet } from '../shell/viewport';
   import AddBookPanel from './AddBookPanel.svelte';
@@ -41,7 +41,7 @@
       id: e.book_id,
       title: e.title,
       color: coverColor({ id: e.book_id, cover: e.cover ?? null }),
-      coverSrc: e.cover?.url,
+      coverSrc: realCoverUrl(e.cover),
       detail: s.detail,
       removed: e.state === 'removed',
     };

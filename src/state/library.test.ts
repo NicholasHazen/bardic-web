@@ -17,6 +17,7 @@ import {
   noticeConcerns,
   pickContinue,
   toCard,
+  realCoverUrl,
   toContinue,
   toManage,
   toSeriesModel,
@@ -32,6 +33,7 @@ const book = (id: string, over: Partial<Book> = {}): Book => ({
   series: null,
   cover: null,
   chapter_count: 10,
+  story_chapter_count: 10,
   word_count: 1000,
   source_sha256: null,
   place: null,
@@ -118,10 +120,21 @@ describe('what the grid shows', () => {
     expect(toCard(book('a', { state: 'adding' }))).toMatchObject({ adding: true, href: undefined });
   });
   it('takes the cover colour from the sample, else a steady one from the id', () => {
-    const cover = { url: '/c', sha256: 'x', width: 1, height: 1, sample: { hex: '#c65a43', hue: 10, saturation: 0.5, lightness: 0.5, vivid: true, version: 1 } };
+    const cover = { url: '/c', generated: false, sha256: 'x', width: 1, height: 1, sample: { hex: '#c65a43', hue: 10, saturation: 0.5, lightness: 0.5, vivid: true, version: 1 } };
     expect(coverColor(book('a', { cover }))).toBe('#c65a43');
     expect(coverColor(book('abc'))).toBe(coverColor(book('abc')));
     expect(coverColor(book('abc'))).toMatch(/^#[0-9a-f]{6}$/);
+  });
+  it('shows the image of a real cover, and for a generated cover the flat sample colour with the title', () => {
+    const sample = { hex: '#3f6f8f', hue: 204, saturation: 0.4, lightness: 0.4, vivid: true, version: 1 };
+    const real = { url: '/real.jpg', generated: false, sha256: 'a', width: 240, height: 360, sample };
+    const made = { ...real, url: '/made.jpg', generated: true };
+    expect(realCoverUrl(real)).toBe('/real.jpg');
+    expect(realCoverUrl(made)).toBeUndefined();
+    expect(realCoverUrl(null)).toBeUndefined();
+    expect(toCard(book('a', { cover: made }))).toMatchObject({ color: '#3f6f8f' });
+    expect(toCard(book('a', { cover: made })).coverSrc).toBeUndefined();
+    expect(toCard(book('a', { cover: real })).coverSrc).toBe('/real.jpg');
   });
 });
 
