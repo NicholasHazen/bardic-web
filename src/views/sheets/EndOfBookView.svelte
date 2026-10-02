@@ -22,13 +22,17 @@
     missingVolume?: string | null;
     /** Already marked as finished. */
     finished?: boolean;
+    marking?: boolean;
+    finishError?: boolean;
+    lookupStatus?: 'idle' | 'loading' | 'ready' | 'error';
     onminimise?: () => void;
     onmore?: () => void;
     onfinish?: () => void;
     onnext?: () => void;
+    onretry?: () => void;
     onrestart?: () => void;
   }
-  let { title, coverColor, coverSrc, summary, next = null, missingVolume = null, finished = false, onminimise, onmore, onfinish, onnext, onrestart }: Props = $props();
+  let { title, coverColor, coverSrc, summary, next = null, missingVolume = null, finished = false, marking = false, finishError = false, lookupStatus = 'ready', onminimise, onmore, onfinish, onnext, onretry, onrestart }: Props = $props();
 </script>
 
 <div class="page">
@@ -50,10 +54,17 @@
     <span class="pct">100%</span>
   </div>
   <div class="actions">
-    <Button size={52} style="width:100%" disabled={finished} onclick={() => onfinish?.()}><Glyph name="check" size={18} />{finished ? 'Marked as finished' : 'Mark as finished'}</Button>
+    <Button size={52} style="width:100%" disabled={finished || marking} onclick={() => onfinish?.()}><Glyph name="check" size={18} />{finished ? 'Marked as finished' : 'Mark as finished'}</Button>
+    {#if finishError}<p class="lookup" role="status">Your place is kept. The finished mark could not be saved. Try again.</p>{/if}
+    {#if lookupStatus === 'loading'}
+      <p class="lookup" role="status">Checking the next volume…</p>
+    {:else if lookupStatus === 'error'}
+      <p class="lookup" role="status">Your place is kept. The next volume could not be checked.</p>
+      <Button variant="text" onclick={() => onretry?.()}>Retry</Button>
+    {/if}
     {#if next}
       <div class="sp"></div>
-      <Button variant="glass" icon="arrow-right" style="width:100%;height:48px;border-radius:24px" onclick={() => onnext?.()}>{next.title} · next you own</Button>
+      <Button variant="glass" icon="arrow-right" style="width:100%;min-height:48px;height:auto;border-radius:24px" onclick={() => onnext?.()}><span class="next-title">{next.title} · next you own</span></Button>
     {/if}
     <div class="sp"></div>
     <Button variant="text" style="width:100%;color:var(--ink)" onclick={() => onrestart?.()}>Listen again from the start</Button>
@@ -63,7 +74,7 @@
 </div>
 
 <style>
-  .page { display: flex; flex-direction: column; gap: 18px; height: 100%; overflow: hidden; font-family: var(--font-ui); color: var(--ink); }
+  .page { display: flex; flex-direction: column; gap: 18px; min-height: 100%; padding-bottom: 24px; font-family: var(--font-ui); color: var(--ink); }
   .bar { display: flex; align-items: center; padding: 8px 16px; }
   .grow { flex: 1; }
   .cover { display: flex; justify-content: center; padding-top: 6px; }
@@ -75,6 +86,8 @@
   .pct { font-size: 12px; font-weight: 700; color: var(--muted); line-height: 1.35; }
   .actions { display: flex; flex-direction: column; padding: 0 20px; }
   .sp { height: 10px; }
+  .next-title { white-space: normal; overflow-wrap: anywhere; }
+  .lookup { margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
   .note { padding: 0 28px; font-family: serif; line-height: normal; }
   .note span { font-family: var(--font-ui); font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.5; }
   @media (max-width: 300px) {

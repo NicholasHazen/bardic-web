@@ -44,6 +44,7 @@ Phone: portrait only, three tabs (Home, Library, Settings), a compact player bar
 - **Read mode never grows:** controls are one capsule; a download ring appears beside the reader controls and never covers text.
 - **Places:** when two places differ, show both with device, chapter, progress and time.
 - **Unknown stays unknown:** never display a missing cost or size as zero.
+- **End of book:** offer the next readable volume the listener owns, in numeric series order, and the first known missing volume before it. Opening that suggestion goes to its book page; listening and paid plans keep their existing flow. A failed lookup says that the next volume could not be checked and offers Retry. Long titles wrap and the end screen scrolls so its controls remain reachable.
 
 ## Copy rules
 "Your Bardic computer" is the server (not "home", "the cloud" or "this computer"). "This device" is the device in hand. "Allowance" only for the monthly ceiling. Say what a button does ("Make ready", "Download", "Plan the whole book").

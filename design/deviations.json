@@ -23,5 +23,8 @@
   },
   "live:TabletAura": {
     "reason": "Runtime tablet glow opacity is capped for bright cover-derived palettes so the actual painted reader and interface backgrounds preserve text contrast, including green and yellow covers. Authored board fixture glows are unchanged."
+  },
+  "live:EndOfBook": {
+    "reason": "The live S9 screen adds a read-only lookup status and Retry when series ownership cannot be checked, plus acknowledgement after Mark as finished is saved. P6 requires uncertainty to remain explicit. Next-volume titles wrap and the page scrolls for long real titles or error text so all controls stay reachable. The ordinary supplied board keeps the default 1% tolerance."
   }
 }

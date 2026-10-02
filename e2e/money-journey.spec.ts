@@ -30,7 +30,7 @@ test('set a key, choose a premium voice, approve one plan, listen, and see what 
   await page.reload();
   await page.getByRole('button', { name: 'Choose a voice' }).click();
   const chooser = page.getByRole('dialog', { name: 'Choose a voice' });
-  await chooser.getByRole('radio', { name: 'Premium' }).click();
+  await chooser.getByRole('radio', { name: 'Premium', exact: true }).click();
   await chooser.getByRole('radio', { name: /Kore/ }).click();
   expect(gemini.received()).toBe(0);
   expect(await plans()).toHaveLength(0);

@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import { get } from 'svelte/store';
   import { deviceId } from '../../lib/device';
   import { api } from '../../api/client';
   import { readerActions, readerPreferences } from '../../state/reader';
   import { listenerStore } from '../../state/listener';
+  import { apiContinuationDeps, SeriesContinuationStore } from '../../state/seriesContinuation';
   import { player } from '../../player/player';
   import { offline } from '../../offline/offline';
   import UnavailableChapterNotice from '../offline/UnavailableChapterNotice.svelte';
@@ -142,6 +143,33 @@
   const deviceBook = $derived(s.audiobookId ? $offline.books.find((b) => b.audiobookId === s.audiobookId) : undefined);
   const next = $derived(nextForNotice((s as { offlineNext?: { chapterId: string; title: string } | null }).offlineNext, deviceBook, s.chapter?.index ?? 0));
 
+  // ---- end of book (S9): scoped to this listener, route and end state, never to playback ticks.
+  const continuation = new SeriesContinuationStore(apiContinuationDeps);
+  const endBookId = $derived(s.finishedBook && s.book?.id === bookId ? s.book.id : null);
+  let marked = $state(false);
+  let marking = $state(false);
+  let finishError = $state(false);
+  let endRun = 0;
+  $effect(() => {
+    continuation.configure(listenerId, endBookId);
+    ++endRun;
+    marked = false;
+    marking = false;
+    finishError = false;
+  });
+  onDestroy(() => { ++endRun; continuation.dispose(); });
+  async function markFinished() {
+    if (marking || marked) return;
+    const run = endRun;
+    marking = true;
+    finishError = false;
+    const ok = await player.markFinished(true);
+    if (run !== endRun) return;
+    marking = false;
+    marked = ok;
+    finishError = !ok;
+  }
+
   const go = (route: string) => (location.hash = `#${route}`);
   const back = () => (history.length > 1 ? history.back() : go('/'));
 </script>
@@ -241,9 +269,17 @@
           coverColor={s.book.coverColor}
           coverSrc={s.book.coverSrc}
           summary={`Chapter ${s.chapter.storyTotal} of ${s.chapter.storyTotal}`}
-          next={null}
+          next={$continuation.next}
+          missingVolume={$continuation.missingVolume}
+          lookupStatus={$continuation.status}
+          finished={marked}
+          {marking}
+          {finishError}
           onminimise={() => go('/')}
-          onfinish={() => void player.markFinished(true)}
+          onmore={() => go(`/book/${s.book?.id}`)}
+          onfinish={() => void markFinished()}
+          onnext={() => { if ($continuation.next) go(`/book/${$continuation.next.id}`); }}
+          onretry={() => void continuation.refresh()}
           onrestart={() => player.listenAgain()}
         />
       </div>

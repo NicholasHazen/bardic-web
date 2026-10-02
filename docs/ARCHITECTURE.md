@@ -43,6 +43,8 @@ A local copy of the place (exact audio time, scroll position, `revision`) is wri
 ## 6. Player
 One audio engine per page: loads the chapter audio, applies the listener's speed, exposes the four listening states, and emits the current line from the timings for Read mode. It prefetches the next chapter and asks the server to make it ahead. Switching audiobook keeps the text place and waits until the new audiobook has audio there.
 
+The end-of-book screen owns a read-only series lookup in `state/seriesContinuation.ts`. While the end state is visible, it reads the listener-scoped complete series list, locates the current book by ID and offers the nearest readable book with a higher numeric order. Unknown orders establish no successor; only the server's reported gaps produce a missing-volume note. Library change notices and every stream connection, including the first, refresh the lookup. Leaving the end state, changing the route/book/listener or unmounting cancels it and invalidates late replies. The next-volume action opens the book page without playback, generation or a place write. Failed reads keep the end controls available, show that the next volume could not be checked and offer Retry. The series catalogue is not stored offline, so an offline lookup makes no ownership or gap claim.
+
 ## 7. Theming
 Derive the palette from `Cover.sample` (see the UI guide), set CSS custom properties per book, and fall back to the default palette. Screens without a book use the default.
 
