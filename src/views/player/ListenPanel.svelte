@@ -153,4 +153,11 @@
   .num { font-family: var(--font-ui); font-size: 13px; font-weight: 700; color: var(--muted); width: 22px; }
   .name { font-family: var(--font-book); font-size: 16px; color: var(--ink); flex: 1; }
   .word { font-family: var(--font-ui); font-size: 12px; color: var(--muted); }
+  @media (max-width: 300px) {
+    .lp { flex: none; }
+    .mid { flex: none; overflow: visible; padding: 20px 12px; }
+    .titles { max-width: 100%; overflow-wrap: anywhere; }
+    .bottom { flex-shrink: 0; }
+    .pillrow { flex-wrap: wrap; }
+  }
 </style>

@@ -3,13 +3,12 @@
   import { get } from 'svelte/store';
   import { deviceId } from '../../lib/device';
   import { api } from '../../api/client';
-  import { browserStorage } from '../../lib/clock';
+  import { readerActions, readerPreferences } from '../../state/reader';
   import { listenerStore } from '../../state/listener';
   import { player } from '../../player/player';
   import { offline } from '../../offline/offline';
   import UnavailableChapterNotice from '../offline/UnavailableChapterNotice.svelte';
   import { nextForNotice, ringFor } from '../offline/connected/mapping';
-  import type { ReaderAppearance } from '../../player/types';
   import { paletteFromHex } from '../../theme/fromHex';
   import NowPlayingView from '../player/NowPlayingView.svelte';
   import BookSearchView from '../sheets/BookSearchView.svelte';
@@ -19,7 +18,7 @@
   import ReaderAppearanceSheet from '../sheets/ReaderAppearanceSheet.svelte';
   import SleepTimerSheet from '../sheets/SleepTimerSheet.svelte';
   import SpeedSheet from '../sheets/SpeedSheet.svelte';
-  import { loadAppearance, loadExtras, saveAppearance, saveExtras, type ReaderAppearanceValue, type ReaderExtras } from '../sheets/appearance';
+  import type { ReaderAppearanceValue, ReaderExtras } from '../sheets/appearance';
   import { hitToRow, type SearchResultRow } from '../sheets/search';
   import { isTablet } from '../shell/viewport';
   import type { SleepTimer } from '../../player/types';
@@ -42,11 +41,16 @@
     });
   });
 
-  let appearance = $state<ReaderAppearanceValue>(loadAppearance(browserStorage()));
-  let extras = $state<ReaderExtras>(loadExtras(browserStorage()));
+  const appearance = $derived($readerPreferences.appearance);
+  const extras = $derived($readerPreferences.extras);
+  const followNarration = $derived(extras.followNarration);
   let sheet = $state<null | 'speed' | 'sleep' | 'chapters' | 'appearance' | 'search'>(null);
   let storyOnly = $state(false);
   let following = $state(true);
+  $effect(() => {
+    // Only preference changes reset this flag; playback ticks leave a manual scroll-away alone.
+    following = followNarration;
+  });
 
   // viewport kind
   let w = $state(window.innerWidth);
@@ -71,12 +75,10 @@
   const nowPlaying = $derived(s);
 
   function setAppearance(v: ReaderAppearanceValue) {
-    appearance = v;
-    saveAppearance(browserStorage(), v);
+    readerActions.setAppearance(v);
   }
   function setExtras(v: ReaderExtras) {
-    extras = v;
-    saveExtras(browserStorage(), v);
+    readerActions.setExtras(v);
   }
   const setSleep = (t: SleepTimer) => player.setSleep(t);
 
@@ -145,14 +147,17 @@
 </script>
 
 {#if s.book && s.chapter}
-  <div class="screen">
+  <main class="screen" aria-label="Now Playing">
+    <div class="underlay" inert={sheet === 'search' || s.finishedBook}>
     <NowPlayingView
       state={nowPlaying}
-      appearance={{ ...appearance, theme: appearance.theme === 'night' ? 'dim' : appearance.theme } as ReaderAppearance}
+      {appearance}
       {layout}
       {palette}
       {now}
       bind:following
+      {followNarration}
+      pageWidth={extras.pageWidth}
       byline={s.book.author}
       ontoggle={() => player.toggle()}
       onskip={(sec) => player.skip(sec)}
@@ -173,6 +178,7 @@
       onopendownloads={() => go('/settings/downloads')}
       onneedsyou={(action) => go(action?.route ?? `/book/${s.book?.id}`)}
     />
+    </div>
 
     {#if notDownloaded && s.chapter}
       <div class="unavailable">
@@ -225,7 +231,7 @@
     {/if}
 
     {#if s.conflict}
-      <PlaceConflictSheet fixed conflict={s.conflict} bookTitle={s.book.title} onresolve={(c, o) => void resolve(c, o)} />
+      <PlaceConflictSheet fixed conflict={s.conflict} bookTitle={s.book.title} onresolve={(c, o) => void resolve(c, o)} onclose={() => go(`/book/${s.book?.id}`)} />
     {/if}
 
     {#if s.finishedBook}
@@ -242,13 +248,14 @@
         />
       </div>
     {/if}
-  </div>
+  </main>
 {:else}
   <div class="loading" role="status" aria-live="polite">Opening your book…</div>
 {/if}
 
 <style>
   .screen { position: fixed; inset: 0; }
+  .underlay { height: 100%; }
   .overlay { position: fixed; inset: 0; z-index: 30; background: var(--base); overflow: auto; }
   .unavailable { position: fixed; left: 16px; right: 16px; bottom: 24px; z-index: 20; }
   .loading { position: fixed; inset: 0; display: grid; place-items: center; color: var(--muted); }

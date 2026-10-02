@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import Badge from '../../components/Badge.svelte';
   import BookCard from '../../components/BookCard.svelte';
   import Button from '../../components/Button.svelte';
@@ -52,6 +53,9 @@
   const tablet = $derived(layout === 'tablet');
   let searchOpen = $state(false);
   let sortOpen = $state(false);
+  let sortButton = $state<HTMLButtonElement>();
+  let sortMenu = $state<HTMLDivElement>();
+  let menuIndex = $state(0);
   const showSearch = $derived(tablet || searchOpen || query !== '');
   const sortLabel = $derived(SORTS.find((s) => s.id === sort)?.label ?? 'Recently read');
   const width = $derived(tablet ? 118 : 106);
@@ -63,11 +67,32 @@
   function onkey(e: KeyboardEvent) {
     if (e.key === 'Escape' && sortOpen) {
       sortOpen = false;
+      sortButton?.focus();
       e.stopPropagation();
+    }
+  }
+  async function toggleSort(e: MouseEvent) {
+    e.stopPropagation();
+    sortOpen = !sortOpen;
+    if (sortOpen) {
+      menuIndex = Math.max(0, SORTS.findIndex((s) => s.id === sort));
+      await tick();
+      sortMenu?.querySelectorAll<HTMLButtonElement>('button')[menuIndex]?.focus();
+    }
+  }
+  function menuKey(e: KeyboardEvent) {
+    if (e.key === 'Tab') {
+      sortOpen = false;
+      sortButton?.focus(); // native Tab continues to the next page control
+    } else if (['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
+      e.preventDefault();
+      menuIndex = e.key === 'Home' ? 0 : e.key === 'End' ? SORTS.length - 1 : (menuIndex + (e.key === 'ArrowDown' ? 1 : -1) + SORTS.length) % SORTS.length;
+      sortMenu?.querySelectorAll<HTMLButtonElement>('button')[menuIndex]?.focus();
     }
   }
   function pickSort(s: LibrarySort) {
     sortOpen = false;
+    sortButton?.focus();
     onsort?.(s);
   }
   const noun = (n: number) => (n === 1 ? 'book' : 'books');
@@ -114,14 +139,14 @@
     <div class="summary">
       <span class="count">{#if count !== undefined}{count} {noun(count)}{/if}</span>
       <div class="sortwrap">
-        <button type="button" class="sort" aria-haspopup="menu" aria-expanded={sortOpen} onclick={(e) => { e.stopPropagation(); sortOpen = !sortOpen; }}>
+        <button bind:this={sortButton} type="button" class="sort" aria-haspopup="menu" aria-expanded={sortOpen} aria-controls="library-sort-menu" onclick={toggleSort}>
           {sortLabel}<Glyph name="chevron" size={14} color="var(--accent)" />
         </button>
         {#if sortOpen}
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-          <div class="menu" role="menu" tabindex="-1" aria-label="Sort by" onclick={(e) => e.stopPropagation()}>
-            {#each SORTS as s}
-              <button type="button" role="menuitemradio" aria-checked={sort === s.id} class:on={sort === s.id} onclick={() => pickSort(s.id)}>{s.label}</button>
+          <div bind:this={sortMenu} id="library-sort-menu" class="menu" role="menu" tabindex="-1" aria-label="Sort by" onkeydown={menuKey} onclick={(e) => e.stopPropagation()}>
+            {#each SORTS as s, i}
+              <button type="button" role="menuitemradio" tabindex={menuIndex === i ? 0 : -1} aria-checked={sort === s.id} class:on={sort === s.id} onclick={() => pickSort(s.id)}>{s.label}</button>
             {/each}
           </div>
         {/if}
@@ -130,14 +155,14 @@
   {:else if summary && tablet}
     <div class="summary t">
       <div class="sortwrap">
-        <button type="button" class="sort" aria-haspopup="menu" aria-expanded={sortOpen} onclick={(e) => { e.stopPropagation(); sortOpen = !sortOpen; }}>
+        <button bind:this={sortButton} type="button" class="sort" aria-haspopup="menu" aria-expanded={sortOpen} aria-controls="library-sort-menu" onclick={toggleSort}>
           Sort: {sortLabel}<Glyph name="chevron" size={14} color="var(--accent)" />
         </button>
         {#if sortOpen}
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-          <div class="menu left" role="menu" tabindex="-1" aria-label="Sort by" onclick={(e) => e.stopPropagation()}>
-            {#each SORTS as s}
-              <button type="button" role="menuitemradio" aria-checked={sort === s.id} class:on={sort === s.id} onclick={() => pickSort(s.id)}>{s.label}</button>
+          <div bind:this={sortMenu} id="library-sort-menu" class="menu left" role="menu" tabindex="-1" aria-label="Sort by" onkeydown={menuKey} onclick={(e) => e.stopPropagation()}>
+            {#each SORTS as s, i}
+              <button type="button" role="menuitemradio" tabindex={menuIndex === i ? 0 : -1} aria-checked={sort === s.id} class:on={sort === s.id} onclick={() => pickSort(s.id)}>{s.label}</button>
             {/each}
           </div>
         {/if}
@@ -195,16 +220,17 @@
   .grow { flex: 1; }
   .total { font-size: 13px; font-weight: 400; color: var(--muted); line-height: 1.35; flex: 1; margin-left: 8px; }
   .find { display: flex; align-items: center; gap: 8px; width: 100%; }
-  .find input { padding: 0; border: 0; outline: 0; background: transparent; flex: 1; min-width: 0; font-family: var(--font-ui); font-size: 13px; color: var(--ink); height: 40px; }
+  .find input { padding: 0; border: 0; outline: 0; background: transparent; flex: 1; min-width: 0; font-family: var(--font-ui); font-size: 13px; color: var(--ink); height: 44px; margin-block: -2px; }
   .find input::placeholder { color: var(--muted); opacity: 1; }
   .find input::-webkit-search-cancel-button { display: none; }
-  .chips { display: flex; align-items: center; gap: 8px; padding: 0 20px; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
-  .chips.t { padding: 0 40px; }
+  .chips { display: flex; align-items: center; gap: 8px; padding: 1px 20px; margin-block: -1px; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+  .chips.t { padding: 1px 40px; }
   .summary { display: flex; align-items: center; gap: 8px; padding: 0 24px; }
   .summary.t { padding: 0 40px; }
   .count { font-size: 13px; font-weight: 400; color: var(--muted); line-height: 1.35; flex: 1; }
   .sortwrap { position: relative; display: flex; }
   .sort { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0; border: 0; background: none; font-family: var(--font-ui); font-size: 13px; font-weight: 600; color: var(--accent); line-height: 1.35; cursor: pointer; margin: -14px 0; }
+  @media (min-width: 768px) { .sort { color: color-mix(in srgb, var(--accent) 20%, var(--ink)); } }
   .menu { position: absolute; right: 0; top: 100%; z-index: 5; min-width: 180px; display: flex; flex-direction: column; padding: 6px; border-radius: 16px; background: rgba(22, 18, 32, 0.94); border: 1px solid var(--edge); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55); -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px); }
   .menu.left { right: auto; left: 0; }
   .menu button { min-height: 44px; padding: 0 14px; border: 0; border-radius: 10px; background: none; text-align: left; font-family: var(--font-ui); font-size: 14px; font-weight: 500; color: var(--ink); cursor: pointer; }
@@ -220,4 +246,11 @@
   .page.wide .none { padding: 0 40px; }
   .empty { margin: 0; padding: 0 24px; font-size: 14px; color: var(--muted); line-height: 1.5; }
   .none .empty { padding: 0; }
+  .find:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (max-width: 300px) {
+    .top { flex-wrap: wrap; padding-inline: 12px; }
+    .top h1 { width: 100%; }
+    .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-inline: 12px; gap: 14px 10px; }
+    .summary { flex-wrap: wrap; }
+  }
 </style>

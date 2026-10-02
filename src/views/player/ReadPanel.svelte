@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
   import type { ReaderAppearance } from '../../player/types';
+  import type { PageWidth } from '../sheets/appearance';
   import Glyph from './Glyph.svelte';
   import PButton from './PButton.svelte';
   import { chapterLabel, type Layout, type NowPlayingState } from './nowPlaying';
@@ -15,14 +16,16 @@
     markedLineIds?: string[];
     /** true while the view keeps the current line in view; false after the listener scrolled away */
     following?: boolean;
+    followNarration?: boolean;
+    pageWidth?: PageWidth;
     ongotoline?: (lineId: string) => void;
     /** the Aa button inside the landscape panel (the phone and portrait screens have it in the top bar) */
     onopenAppearance?: () => void;
   }
-  let { state, appearance, layout, markedLineIds = [], following = $bindable(true), ongotoline, onopenAppearance }: Props = $props();
+  let { state, appearance, layout, markedLineIds = [], following = $bindable(true), followNarration = true, pageWidth = 'wide', ongotoline, onopenAppearance }: Props = $props();
 
   const panel = $derived(layout === 'tablet-landscape');
-  const metrics = $derived(readerMetrics(appearance, layout));
+  const metrics = $derived(readerMetrics(appearance, layout, pageWidth));
   const colors = $derived(readerColors(appearance.theme));
   const paragraphs = $derived(paragraphsOf(state.text, state.lines));
   const marks = $derived(highlightedLines(state.currentLineId, markedLineIds));
@@ -53,6 +56,10 @@
   }
 
   function send(event: FollowEvent) {
+    if (!followNarration && (event === 'line-changed' || event === 'chapter-changed' || event === 'read-entered')) {
+      following = false;
+      return;
+    }
     const step = followStep(following ? 'following' : 'away', event);
     following = step.mode === 'following';
     if (step.scroll) void tick().then(() => scrollToCurrent(event === 'back-to-narration'));
@@ -64,7 +71,7 @@
     const id = state.currentLineId;
     untrack(() => {
       if (seen === undefined) {
-        if (following) void tick().then(() => scrollToCurrent());
+        if (following && followNarration) void tick().then(() => scrollToCurrent());
       } else if (id !== seen) send('line-changed');
     });
     seen = id;
@@ -141,7 +148,7 @@
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_tabindex -->
     <div class="scroller panelscroll" bind:this={scroller} role="region" aria-label="Chapter text" tabindex="0" {onclick} {onscroll} {onkeydown} onwheel={byHand} ontouchmove={byHand}>
-      <div class="col" style:gap="{metrics.gap}px">
+      <div class="col" style:gap="{metrics.gap}px" style:width={metrics.columnWidth ? `${metrics.columnWidth}px` : '100%'}>
         <h2 class="title" style:font-size="{metrics.titleSize}px">{state.chapter?.title ?? ''}</h2>
         {@render paras()}
       </div>
@@ -150,7 +157,7 @@
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_tabindex -->
     <div class="scroller" bind:this={scroller} role="region" aria-label="Chapter text" tabindex="0" {onclick} {onscroll} {onkeydown} onwheel={byHand} ontouchmove={byHand}>
-      <div class="col screen" style:gap="{metrics.gap}px" style:width={metrics.columnWidth ? `${metrics.columnWidth}px` : undefined}>
+      <div class="col screen" style:gap="{metrics.gap}px" style:width={metrics.columnWidth ? `${metrics.columnWidth}px` : '100%'}>
         <span class="label">{label}</span>
         <h2 class="title" style:font-size="{metrics.titleSize}px">{state.chapter?.title ?? ''}</h2>
         {@render paras()}
@@ -180,7 +187,8 @@
   .scroller::-webkit-scrollbar { display: none; }
   .scroller:focus-visible { outline: 2px solid var(--accent); }
   .panelscroll { display: block; }
-  .col { display: flex; flex-direction: column; }
+  .col { display: flex; flex-direction: column; max-width: 100%; box-sizing: border-box; }
+  .panelscroll .col { margin: 0 auto; }
   .col.screen { max-width: 100%; padding: 22px 26px 120px; box-sizing: border-box; }
   .panelscroll .col { padding-bottom: 40px; }
   .label { font-family: var(--font-ui); font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--label-accent, var(--accent)); }

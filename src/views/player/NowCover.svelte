@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { contrast } from '../../theme/derive';
   interface Props {
     color: string;
     width: number;
@@ -16,6 +17,7 @@
   let { color, width, height, radius = 10, pad, title, titleSize = 30, shadow, src, shrink = false }: Props = $props();
   let failed = $state(false);
   const img = $derived(!!src && !failed);
+  const titleColor = $derived(/^#[0-9a-f]{6}$/i.test(color) && contrast('#ffffff', color) < 4.5 ? '#100c16' : '#ffffff');
 </script>
 
 <!-- The big cover of the Listen screens. Decorative: the title is printed again as text beside it. -->
@@ -23,7 +25,7 @@
   {#if img}
     <img {src} alt="" onerror={() => (failed = true)} style:border-radius="{radius - 1}px" />
   {:else if title}
-    <span style:font-size="{titleSize}px">{title}</span>
+    <span style:font-size="{titleSize}px" style:color={titleColor}>{title}</span>
   {/if}
 </div>
 
@@ -33,4 +35,8 @@
   .img { position: relative; }
   img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
   span { font-family: var(--font-ui); font-weight: 700; line-height: 1; color: #fff; letter-spacing: -0.02em; }
+  @media (max-width: 300px) {
+    .cover.shrink { width: min(232px, calc(100vw - 48px)) !important; height: auto !important; aspect-ratio: 2 / 3; flex: none !important; min-height: 0; padding: 16px !important; }
+    span { overflow-wrap: anywhere; }
+  }
 </style>

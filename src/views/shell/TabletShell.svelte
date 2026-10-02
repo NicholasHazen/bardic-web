@@ -12,6 +12,7 @@
   import type { Snippet } from 'svelte';
   import Aura from '../../components/Aura.svelte';
   import { applyPalette } from '../../theme/apply';
+  import { tabletGlows } from '../../theme/aura';
   import type { Palette } from '../../theme/derive';
   import Rail from './Rail.svelte';
   import type { TabId } from './tabs';
@@ -29,6 +30,7 @@
     children: Snippet;
   }
   let { active, onnavigate, palette, glows = TABLET_GLOWS, avatar, player, overlay, children }: Props = $props();
+  const shownGlows = $derived(tabletGlows(glows, palette));
 
   let root: HTMLDivElement;
   $effect(() => {
@@ -37,10 +39,10 @@
 </script>
 
 <div class="shell" bind:this={root}>
-  <Aura {glows} />
+  <Aura glows={shownGlows} />
   <div class="layout">
     <Rail {active} {onnavigate} {avatar} />
-    <div class="content" class:with-player={!!player}>{@render children()}</div>
+    <main class="content" class:with-player={!!player}>{@render children()}</main>
   </div>
   {#if player}<div class="player"><div class="bar">{@render player()}</div></div>{/if}
   {@render overlay?.()}

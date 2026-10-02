@@ -3,8 +3,8 @@
 // Why IndexedDB for everything (not Cache Storage or OPFS):
 //  * One transaction can commit a chapter's index record, text, lines and timings together, and refuses to if the
 //    audio parts are not all there. "On this device" therefore only ever means "everything is durable".
-//  * Blobs in IndexedDB are file-backed in Chromium and in Safari (14.1 and later), so a chapter of audio is not held in
-//    memory; `new Blob(parts)` is a composite that costs nothing and plays through an object URL on every engine.
+//  * Blob parts are normally file-backed. Where a browser cannot prepare them for IndexedDB (including some
+//    WebKit contexts), bounded ArrayBuffer parts preserve the same bytes and chapter transaction instead.
 //  * Cache Storage cannot commit several entries atomically and does not honour Range for the app itself; OPFS
 //    writing from the main thread is not reliably available in Safari (sync access handles are worker-only).
 //  * A download is stored as a run of ~1 MiB parts as it arrives, so a pause, a dropped connection or a closed tab
@@ -87,7 +87,15 @@ export function isQuotaError(e: unknown): boolean {
   return x.name === 'QuotaExceededError' || x.code === 22 || /quota/i.test(x.message ?? '');
 }
 
-const sumBlobs = (parts: Blob[]) => parts.reduce((n, p) => n + p.size, 0);
+type StoredPart = Blob | ArrayBuffer;
+const sumParts = (parts: StoredPart[]) => parts.reduce((n, p) => n + (p instanceof Blob ? p.size : p.byteLength), 0);
+
+/** A Blob capability failure can use binary parts; quota and other storage failures must still reach the caller. */
+export function isBlobStorageError(e: unknown): boolean {
+  if (!e || typeof e !== 'object' || isQuotaError(e)) return false;
+  const error = e as { name?: string; message?: string };
+  return error.name === 'DataCloneError' || (error.name === 'UnknownError' && /blob|file data/i.test(error.message ?? ''));
+}
 
 // --------------------------------------------------------------------------- memory
 
@@ -108,7 +116,7 @@ export function memoryStore(): OfflineStore & { /** test peeks */ raw: { parts: 
     },
     async partial(audioId) {
       const list = parts.get(audioId) ?? [];
-      return { bytes: sumBlobs(list), parts: list.length };
+      return { bytes: sumParts(list), parts: list.length };
     },
     async readAudio(audioId) {
       const list = parts.get(audioId);
@@ -118,7 +126,7 @@ export function memoryStore(): OfflineStore & { /** test peeks */ raw: { parts: 
       parts.delete(audioId);
     },
     async commitChapter(record, content) {
-      const have = sumBlobs(parts.get(record.audioId) ?? []);
+      const have = sumParts(parts.get(record.audioId) ?? []);
       if (have !== record.bytes) throw new Error(`the audio is ${have} bytes, the record says ${record.bytes}`);
       const k = key(record.audiobookId, record.chapterId);
       const old = chapters.get(k) ?? null;
@@ -174,7 +182,7 @@ export function memoryStore(): OfflineStore & { /** test peeks */ raw: { parts: 
         textBytes += r.textBytes;
       }
       let partialBytes = 0;
-      for (const [id, list] of parts) if (!held.has(id)) partialBytes += sumBlobs(list);
+      for (const [id, list] of parts) if (!held.has(id)) partialBytes += sumParts(list);
       return { audioBytes, textBytes, partialBytes, total: audioBytes + textBytes + partialBytes };
     },
   };
@@ -216,7 +224,7 @@ function done(tx: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onabort = () => reject(tx.error ?? new Error('IndexedDB transaction aborted'));
-    tx.onerror = () => reject(tx.error ?? new Error('IndexedDB transaction failed'));
+    tx.onerror = (event) => reject(tx.error ?? (event.target as IDBRequest | null)?.error ?? new Error('IndexedDB transaction failed'));
   });
 }
 
@@ -226,6 +234,7 @@ const chapterRange = (audiobookId: string) => IDBKeyRange.bound([audiobookId, ''
 /** The browser's store. `indexedDB` is injectable for tests that bring their own implementation. */
 export function indexedDbStore(factory: IDBFactory = indexedDB): OfflineStore {
   let opened: Promise<IDBDatabase> | null = null;
+  let binaryParts = false;
   const open = () =>
     (opened ??= new Promise<IDBDatabase>((resolve, reject) => {
       const r = factory.open(DB_NAME, DB_VERSION);
@@ -258,27 +267,45 @@ export function indexedDbStore(factory: IDBFactory = indexedDB): OfflineStore {
     }
     return db.transaction(names, mode);
   };
+  const putPart = async (audioId: string, index: number, data: StoredPart) => {
+    const t = await tx(['parts'], 'readwrite');
+    const finished = done(t);
+    finished.catch(() => {});
+    try {
+      const store = t.objectStore('parts');
+      const have = await req(store.count(partRange(audioId)));
+      if (have !== index) throw new Error(`part ${index} is not the next part of ${audioId}`);
+      await req(store.put(data, [audioId, index]));
+      await finished;
+    } catch (e) {
+      try { t.abort(); } catch { /* already aborted */ }
+      await finished.catch(() => {});
+      throw e;
+    }
+  };
 
   return {
     async appendPart(audioId, index, data) {
-      const t = await tx(['parts'], 'readwrite');
-      const store = t.objectStore('parts');
-      const have = await req(store.count(partRange(audioId)));
-      if (have !== index) {
-        t.abort();
-        throw new Error(`part ${index} is not the next part of ${audioId}`);
+      if (!binaryParts) {
+        try {
+          await putPart(audioId, index, data);
+          return;
+        } catch (e) {
+          if (!isBlobStorageError(e)) throw e;
+          binaryParts = true;
+        }
       }
-      store.put(data, [audioId, index]);
-      await done(t);
+      // Read the bounded download part before creating its transaction: async Blob conversion must not let it expire.
+      await putPart(audioId, index, await data.arrayBuffer());
     },
     async partial(audioId) {
       const t = await tx(['parts'], 'readonly');
-      const list = (await req(t.objectStore('parts').getAll(partRange(audioId)))) as Blob[];
-      return { bytes: sumBlobs(list), parts: list.length };
+      const list = (await req(t.objectStore('parts').getAll(partRange(audioId)))) as StoredPart[];
+      return { bytes: sumParts(list), parts: list.length };
     },
     async readAudio(audioId) {
       const t = await tx(['parts'], 'readonly');
-      const list = (await req(t.objectStore('parts').getAll(partRange(audioId)))) as Blob[];
+      const list = (await req(t.objectStore('parts').getAll(partRange(audioId)))) as StoredPart[];
       return list.length ? new Blob(list) : null;
     },
     async dropAudio(audioId) {
@@ -291,8 +318,8 @@ export function indexedDbStore(factory: IDBFactory = indexedDB): OfflineStore {
       const finished = done(t);
       finished.catch(() => {});
       try {
-        const list = (await req(t.objectStore('parts').getAll(partRange(record.audioId)))) as Blob[];
-        const have = sumBlobs(list);
+        const list = (await req(t.objectStore('parts').getAll(partRange(record.audioId)))) as StoredPart[];
+        const have = sumParts(list);
         if (have !== record.bytes) throw new Error(`the audio is ${have} bytes, the record says ${record.bytes}`);
         const k = [record.audiobookId, record.chapterId];
         const old = ((await req(t.objectStore('chapters').get(k))) as ChapterRecord | undefined) ?? null;
@@ -365,7 +392,7 @@ export function indexedDbStore(factory: IDBFactory = indexedDB): OfflineStore {
     },
     async usage() {
       const t = await tx(['parts', 'chapters'], 'readonly');
-      const [records, keys] = await Promise.all([req(t.objectStore('chapters').getAll()) as Promise<ChapterRecord[]>, req(t.objectStore('parts').getAll()) as Promise<Blob[]>]);
+      const [records, keys] = await Promise.all([req(t.objectStore('chapters').getAll()) as Promise<ChapterRecord[]>, req(t.objectStore('parts').getAll()) as Promise<StoredPart[]>]);
       // parts of held chapters are counted from their records; every other part is a download waiting to finish
       let audioBytes = 0;
       let textBytes = 0;
@@ -373,7 +400,7 @@ export function indexedDbStore(factory: IDBFactory = indexedDB): OfflineStore {
         audioBytes += r.bytes;
         textBytes += r.textBytes;
       }
-      const all = sumBlobs(keys);
+      const all = sumParts(keys);
       const partialBytes = Math.max(0, all - audioBytes);
       return { audioBytes, textBytes, partialBytes, total: audioBytes + textBytes + partialBytes };
     },

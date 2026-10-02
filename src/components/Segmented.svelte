@@ -27,6 +27,7 @@
 <style>
   .row { display: flex; align-items: center; gap: 2px; }
   button {
+    position: relative;
     flex: 1;
     display: inline-flex;
     align-items: center;
@@ -43,4 +44,6 @@
     cursor: pointer;
   }
   button.on { background: rgba(255, 255, 255, 0.16); color: var(--ink); }
+  button::after { content: ''; position: absolute; inset: -3px 0; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 </style>

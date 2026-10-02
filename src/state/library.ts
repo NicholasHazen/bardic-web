@@ -345,7 +345,7 @@ export const libraryBooks: Readable<{ state: ListState; books: Book[]; query: Li
 );
 
 /** Notice types that can change what the library shows. */
-const LIBRARY_NOTICES = new Set(['book.updated', 'import.updated', 'place.updated', 'resync', 'listener.updated']);
+const LIBRARY_NOTICES = new Set(['book.updated', 'import.updated', 'place.updated', 'resync', 'listener.updated', 'deletion.updated']);
 
 /** True when a notice is about this listener's library (listener-scoped notices of others are ignored). */
 export function noticeConcerns(notice: { type?: string; listener_id?: string | null }, listenerId: string): boolean {

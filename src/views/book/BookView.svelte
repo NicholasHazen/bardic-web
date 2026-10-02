@@ -102,7 +102,7 @@
   <RoundButton label="Back to library" icon="back" onclick={onback} />
   {#if tablet}<span class="crumb">Library</span>{/if}
   <div class="grow"></div>
-  <RoundButton label="Edit this book" icon="more" onclick={onmore} />
+  <RoundButton label="Edit this book" icon="more" onclick={(e) => { e.currentTarget.focus(); onmore?.(); }} />
 {/snippet}
 
 {#snippet cover()}

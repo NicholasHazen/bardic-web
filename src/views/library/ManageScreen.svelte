@@ -1,6 +1,7 @@
 <script lang="ts">
   import { bookActions, buildBookUpdate, followLibraryEvents, libraryQuery, manageList, toManage, toSeriesModel, type Series } from '../../state/library';
   import { listenerStore } from '../../state/listener';
+  import { editRequest } from '../../state/manage';
   import { showToast } from '../../state/toast';
   import LibraryToast from './LibraryToast.svelte';
   import ManageView, { type BookEdit } from './ManageView.svelte';
@@ -18,6 +19,15 @@
   let busy = $state(false);
   let error = $state<string | undefined>();
   let series = $state<Series[]>([]);
+  // The book menu's "Edit details" opens this screen with that book's editor.
+  $effect(() => {
+    const id = $editRequest;
+    if (id) {
+      tab = 'books';
+      editingId = id;
+      editRequest.set(null);
+    }
+  });
 
   const live = $derived($manageList.books.filter((b) => b.state !== 'removed'));
   const gone = $derived($manageList.books.filter((b) => b.state === 'removed'));

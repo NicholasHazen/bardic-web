@@ -6,6 +6,7 @@ import { test, expect } from './fixtures';
 import { apiCall } from './harness';
 import type { BrowserContext, Page, Route } from '@playwright/test';
 import type { Fake } from './fakes';
+import { reloadCachedPage } from './helpers/offlineReload';
 
 const DEV = 'e2e-offline-device';
 type Stack = { api: string; url: string };
@@ -88,6 +89,8 @@ test('O1: the preview matches the manifest, and a download makes every ready cha
   await expect.poll(() => chapterStates(page, ab)).toEqual(['on_device', 'on_device', 'on_device']);
 });
 
+test.describe('cached app shell', () => {
+test.use({ serviceWorkers: 'allow' });
 test('O3: with the server cut, held chapters play and read, and the app shell reloads from the service worker', async ({ page, context, stack, breeze }) => {
   const { ab, book: bookId, l } = await setup(page, stack, breeze);
   await downloadAll(page, ab);
@@ -98,9 +101,8 @@ test('O3: with the server cut, held chapters play and read, and the app shell re
   await expect
     .poll(() => page.evaluate(async () => (await caches.keys()).some((k) => k.startsWith('bardic-app-')) && !!(await caches.match('/index.html')) && !!navigator.serviceWorker.controller), { timeout: 15000 })
     .toBe(true);
-  await context.setOffline(true);
-  await cut(context);
-  await page.reload();
+  stack.setReachable(false);
+  await reloadCachedPage(page);
   await page.waitForFunction(() => !!(window as any).__offline, undefined, { timeout: 15000 });
   await expect(page).toHaveTitle('Bardic');
   expect(await page.locator('#app').innerHTML()).not.toBe('');
@@ -128,7 +130,8 @@ test('O3: with the server cut, held chapters play and read, and the app shell re
   // and the engine knows it is cut off
   await off(page, 'refresh');
   expect((await state(page)).online).toBe(false);
-  await context.setOffline(false);
+  stack.setReachable(true);
+});
 });
 
 test('O2: a connection that drops keeps its bytes and carries on by Range; pause keeps them; cancel keeps what finished; retry only the failed', async ({ page, context, stack, breeze }) => {

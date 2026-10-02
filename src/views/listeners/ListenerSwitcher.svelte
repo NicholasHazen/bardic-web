@@ -3,6 +3,7 @@
   import AddListenerSheet from './AddListenerSheet.svelte';
   import { rowsOf } from './connect';
   import SwitchSheet from './SwitchSheet.svelte';
+  import { serverName } from '../../state/serverName';
 
   interface Props {
     /** Phone: a sheet from the bottom. Tablet: a card beside the rail. */
@@ -36,6 +37,7 @@
     listeners={rows}
     currentId={$listenerStore.currentId}
     {playing}
+    serverName={$serverName}
     {placement}
     fixed
     onselect={choose}

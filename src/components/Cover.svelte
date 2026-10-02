@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { contrast } from '../theme/derive';
   interface Props {
     color: string;
     width: number;
@@ -19,10 +20,12 @@
   }
   let { color, width, height, radius = 8, pad = 13, shadowY = 13, shadowBlur = 26, title, titleSize = 13, fluid = false, src }: Props = $props();
   let failed = $state(false);
+  const titleColor = $derived(/^#[0-9a-f]{6}$/i.test(color) && contrast('#ffffff', color) < 4.5 ? '#100c16' : '#ffffff');
 </script>
 
 <div
   class="cover"
+  aria-hidden="true"
   class:fluid
   class:img={!!src && !failed}
   style:width={fluid ? '100%' : `${width}px`}
@@ -35,7 +38,7 @@
   {#if src && !failed}
     <img {src} alt="" onerror={() => (failed = true)} style:border-radius="{Math.max(radius - 1, 0)}px" />
   {:else if title}
-    <span style:font-size="{titleSize}px">{title}</span>
+    <span style:font-size="{titleSize}px" style:color={titleColor}>{title}</span>
   {/if}
 </div>
 

@@ -21,18 +21,24 @@
   const rows = $derived(ordered.map((v) => ({ ...toRow(v, defaultDetail), hint: v.tier === 'free' ? 'Free. Nothing is spent.' : keyOk ? 'A short example. It counts toward spending.' : 'A Google key is needed to hear a premium example.' })));
   let message = $state('');
   let failed = $state('');
+  $effect(() => {
+    if (listenerId) void settingsActions.load(listenerId);
+    message = '';
+    failed = '';
+  });
 
   onMount(() => {
     void voiceActions.openVoiceScreen();
-    if (listenerId) void settingsActions.load(listenerId);
   });
   onDestroy(() => samples.stop());
 
   async function pick(id: string) {
-    if (!listenerId) return;
+    const who = listenerId;
+    if (!who) return;
     failed = '';
     message = '';
-    const r = await settingsActions.setDefaultVoice(listenerId, id);
+    const r = await settingsActions.setDefaultVoice(who, id);
+    if (listenerId !== who) return;
     const name = ordered.find((v) => v.id === id)?.name ?? 'The voice';
     if (r.ok) message = `Default voice saved: ${name}.`;
     else failed = r.code === 'voice_not_found' ? 'That voice no longer exists. Nothing was changed.' : `Nothing was changed. ${r.detail}`;

@@ -150,8 +150,12 @@ export interface PlaceConflictInfo {
 
 /** Everything the screens can ask the engine to do. */
 export interface PlayerCommands {
+  /** Earn permission inside the listener's tap before asynchronous book/voice work. */
+  preparePlayback(): void;
   /** load a book's current audiobook at the listener's place and start (or stay paused) */
   open(bookId: string, opts?: { autoplay?: boolean; chapterId?: string; offset?: number }): Promise<void>;
+  /** Keep the current text place; existing sound continues until the chosen audiobook is ready there. */
+  switchAudiobook(audiobookId: string, opts?: { makeAudio?: boolean }): Promise<boolean>;
   play(): void;
   pause(): void;
   toggle(): void;

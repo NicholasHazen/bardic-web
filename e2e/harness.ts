@@ -25,6 +25,8 @@ export interface Running {
   url: string; // the client
   api: string; // the server directly
   dataDir: string;
+  /** Cut the real client-origin sockets without changing browser offline/SW behavior. The server API stays available to test setup. */
+  setReachable: (reachable: boolean) => void;
   stop: () => Promise<void>;
 }
 
@@ -50,7 +52,13 @@ export async function startStack(opts: StackOptions = {}): Promise<Running> {
     } catch {}
     await new Promise((r) => setTimeout(r, 50));
   }
+  let reachable = true;
+  const sockets = new Set<net.Socket>();
   const proxy = http.createServer((req, res) => {
+    if (!reachable) {
+      req.socket.destroy();
+      return;
+    }
     if (req.url?.startsWith('/api')) {
       const headers = { ...req.headers, host: `127.0.0.1:${serverPort}` };
       delete headers.origin;
@@ -58,7 +66,7 @@ export async function startStack(opts: StackOptions = {}): Promise<Running> {
         res.writeHead(r.statusCode ?? 502, r.headers);
         r.pipe(res);
       });
-      up.on('error', () => res.writeHead(502).end());
+      up.on('error', () => { if (!res.destroyed && !res.headersSent) res.writeHead(502).end(); });
       res.on('close', () => up.destroy());
       req.pipe(up);
       return;
@@ -68,12 +76,20 @@ export async function startStack(opts: StackOptions = {}): Promise<Running> {
     res.writeHead(200, { 'content-type': TYPES[path.extname(target)] ?? 'application/octet-stream' });
     fs.createReadStream(target).pipe(res);
   });
+  proxy.on('connection', (socket) => {
+    sockets.add(socket);
+    socket.on('close', () => sockets.delete(socket));
+  });
   const proxyPort = await freePort();
   await new Promise<void>((r) => proxy.listen(proxyPort, '127.0.0.1', r));
   return {
     url: `http://127.0.0.1:${proxyPort}`,
     api,
     dataDir,
+    setReachable: (value) => {
+      reachable = value;
+      if (!value) for (const socket of sockets) socket.destroy();
+    },
     stop: async () => {
       proxy.closeAllConnections?.();
       proxy.close();

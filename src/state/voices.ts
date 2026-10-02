@@ -10,7 +10,6 @@ import { get, writable } from 'svelte/store';
 import { api } from '../api/client';
 import { deviceId } from '../lib/device';
 import {
-  defaultVoiceBody,
   geminiReady,
   isConfigured,
   planFromChapter,
@@ -137,8 +136,11 @@ export async function loadBookContext(bookId: string, listenerId: string): Promi
 }
 
 /** Choosing a free voice: the audiobook for it (made at once, free, no audio). A repeat returns the existing one. */
-export function chooseVoiceForBook(bookId: string, voiceId: string): Promise<Result<Audiobook>> {
-  return act<Audiobook>(() => api.POST('/api/books/{book_id}/audiobooks', { params: { path: { book_id: bookId }, header: device() }, body: { voice_id: voiceId } }));
+export function chooseVoiceForBook(bookId: string, voiceId: string, listenerId?: string): Promise<Result<Audiobook>> {
+  return act<Audiobook>(() => api.POST('/api/books/{book_id}/audiobooks', {
+    params: { path: { book_id: bookId }, header: device() }, body: { voice_id: voiceId },
+    ...(listenerId ? { fetch: (request: Request) => { request.headers.set('X-Bardic-Listener', listenerId); return fetch(request); } } : {}),
+  }));
 }
 
 // ---------------------------------------------------------------- default voice
@@ -149,30 +151,40 @@ export interface SettingsState {
   settings: ListenerSettings | null;
 }
 export const listenerSettings = writable<SettingsState>({ listenerId: null, status: 'idle', settings: null });
+let settingsLoadRun = 0;
 
 export const settingsActions = {
-  async load(listenerId: string): Promise<void> {
+  /** Read the latest listener choices before replacing the settings object, preserving the default voice. */
+  async update(listenerId: string, patch: Partial<ListenerSettings>): Promise<Result<ListenerSettings>> {
+    const loaded = await settingsActions.load(listenerId);
+    const current = get(listenerSettings);
+    if (!loaded || current.listenerId !== listenerId || !current.settings || current.status !== 'ready') {
+      return { ok: false, detail: 'Your settings could not be read, so nothing was changed.', code: 'network' };
+    }
+    const body: ListenerSettings = { ...current.settings, ...patch };
+    ++settingsLoadRun; // a read started before this write cannot replace its result
+    const r = await act<ListenerSettings>(() => api.PUT('/api/listeners/{listener_id}/settings', {
+      params: { path: { listener_id: listenerId }, header: device() }, body,
+    }));
+    if (r.ok && get(listenerSettings).listenerId === listenerId) {
+      ++settingsLoadRun;
+      listenerSettings.set({ listenerId, status: 'ready', settings: r.value });
+    }
+    return r;
+  },
+  async load(listenerId: string): Promise<boolean> {
+    const run = ++settingsLoadRun;
     listenerSettings.update((s) => (s.listenerId === listenerId ? { ...s, status: s.settings ? s.status : 'loading' } : { listenerId, status: 'loading', settings: null }));
     const r = await act<ListenerSettings>(() => api.GET('/api/listeners/{listener_id}/settings', { params: { path: { listener_id: listenerId } } }));
-    if (get(listenerSettings).listenerId !== listenerId) return;
+    if (run !== settingsLoadRun || get(listenerSettings).listenerId !== listenerId) return false;
     if (r.ok) listenerSettings.set({ listenerId, status: 'ready', settings: r.value });
     else listenerSettings.update((s) => ({ ...s, status: 'error' }));
+    return r.ok;
   },
 
   /** Set the listener's default voice. The server replaces settings as a whole, so the others are sent back as read. */
   async setDefaultVoice(listenerId: string, voiceId: string | null): Promise<Result<ListenerSettings>> {
-    let current = get(listenerSettings);
-    if (current.listenerId !== listenerId || !current.settings) {
-      await settingsActions.load(listenerId);
-      current = get(listenerSettings);
-    }
-    if (!current.settings) return { ok: false, detail: 'Your settings could not be read, so nothing was changed.', code: 'network' };
-    const body = defaultVoiceBody(current.settings, voiceId);
-    const r = await act<ListenerSettings>(() =>
-      api.PUT('/api/listeners/{listener_id}/settings', { params: { path: { listener_id: listenerId }, header: device() }, body }),
-    );
-    if (r.ok) listenerSettings.set({ listenerId, status: 'ready', settings: r.value });
-    return r;
+    return settingsActions.update(listenerId, { default_voice_id: voiceId });
   },
 };
 

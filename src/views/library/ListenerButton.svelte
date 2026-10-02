@@ -12,7 +12,7 @@
   let { listener, size = 40, selected = false, onclick }: Props = $props();
 </script>
 
-<button type="button" aria-label="Listening as {listener.name}. Change listener" aria-haspopup="dialog" {onclick}>
+<button type="button" aria-label="Listening as {listener.name}. Change listener" aria-haspopup="dialog" onclick={(event) => { event.currentTarget.focus(); onclick?.(); }}>
   <Avatar name={listener.name} hue={listener.hue} {size} {selected} />
 </button>
 

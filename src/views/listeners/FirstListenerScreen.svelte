@@ -26,7 +26,7 @@
   }
 </script>
 
-<div class="screen">
+<main class="screen">
   <Aura />
   <form class="col" onsubmit={submit} novalidate>
     <div class="top"></div>
@@ -53,7 +53,7 @@
       <span class="small">You can change this any time in Settings.</span>
     </div>
   </form>
-</div>
+</main>
 
 <style>
   span { line-height: 1.35; }
@@ -74,4 +74,12 @@
   .err { display: block; margin-top: 6px; font-size: 12px; font-weight: 600; color: #ffbcae; }
   .foot { display: flex; flex-direction: column; gap: 8px; padding: 0 20px 32px; }
   .small { font-size: 12px; color: var(--muted); text-align: center; }
+  @media (max-width: 300px) {
+    .screen { overflow-y: auto; }
+    .col { height: auto; min-height: 100%; }
+    .top { height: 24px; }
+    .who { flex-wrap: wrap; }
+    .who .grow { flex-basis: 100%; }
+    h1 { overflow-wrap: anywhere; }
+  }
 </style>

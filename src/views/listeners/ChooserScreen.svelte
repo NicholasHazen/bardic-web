@@ -13,7 +13,7 @@
   let { listeners, onpick, onadd }: Props = $props();
 </script>
 
-<div class="screen">
+<main class="screen">
   <Aura />
   <div class="col">
     <div class="top"></div>
@@ -39,15 +39,15 @@
           </Glass>
         </div>
       {/each}
-      <button type="button" class="add" onclick={() => onadd?.()}>
+      <div role="listitem" class="additem"><button type="button" class="add" onclick={() => onadd?.()}>
         <span class="plus"><Glyph name="plus" size={22} /></span>
         <span class="addlabel">Add a listener</span>
-      </button>
+      </button></div>
     </div>
     <div class="grow"></div>
     <div class="foot strut"><span>Bardic remembers your choice on this device. Change it any time from Library or Settings.</span></div>
   </div>
-</div>
+</main>
 
 <style>
   span { line-height: 1.35; }
@@ -76,4 +76,13 @@
   .strut { font-family: serif; line-height: normal; }
 
   .foot span { font-family: var(--font-ui); font-size: 13px; color: var(--muted); }
+  .additem .add { width: 100%; }
+  @media (max-width: 300px) {
+    .screen { overflow-y: auto; }
+    .col { min-height: 100%; height: auto; }
+    .name { white-space: normal; overflow-wrap: anywhere; }
+    .rowin { gap: 8px; }
+    .item :global(.card), .add { padding: 8px; }
+    .foot { padding-bottom: 20px; }
+  }
 </style>

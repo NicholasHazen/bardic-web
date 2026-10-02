@@ -9,9 +9,8 @@ export const SPACING_MIN = 1.4;
 export const SPACING_MAX = 2.0;
 
 /**
- * `ReaderAppearance.theme` has four values but the design offers five colours (Aura, Paper, Sepia, Dusk, Night).
+ * The reader offers five colours (Aura, Paper, Sepia, Dusk, Night).
  * Mapping: dark = Aura (the book's own colour), light = Paper, sepia = Sepia, dim = Dusk, night = Night.
- * `night` is not in the engine contract (src/player/types.ts); see the report.
  */
 export type ReaderTheme = ReaderAppearance['theme'] | 'night';
 export type ReaderAppearanceValue = Omit<ReaderAppearance, 'theme'> & { theme: ReaderTheme };

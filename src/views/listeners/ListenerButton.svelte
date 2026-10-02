@@ -20,7 +20,7 @@
 
 <!-- L3: the current listener as an avatar; tapping it opens the switcher. -->
 {#if me}
-  <button type="button" class="who" aria-label="Listening as {me.name}. Change listener" aria-haspopup="dialog" aria-expanded={open} onclick={() => (open = true)}>
+  <button type="button" class="who" aria-label="Listening as {me.name}. Change listener" aria-haspopup="dialog" aria-expanded={open} onclick={(event) => { event.currentTarget.focus(); open = true; }}>
     <Avatar name={me.name} hue={avatarHue(me.id)} {size} />
   </button>
   {#if open}

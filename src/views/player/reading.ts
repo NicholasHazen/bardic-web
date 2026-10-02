@@ -4,6 +4,7 @@
 import { cutByRanges } from '../../lib/codepoints';
 import type { ReaderAppearance, TextLine } from '../../player/types';
 import type { Layout } from './nowPlaying';
+import type { PageWidth } from '../sheets/appearance';
 
 export interface TextPart {
   text: string;
@@ -127,15 +128,16 @@ export interface ReaderMetrics {
 }
 
 const TITLE: Record<Layout, number> = { phone: 30, 'tablet-portrait': 33, 'tablet-landscape': 35 };
+const PAGE_COLUMNS: Record<PageWidth, number | null> = { narrow: 420, medium: 520, wide: 640, wider: 760, full: null };
 
 /** Sizes for the text column from the listener's appearance and the layout. */
-export function readerMetrics(a: ReaderAppearance, layout: Layout): ReaderMetrics {
+export function readerMetrics(a: ReaderAppearance, layout: Layout, pageWidth: PageWidth = 'wide'): ReaderMetrics {
   return {
     fontSize: a.size,
     lineHeight: a.spacing,
     fontFamily: a.font === 'serif' ? "var(--font-book)" : 'var(--font-ui)',
     titleSize: TITLE[layout],
-    columnWidth: layout === 'phone' ? 390 : layout === 'tablet-portrait' ? 640 : null,
+    columnWidth: layout === 'phone' ? 390 : PAGE_COLUMNS[pageWidth],
     gap: layout === 'tablet-landscape' ? 16 : 18,
   };
 }
@@ -156,7 +158,7 @@ export interface ReaderColors {
   dim: boolean;
 }
 
-/** Colours for the four reader themes. Dark is the board's; dim is the same, quieter; light and sepia are paper. */
+/** Aura and Dusk retain the book's background; Paper, Sepia and Night replace it with a flat page. */
 export function readerColors(theme: ReaderAppearance['theme']): ReaderColors {
   switch (theme) {
     case 'light':
@@ -165,6 +167,8 @@ export function readerColors(theme: ReaderAppearance['theme']): ReaderColors {
       return { paper: '#efe2c6', ink: '#33281a', muted: '#65563f', accent: 'color-mix(in srgb, var(--accent) 38%, #000)', glass: 'rgba(60,40,10,.07)', edge: 'rgba(60,40,10,.2)', capsule: 'rgba(250,240,216,.82)', dim: false };
     case 'dim':
       return { paper: null, ink: '#d9d4cc', muted: '#b3adc2', accent: 'var(--accent)', glass: 'rgba(255,255,255,.09)', edge: 'rgba(255,255,255,.18)', capsule: 'rgba(20,16,28,.55)', dim: true };
+    case 'night':
+      return { paper: '#000000', ink: '#d6d2dc', muted: '#b3adc2', accent: 'var(--accent)', glass: 'rgba(255,255,255,.09)', edge: 'rgba(255,255,255,.18)', capsule: 'rgba(20,16,28,.9)', dim: false };
     default:
       return { paper: null, ink: '#f5f1ea', muted: '#d0cade', accent: 'var(--accent)', glass: 'rgba(255,255,255,.09)', edge: 'rgba(255,255,255,.18)', capsule: 'rgba(20,16,28,.55)', dim: false };
   }

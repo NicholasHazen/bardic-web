@@ -2,6 +2,7 @@
   import { browserStorage } from '../../../lib/clock';
   import { offline } from '../../../offline/offline';
   import { listenerStore } from '../../../state/listener';
+  import { serverName } from '../../../state/serverName';
   import { startListening } from '../../nowplaying/start';
   import ServerOfflineView from '../ServerOfflineView.svelte';
   import { awayPlayable, readLocalPlace } from './mapping';
@@ -26,4 +27,4 @@
   }
 </script>
 
-<ServerOfflineView {playable} {checking} inset={100} onplay={(id) => void startListening(id)} onretry={() => void retry()} />
+<ServerOfflineView {playable} {checking} serverName={$serverName} inset={100} onplay={(id) => void startListening(id)} onretry={() => void retry()} />

@@ -45,4 +45,9 @@
   .cap { font-family: var(--font-ui); font-size: 12px; color: var(--muted); max-width: 100%; }
   .cap.on { color: var(--label-accent, var(--accent)); }
   .voice { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 300px) {
+    .row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 8px; padding-inline: 12px !important; }
+    .cap { text-align: center; overflow-wrap: anywhere; }
+    .voice { white-space: normal; overflow: visible; }
+  }
 </style>

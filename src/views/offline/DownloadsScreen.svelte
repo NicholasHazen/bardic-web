@@ -180,17 +180,18 @@
   .v { font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.35; }
   .bar { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.18); position: relative; overflow: hidden; }
   .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); }
-  .free { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
+  .free { font-size: 12px; font-weight: 400; color: color-mix(in srgb, var(--muted) 65%, var(--ink)); line-height: 1.35; }
   .msg { margin: 0 20px; }
   .section { display: flex; flex-direction: column; gap: 8px; }
   .label { font-size: 12px; font-weight: 700; color: var(--muted); line-height: 1.35; letter-spacing: 0.1em; text-transform: uppercase; padding: 0 24px; }
   .note { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.45; padding: 0 24px; }
   .book { min-height: 84px; display: flex; align-items: center; gap: 12px; padding: 8px 6px 8px 12px; box-sizing: border-box; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
   .book.last, .removed.last { border-bottom: 0; }
-  .open { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; font-family: var(--font-ui); color: var(--ink); }
+  .open { display: flex; flex-direction: column; justify-content: center; gap: 1px; flex: 1; min-width: 0; min-height: 44px; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; font-family: var(--font-ui); color: var(--ink); }
   .open:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
   .name { font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.35; }
   .sub { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
+  @media (min-width: 768px) { .sub { color: var(--ink); } }
   .trash { width: 44px; height: 44px; border-radius: 22px; background: transparent; border: 1px solid transparent; color: var(--ink); display: inline-flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; cursor: pointer; }
   .trash:disabled { opacity: 0.5; cursor: default; }
   .removed { min-height: 68px; display: flex; align-items: center; gap: 12px; padding: 8px 12px 8px 16px; box-sizing: border-box; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }

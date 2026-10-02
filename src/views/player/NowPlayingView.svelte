@@ -3,8 +3,10 @@
   import Aura, { type Glow, PHONE_GLOWS } from '../../components/Aura.svelte';
   import IconButton from '../../components/IconButton.svelte';
   import { applyPalette } from '../../theme/apply';
+  import { tabletGlows } from '../../theme/aura';
   import type { Palette } from '../../theme/derive';
   import type { Mode, NeedsYou, ReaderAppearance } from '../../player/types';
+  import type { PageWidth } from '../sheets/appearance';
   import { TABLET_GLOWS } from '../shell/TabletShell.svelte';
   import DownloadRing from '../offline/DownloadRing.svelte';
   import ControlsSheet from './ControlsSheet.svelte';
@@ -31,6 +33,9 @@
     glows?: Glow[];
     /** Read: true while the text follows the narration; false once the listener scrolled away ("Back to narration" shows) */
     following?: boolean;
+    /** Whether Read follows automatically; explicit jumps remain available. */
+    followNarration?: boolean;
+    pageWidth?: PageWidth;
     /** Read on a phone or tablet portrait: the Listen controls are open over the text */
     controlsOpen?: boolean;
     /** epoch ms for the sleep timer caption */
@@ -58,7 +63,7 @@
     onopendownloads?: () => void;
   }
   let {
-    state, appearance, layout, byline, markedLineIds = [], palette, glows, following = $bindable(true), controlsOpen = $bindable(false),
+    state, appearance, layout, byline, markedLineIds = [], palette, glows, following = $bindable(true), followNarration = true, pageWidth = 'wide', controlsOpen = $bindable(false),
     now, ontoggle, onskip, onseek, onnext, onprevious, ongotoline, onsetmode, onopenSpeed, onopenSleep, onopenChapters, onopenVoice,
     onopenAppearance, onopensearch, onmore, oncollapse, onneedsyou, download = null, onopendownloads,
   }: Props = $props();
@@ -82,7 +87,8 @@
   const dim = $derived(reading && (appearance.dimAura || colors.dim));
   const paper = $derived(reading ? colors.paper : null);
   const baseGlows = $derived(glows ?? (landscape ? TABLET_GLOWS : layout === 'tablet-portrait' ? PORTRAIT_GLOWS : PHONE_GLOWS));
-  const shownGlows = $derived(dim ? baseGlows.map((g) => ({ ...g, opacity: g.opacity * 0.55 })) : baseGlows);
+  const safeGlows = $derived(layout === 'phone' ? baseGlows : tabletGlows(baseGlows, palette));
+  const shownGlows = $derived(dim ? safeGlows.map((g) => ({ ...g, opacity: g.opacity * 0.55 })) : safeGlows);
   const pill = $derived(listeningPill(state.listening, state.detail, state.needsYou));
 
   // Opening Read starts following the narration again; the controls sheet only belongs to Read.
@@ -90,7 +96,7 @@
   $effect(() => {
     const m = state.mode;
     if (before !== undefined && before !== m) {
-      if (m === 'read') following = true;
+      if (m === 'read') following = followNarration;
       else controlsOpen = false;
     }
     before = m;
@@ -142,7 +148,7 @@
           </div>
           <ListenPanel {state} {layout} {byline} {now} {ontoggle} {onskip} {onseek} {onnext} {onprevious} {onopenSpeed} {onopenSleep} {onopenChapters} {onopenVoice} {onneedsyou} />
         </div>
-        <ReadPanel {state} {appearance} {layout} {markedLineIds} bind:following {ongotoline} {onopenAppearance} />
+        <ReadPanel {state} {appearance} {layout} {markedLineIds} {followNarration} {pageWidth} bind:following {ongotoline} {onopenAppearance} />
       </div>
     {:else}
       <div class="column">
@@ -161,7 +167,7 @@
         {#if state.mode === 'listen'}
           <ListenPanel {state} {layout} {byline} {now} {ontoggle} {onskip} {onseek} {onnext} {onprevious} {onopenSpeed} {onopenSleep} {onopenChapters} {onopenVoice} {onneedsyou} />
         {:else}
-          <ReadPanel {state} {appearance} {layout} {markedLineIds} bind:following {ongotoline} />
+          <ReadPanel {state} {appearance} {layout} {markedLineIds} {followNarration} {pageWidth} bind:following {ongotoline} />
         {/if}
       </div>
       {#if state.mode === 'read'}
@@ -186,4 +192,10 @@
   .landscape { display: flex; align-items: stretch; height: 100%; }
   .left { width: 480px; flex-shrink: 0; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
   .sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+  @media (max-width: 300px) {
+    .np { overflow-y: auto; }
+    .layer, .column { height: auto; min-height: 100%; }
+    .bar { flex-wrap: wrap; gap: 8px; padding: 8px 12px 0 !important; }
+    .bar > .mid { order: 3; flex-basis: 100%; }
+  }
 </style>

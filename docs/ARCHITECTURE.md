@@ -1,27 +1,27 @@
-# Client architecture (proposal)
+# Client architecture
 
-Status: proposal for review; none of it is built. **decide** marks choices that need an owner decision before the milestone that depends on them.
+Implemented with Svelte 5, strict TypeScript and Vite. The HTTP contract remains owned by the sibling server repository; generated client types follow its synced copy. See ROADMAP.md for verification and limitations.
 
-## 1. Stack (decide)
-| Concern | Proposal | Alternatives |
+## 1. Stack
+| Concern | Implementation | Alternatives |
 |---|---|---|
 | Language | TypeScript, strict | |
 | Build | Vite, single-page app, installable PWA | |
 | UI | Svelte 5 (small output, simple reactive state for a player-heavy app) | Solid, Lit |
 | API client | Types generated from the contract with `openapi-typescript`, `openapi-fetch` | hand-written fetch wrappers over the generated types |
 | Audio | `HTMLAudioElement` with Media Session API for lock screen and headset controls | Web Audio only if needed |
-| Offline storage | IndexedDB (an index of what is held, queued writes) plus Cache Storage or the origin private file system for audio and text blobs | |
-| Tests | Vitest for logic, Playwright for flows (Chromium at `/opt/pw-browsers` in cloud sessions) | |
+| Offline storage | IndexedDB for verified text, timings and chunked audio; Cache Storage for the app shell and fonts | |
+| Tests | Vitest for logic, Playwright flows in Chromium, Firefox and WebKit; separate single-worker Chromium audits | |
 
 ## 2. Structure
 ```
 src/
   api/        generated schema.d.ts, client, error mapping, event stream
-  state/      listener, server, library, book, place, plans, downloads (stores)
-  player/     audio engine, line highlighter, chapter prefetch, media session
-  sync/       place queue with revisions and conflict handling
+  state/      listener, library, book, plans, allowance, management, reader preferences
+  player/     audio engine, places and conflicts, chapter prefetch, media session
   offline/    downloader, manifest, update check, storage accounting
-  theme/      palette derivation from Cover.sample, tokens, glass components
+  theme/      palette derivation from cover sample, tokens
+  components/ shared glass and accessible controls
   views/      Home, Library, Book, Now Playing, Settings, sheets
   lib/        code point text helpers, money and cost formatting, time
 ```
@@ -34,6 +34,7 @@ A local copy of the place (exact audio time, scroll position, `revision`) is wri
 
 ## 5. Offline
 - A download is a set of chapters of one audiobook: audio, timings and text, recorded in IndexedDB with `audio.id` and hashes.
+- Audio arrives in bounded parts. Engines that cannot store Blob parts use ArrayBuffer parts; a chapter's record and content still commit atomically only when its complete audio is present. An incomplete replacement leaves the previous chapter intact.
 - Verify files on open; repair or re-download on mismatch.
 - `checkDownloads` compares what is held with the server and produces the **Out of date** comparison; nothing is replaced without the listener's choice.
 - Request persistent storage; download in the foreground with clear progress, pause and resume by range.
@@ -44,6 +45,12 @@ One audio engine per page: loads the chapter audio, applies the listener's speed
 
 ## 7. Theming
 Derive the palette from `Cover.sample` (see the UI guide), set CSS custom properties per book, and fall back to the default palette. Screens without a book use the default.
+
+## 7.1 Device settings and management
+
+Reader appearance, following and screen-on choices are shared between Settings and Now Playing in `state/reader.ts` and persisted per browser. Screen Wake Lock is held only while Read is visible and playing, and released on pause, navigation or hiding the page. Unsupported/denied locks do not interrupt playback. Listener continuation and place-conflict settings are saved through the server.
+
+Deletion schedules retain their book IDs independently of refresh success. Cached timestamps show the pending countdown after a reload; only a confirmed server reply removes an entry. The global Undo region remains mounted in Now Playing and offline views. Recent-place restoration goes through the player's revision/conflict logic and keeps the place left behind in history. The server's display name is cached separately so an unreachable screen can identify it without guessing an address.
 
 ## 8. Money and cost display
 Format `Money` from integer micros. Show ranges as "$1.80 to $2.60" with "most likely". A `Spend` with `unknown_items` shows the count beside the known total and never adds it as zero.

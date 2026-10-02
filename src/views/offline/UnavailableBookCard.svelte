@@ -14,12 +14,11 @@
 
   const pad = $derived(Math.round(width * 0.12));
   const blur = $derived(Math.floor(width / 4));
-  const titleSize = $derived(width >= 112 ? 15 : 13);
 </script>
 
 <div class="tile" style:width="{width}px" role="group" aria-label="{title}{subtitle ? `, ${subtitle}` : ''}. Needs your Bardic computer">
   <div class="art">
-    <Cover {color} src={coverSrc} {width} height={Math.round(width * 1.5)} {pad} shadowY={pad} shadowBlur={blur} {title} {titleSize} />
+    <Cover {color} src={coverSrc} {width} height={Math.round(width * 1.5)} {pad} shadowY={pad} shadowBlur={blur} />
     <div class="mark"><OfflineGlyph name="wifi-off" size={14} color="var(--ink)" /></div>
   </div>
   <div class="meta">

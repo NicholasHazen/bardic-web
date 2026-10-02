@@ -66,7 +66,7 @@
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && editingId && onedit?.(null)} />
 
-<div class="page">
+<main class="page">
   <div class="top">
     <RoundButton label="Back" icon="back" onclick={onback} />
     <h1>Manage library</h1>
@@ -168,15 +168,17 @@
       {#if !removed.length}<p class="empty">Nothing is removed. A removed book keeps its audio and your places, and can be restored here.</p>{/if}
     </div>
   {/if}
-</div>
+</main>
 
 <style>
   .page { display: flex; flex-direction: column; gap: 14px; padding-bottom: 20px; font-family: var(--font-ui); }
   .top { display: flex; align-items: center; gap: 4px; padding: 8px 12px 0; }
   h1 { margin: 0 0 0 4px; font-size: 20px; font-weight: 700; color: var(--ink); line-height: 1.35; flex: 1; }
   .seg { display: flex; align-items: center; gap: 2px; }
-  .seg button { flex: 1; display: inline-flex; align-items: center; justify-content: center; height: 38px; padding: 0; border: 0; border-radius: 19px; background: transparent; font-family: var(--font-ui); font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
-  .seg button.on { background: rgba(255, 255, 255, 0.16); color: var(--ink); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+  .seg button { position: relative; isolation: isolate; flex: 1; display: inline-flex; align-items: center; justify-content: center; height: 44px; margin-block: -3px; padding: 0; border: 0; border-radius: 19px; background: transparent; font-family: var(--font-ui); font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
+  .seg button.on { color: var(--ink); }
+  .seg button.on::before { content: ''; position: absolute; inset: 3px 0; border-radius: 19px; z-index: -1; background: rgba(255, 255, 255, 0.16); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .msg { margin: 0 20px; }
   .group { display: flex; flex-direction: column; gap: 8px; }
   .label { font-size: 12px; font-weight: 700; color: var(--muted); line-height: 1.35; letter-spacing: 0.1em; text-transform: uppercase; padding: 0 24px; }
@@ -192,7 +194,8 @@
   .pair { display: flex; align-items: center; gap: 10px; }
   .order { width: 84px; }
   .col label { font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.35; }
-  input { padding: 0; line-height: 1.35; border: 0; outline: 0; background: transparent; flex: 1; min-width: 0; width: 100%; font-family: var(--font-ui); font-size: 14px; color: var(--ink); }
+  input { min-height: 44px; padding: 0; line-height: 1.35; border: 0; outline: 0; background: transparent; flex: 1; min-width: 0; width: 100%; font-family: var(--font-ui); font-size: 14px; color: var(--ink); }
+  .col:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 12px; }
   input::placeholder { color: var(--muted); opacity: 0.8; }
   .btns { display: flex; align-items: center; gap: 10px; }
   .danger { display: flex; flex-direction: column; gap: 4px; }
@@ -203,4 +206,10 @@
   .order-n { font-size: 12px; font-weight: 700; color: var(--muted); line-height: 1.35; width: 16px; }
   .vtitle { font-size: 14px; font-weight: 500; color: var(--ink); line-height: 1.35; flex: 1; }
   .empty { margin: 0; padding: 0 24px; font-size: 14px; color: var(--muted); line-height: 1.5; }
+  @media (max-width: 300px) {
+    .pair, .btns, .line, .vol { flex-wrap: wrap; }
+    .pair > .col { flex-basis: 100%; }
+    .btns :global(button), .danger :global(button) { white-space: normal; height: auto; min-height: 44px; }
+    .text { overflow-wrap: anywhere; }
+  }
 </style>

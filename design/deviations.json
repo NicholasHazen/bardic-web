@@ -1,9 +1,27 @@
 {
   "_note": "Deliberate differences from a board. Entries need a reason; without one the default tolerance applies. Key = board name. Accessibility notes that do not change pixels are recorded here too under 'a11y:' keys and are not read by the check.",
   "a11y:Components/Chip": {
-    "reason": "Filter chips are 40 px tall (42 px with border) as drawn, under the 44 px touch-target rule in docs/UI-GUIDE.md. Kept as the board shows them; revisit if the owner wants 44."
+    "reason": "Filter chips now have a real 44 px target, meeting docs/UI-GUIDE.md. Their small height increase is deliberate; all board comparisons still use the default 1% tolerance."
   },
   "a11y:Components/Toggle": {
     "reason": "The toggle row is 30 px tall as drawn; an invisible 44 px hit area is added so the target meets the rule."
+  },
+  "live:BookMenu": {
+    "reason": "The live menu includes Recent places (C7) and Delete permanently (G3), required by PRODUCT-SPEC.md but omitted from the original BookMenu board. The static fixture continues to reproduce the supplied board."
+  },
+  "live:Settings": {
+    "reason": "The live Settings includes Listening behaviour for per-listener continuation/conflict choices, About this Bardic for G7 naming, and a full-size Voices row instead of an undersized clickable section heading. These routes extend the original Settings board. Reader appearance reuses the phone/tablet sheets and exposes the specified Dim the aura switch."
+  },
+  "live:ServerName": {
+    "reason": "Data folder is shown as Unknown because the server contract does not expose it. The board's sample path is used only in its synthetic fixture."
+  },
+  "live:ServerNaming": {
+    "reason": "G7 requires the server name in the switcher and unreachable screen. Live views show the cached name there, including after offline reload; board fixtures retain their original sample text."
+  },
+  "a11y:TextContrast": {
+    "reason": "Small text in the Home Continue card, listener details and offline notice is slightly brighter so its painted contrast meets the accessibility requirement on the translucent background. Callout headings and synthetic cover titles use contrast-safe ink. Tablet secondary text is brighter where large cover-derived glows previously reduced contrast. Default board tolerance remains 1%."
+  },
+  "live:TabletAura": {
+    "reason": "Runtime tablet glow opacity is capped for bright cover-derived palettes so the actual painted reader and interface backgrounds preserve text contrast, including green and yellow covers. Authored board fixture glows are unchanged."
   }
 }

@@ -1,0 +1,4 @@
+{
+  "comment": "Violations the board owner has decided are inherent to a board. Each entry: kind (axe, target, keyboard, dialog, motion, textscale, contrast-pixels), rule, optional selector (substring) and screen, and a reason of at least a sentence. Starts empty on purpose: entries are added by the owner, not by the audit.",
+  "entries": []
+}

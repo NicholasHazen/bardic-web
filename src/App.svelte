@@ -18,6 +18,16 @@
   import OfflineHome from './views/offline/connected/OfflineHome.svelte';
   import OfflineServerHost from './views/offline/connected/OfflineServerHost.svelte';
   import { rememberListenerName } from './views/offline/connected/listenerName';
+  import DeletionBannerHost from './views/manage/DeletionBannerHost.svelte';
+  import ServerNameScreen from './views/manage/ServerNameScreen.svelte';
+  import ReaderSettingsScreen from './views/settings/ReaderSettingsScreen.svelte';
+  import ListeningScreen from './views/settings/ListeningScreen.svelte';
+  import { followServer } from './state/manage';
+  import { serverName } from './state/serverName';
+  import LibraryToast from './views/library/LibraryToast.svelte';
+  import { readerPreferences } from './state/reader';
+  import { player } from './player/player';
+  import { holdReaderScreen } from './lib/wakeLock';
 
   let switching = $state(false);
   const open = () => (switching = true);
@@ -34,6 +44,13 @@
   onMount(() => {
     // Safe to repeat: the remembered listener is selected at once, before the server answers.
     void listenerStore.load();
+    return serverName.subscribe(() => {});
+  });
+  $effect(() => {
+    if (!$route.startsWith('/board/')) return followServer($listenerStore.currentId);
+  });
+  $effect(() => {
+    if ($route.startsWith('/listen/') && $player.mode === 'read' && $player.playing && $readerPreferences.extras.keepScreenOn) return holdReaderScreen();
   });
   // The name is kept so Home can greet the listener when the list cannot be read.
   $effect(() => {
@@ -61,6 +78,10 @@
           <SettingsScreen />
         {:else if $route === '/settings/downloads'}
           <DownloadsHost />
+        {:else if $route === '/settings/reader'}
+          <ReaderSettingsScreen />
+        {:else if $route === '/settings/listening'}
+          <ListeningScreen />
         {:else}
           <OfflineServerHost />
         {/if}
@@ -96,6 +117,12 @@
           <PremiumAccountScreen />
         {:else if $route === '/settings/allowance'}
           <AllowanceScreen />
+        {:else if $route === '/settings/about'}
+          <ServerNameScreen />
+        {:else if $route === '/settings/reader'}
+          <ReaderSettingsScreen />
+        {:else if $route === '/settings/listening'}
+          <ListeningScreen />
         {:else}
           <HomeScreen onswitchlistener={open} onplay={(id) => void startListening(id)} />
         {/if}
@@ -103,6 +130,7 @@
     {/if}
     {#if switching}
       <ListenerSwitcher
+        playing={$player.playing && $player.book ? { bookTitle: $player.book.title } : null}
         placement={$isTablet ? 'popover' : 'bottom'}
         onclose={close}
         onmanage={() => {
@@ -113,4 +141,6 @@
     {/if}
   </ListenerGate>
   {/if}
+  <DeletionBannerHost />
+  {#if away || $route.startsWith('/listen/')}<LibraryToast />{/if}
 {/if}

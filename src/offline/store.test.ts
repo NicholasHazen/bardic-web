@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isQuotaError, memoryStore, withQuota, type ChapterContent, type ChapterRecord } from './store';
+import { isBlobStorageError, isQuotaError, memoryStore, withQuota, type ChapterContent, type ChapterRecord } from './store';
 
 const rec = (over: Partial<ChapterRecord> = {}): ChapterRecord => ({
   audiobookId: 'a',
@@ -66,6 +66,12 @@ describe('the memory store', () => {
 });
 
 describe('a store with a quota', () => {
+  it('recognizes Blob capability errors without treating quota or unrelated database errors as capabilities', () => {
+    expect(isBlobStorageError(new DOMException('Error preparing Blob/File data to be stored in object store', 'UnknownError'))).toBe(true);
+    expect(isBlobStorageError(new DOMException('Blob URLs are not supported', 'DataCloneError'))).toBe(true);
+    expect(isBlobStorageError(new DOMException('The device quota for Blob data is full', 'QuotaExceededError'))).toBe(false);
+    expect(isBlobStorageError(new DOMException('The database connection failed', 'UnknownError'))).toBe(false);
+  });
   it('throws the error a full device throws', async () => {
     const s = withQuota(memoryStore(), 8);
     await s.appendPart('au1', 0, new Blob(['12345']));

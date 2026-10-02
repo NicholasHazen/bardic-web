@@ -18,6 +18,7 @@
     type Voice,
   } from '../../lib/voiceText';
   import { listenerStore } from '../../state/listener';
+  import { player } from '../../player/player';
   import { chooseVoiceForBook, listenerSettings, loadBookContext, samples, settingsActions, sources, voiceActions, voices, type BookVoiceContext } from '../../state/voices';
   import ChooserView from './ChooserView.svelte';
   import SetupVoice from './SetupVoice.svelte';
@@ -125,10 +126,13 @@
   async function chosenFree(): Promise<Audiobook | null> {
     const v = selectedId ? voiceOf(selectedId) : undefined;
     if (!v || v.tier !== 'free') return null;
-    return context.audiobooks.find((a) => a.voice_id === v.id) ?? (await audiobookFor(v.id));
+    const ab = context.audiobooks.find((a) => a.voice_id === v.id) ?? (await audiobookFor(v.id));
+    if (ab && listenerId && !$listenerSettings.settings?.default_voice_id) await settingsActions.setDefaultVoice(listenerId, v.id);
+    return ab;
   }
 
   async function start() {
+    player.preparePlayback();
     const ab = await chosenFree();
     if (!ab) return;
     if (onstart) onstart(ab);

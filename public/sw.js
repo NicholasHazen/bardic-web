@@ -21,12 +21,13 @@ const sameFiles = (text, from) => {
   // built files named inside a built file: "/assets/index-AbC.js", "assets/x.css", or "./Chunk-AbC.js" (a lazily loaded chunk,
   // relative to the file it is named in)
   const found = new Set();
-  const abs = /(?:["'(=]|\/)(\/?assets\/[A-Za-z0-9_.\-]+\.(?:js|css|woff2?|svg|png|jpg|webp))/g;
-  const rel = /["'](\.\/[A-Za-z0-9_.\-]+\.(?:js|css))["']/g;
+  // Minifiers may use any JavaScript string delimiter, including a static template literal.
+  const abs = /(?:["'`(=]|\/)(\/?assets\/[A-Za-z0-9_.\-]+\.(?:js|css|woff2?|svg|png|jpg|webp))/g;
+  const rel = /(["'`])(\.\/[A-Za-z0-9_.\-]+\.(?:js|css))\1/g;
   let m;
   while ((m = abs.exec(text))) found.add(m[1].startsWith('/') ? m[1] : '/' + m[1]);
   while ((m = rel.exec(text))) {
-    const u = new URL(m[1], new URL(from, self.location.origin));
+    const u = new URL(m[2], new URL(from, self.location.origin));
     if (u.origin === self.location.origin) found.add(u.pathname);
   }
   return found;
@@ -38,7 +39,7 @@ async function precache() {
   if (!res.ok) throw new Error('shell ' + res.status);
   const html = await res.clone().text();
   await cache.put(SHELL, res);
-  const queue = [...sameFiles(html, SHELL)];
+  const queue = [...sameFiles(html, SHELL), '/manifest.webmanifest', '/icon.svg', '/icon-180.png', '/icon-192.png', '/icon-512.png'];
   const seen = new Set(queue);
   // follow the built scripts one level at a time: lazily loaded chunks are named inside them
   for (let i = 0; i < queue.length && i < 300; i++) {

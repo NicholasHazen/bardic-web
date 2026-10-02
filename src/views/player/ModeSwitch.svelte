@@ -44,7 +44,7 @@
 <style>
   .switch {
     box-sizing: border-box;
-    width: 176px;
+    width: min(176px, 100%);
     height: 44px;
     padding: 3px;
     background: rgba(14, 12, 22, 0.4);
@@ -54,13 +54,13 @@
     border-radius: 12px;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 6px 16px rgba(0, 0, 0, 0.25);
   }
-  .row { display: flex; align-items: center; gap: 2px; }
+  .row { display: flex; align-items: center; gap: 2px; height: 44px; margin-top: -3px; }
   button {
     flex: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 38px;
+    height: 44px;
     padding: 0;
     border: 0;
     border-radius: 19px;
@@ -72,9 +72,11 @@
     box-shadow: none;
     cursor: pointer;
     position: relative;
+    isolation: isolate;
   }
-  /* the pill is 38 px as drawn; this makes the target the full 44 px of the switch */
-  button::before { content: ''; position: absolute; inset: -3px -1px; }
-  button.on { color: var(--ink); background: rgba(255, 255, 255, 0.16); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+  /* Keep the 38 px pill while the button itself occupies the full 44 px touch band. */
+  button::before { content: ''; position: absolute; inset: 3px 0; border-radius: 19px; z-index: -1; }
+  button.on { color: var(--ink); }
+  button.on::before { background: rgba(255, 255, 255, 0.16); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); }
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 </style>

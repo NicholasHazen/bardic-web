@@ -80,8 +80,8 @@
   .icon { width: 40px; height: 40px; border-radius: 12px; background: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
   .name { font-size: 16px; font-weight: 700; color: var(--ink); }
-  .sub { font-size: 12px; font-weight: 400; color: var(--muted); }
-  .blurb { font-size: 13px; font-weight: 400; color: var(--muted); line-height: 1.5; }
+  .sub { font-size: 12px; font-weight: 400; color: color-mix(in srgb, var(--muted) 65%, var(--ink)); }
+  .blurb { font-size: 13px; font-weight: 400; color: color-mix(in srgb, var(--muted) 80%, var(--ink)); line-height: 1.5; }
   .blurb.bad { color: #ffbcae; }
   .buttons { display: flex; align-items: center; gap: 10px; }
 </style>

@@ -69,6 +69,9 @@
   .stack { display: flex; flex-direction: column; gap: 16px; }
   .sent { display: flex; flex-direction: column; gap: 10px; }
   h2 { margin: 0; font-family: var(--font-ui); font-size: 12px; font-weight: 700; color: var(--muted); line-height: 1.35; letter-spacing: 0.1em; text-transform: uppercase; }
+  @media (min-width: 768px) {
+    h2 { color: var(--ink); }
+  }
   p { margin: 0; font-family: var(--font-ui); font-size: 14px; font-weight: 400; color: var(--ink); line-height: 1.5; }
   .buttons { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .note { font-family: var(--font-ui); font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.5; }

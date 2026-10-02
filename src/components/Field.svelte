@@ -18,5 +18,5 @@
   label { font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--ink); }
   .box { display: flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 12px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.22); box-sizing: border-box; }
   .box:focus-within { border-color: var(--accent); }
-  input { border: 0; outline: 0; background: transparent; flex: 1; min-width: 0; font-family: var(--font-ui); font-size: 14px; color: var(--ink); }
+  input { border: 0; outline: 0; background: transparent; flex: 1; min-width: 0; min-height: 44px; box-sizing: border-box; font-family: var(--font-ui); font-size: 14px; color: var(--ink); }
 </style>

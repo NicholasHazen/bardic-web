@@ -113,7 +113,7 @@ describe('appearance', () => {
   it('sizes the column by layout and the text by the listener', () => {
     const a = { size: 21, theme: 'dark', font: 'serif', spacing: 1.72, dimAura: true } as const;
     expect(readerMetrics(a, 'phone')).toMatchObject({ fontSize: 21, lineHeight: 1.72, titleSize: 30, columnWidth: 390, gap: 18 });
-    expect(readerMetrics({ ...a, size: 23 }, 'tablet-landscape')).toMatchObject({ titleSize: 35, columnWidth: null, gap: 16 });
+    expect(readerMetrics({ ...a, size: 23 }, 'tablet-landscape')).toMatchObject({ titleSize: 35, columnWidth: 640, gap: 16 });
     expect(readerMetrics({ ...a, font: 'sans' }, 'tablet-portrait').fontFamily).toBe('var(--font-ui)');
   });
   it('gives light and sepia a paper page and dark none', () => {
@@ -121,5 +121,12 @@ describe('appearance', () => {
     expect(readerColors('light').paper).not.toBeNull();
     expect(readerColors('sepia').paper).not.toBeNull();
     expect(readerColors('dim').dim).toBe(true);
+    expect(readerColors('night')).toMatchObject({ paper: '#000000', ink: '#d6d2dc', dim: false });
+  });
+  it('uses ordered tablet page widths, fills the panel for Full, and keeps phone width independent', () => {
+    const a = { size: 21, theme: 'dark', font: 'serif', spacing: 1.7, dimAura: false } as const;
+    expect(['narrow', 'medium', 'wide', 'wider', 'full'].map((width) => readerMetrics(a, 'tablet-portrait', width as any).columnWidth)).toEqual([420, 520, 640, 760, null]);
+    expect(readerMetrics(a, 'tablet-landscape', 'narrow').columnWidth).toBe(420);
+    expect(readerMetrics(a, 'phone', 'narrow').columnWidth).toBe(390);
   });
 });

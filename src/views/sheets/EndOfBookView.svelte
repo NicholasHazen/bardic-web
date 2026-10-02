@@ -77,4 +77,10 @@
   .sp { height: 10px; }
   .note { padding: 0 28px; font-family: serif; line-height: normal; }
   .note span { font-family: var(--font-ui); font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.5; }
+  @media (max-width: 300px) {
+    .page { height: auto; min-height: 100%; overflow: visible; padding-bottom: 24px; }
+    .cover :global(.cover) { width: calc(100vw - 32px) !important; height: auto !important; aspect-ratio: 2 / 3; }
+    .texts, .note { padding-inline: 12px; overflow-wrap: anywhere; }
+    .actions :global(button) { white-space: normal; height: auto !important; min-height: 44px; padding-block: 10px; }
+  }
 </style>

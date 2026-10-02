@@ -36,7 +36,7 @@
 
 <style>
   .block { display: flex; flex-direction: column; gap: 6px; }
-  .hit :global(.scrub)::before { content: ''; position: absolute; left: -10px; right: -10px; top: calc(-1 * var(--hit)); bottom: calc(-1 * var(--hit)); }
+  .hit :global(.scrub)::before { content: ''; position: absolute; left: -10px; right: -10px; top: 0; bottom: 0; }
   .times { display: flex; align-items: center; }
   .times .t { line-height: inherit; }
   .t { font-family: var(--font-ui); font-size: 12px; color: var(--muted); }

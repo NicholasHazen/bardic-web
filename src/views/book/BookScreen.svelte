@@ -3,13 +3,16 @@
   import Button from '../../components/Button.svelte';
   import Callout from '../../components/Callout.svelte';
   import { avatarHue } from '../../lib/listenerText';
-  import { bookStore, currentAudiobook, deviceChapters, followBookEvents, makeSheet, pageModel } from '../../state/book';
+  import { bookStore, currentAudiobook, deviceChapters, followBookEvents, makeSheet, pageModel, type Audiobook } from '../../state/book';
   import { makeOptions } from '../../lib/bookAudio';
   import { currentListener, listenerStore } from '../../state/listener';
   import { isPlanNotice, planStore } from '../../state/plans';
   import { voices } from '../../state/voices';
   import { derivePalette } from '../../theme/derive';
   import { player } from '../../player/player';
+  import { deletions } from '../../state/manage';
+  import BookMenuHost from '../manage/BookMenuHost.svelte';
+  import LibraryToast from '../library/LibraryToast.svelte';
   import { offline } from '../../offline/offline';
   import BookDownloads from '../offline/connected/BookDownloads.svelte';
   import DownloadSheetHost from '../offline/connected/DownloadSheetHost.svelte';
@@ -69,10 +72,17 @@
   let makeOpen = $state(false);
   let selected = $state('whole');
   let busy = $state(false);
+  // A deleted-for-good book is hidden by the server (reading it is 404). This asks the server whether that is why.
+  const beingDeleted = $derived($deletions.items.some((i) => i.bookId === bookId));
+  $effect(() => {
+    const l = listenerId;
+    if (l && s.status === 'missing') void deletions.adopt(l, bookId);
+  });
   let sheetError = $state<string | undefined>();
   let problem = $state<{ title: string; text: string } | undefined>();
   let downloadOpen = $state(false);
   let updateOpen = $state(false);
+  let menuOpen = $state(false);
 
   // A different book starts with the short list and nothing open.
   $effect(() => {
@@ -84,6 +94,7 @@
     problem = undefined;
     downloadOpen = false;
     updateOpen = false;
+    menuOpen = false;
   });
 
   const page = $derived(pageModel(s, { expanded, storyOnly }, $deviceChapters));
@@ -123,7 +134,7 @@
     const a = $planStore.flow.approved;
     if (!a || a.book_id !== bookId) return;
     untrack(() => {
-      if (s.currentId !== a.audiobook_id) void bookStore.choose(a.audiobook_id);
+      if (s.currentId !== a.audiobook_id) void chooseAudiobook(a.audiobook_id);
       else void bookStore.loadAudio();
       planStore.ackApproved();
     });
@@ -161,6 +172,41 @@
     chooser = false;
     void bookStore.loadAudio();
   }
+
+  async function chooseAudiobook(id: string, opts: { makeAudio?: boolean } = {}): Promise<{ ok: true } | { ok: false; detail: string }> {
+    await bookStore.loadAudio(); // also finds an audiobook the chooser just created
+    if ($player.book?.id === bookId && $player.loaded) {
+      if (!(await player.switchAudiobook(id, opts))) return { ok: false, detail: 'Your place and audio are kept. Resolve the place conflict, or try choosing the voice again.' };
+      // The player writes its precise current offset and revision; the book page must not write its older snapshot.
+      const result = await bookStore.choose(id, { writePlace: false });
+      await bookStore.load(false);
+      return result;
+    }
+    return bookStore.choose(id);
+  }
+
+  async function startChosen(ab: Audiobook) {
+    player.preparePlayback();
+    chooser = false;
+    await act(async () => {
+      const result = await chooseAudiobook(ab.id);
+      if (result.ok) await startListening(bookId);
+      return result;
+    }, 'Couldn’t start listening');
+  }
+
+  async function makeChosen(ab: Audiobook) {
+    chooser = false;
+    await act(async () => {
+      const result = await chooseAudiobook(ab.id, { makeAudio: false });
+      if (result.ok) {
+        selected = 'whole';
+        sheetError = undefined;
+        makeOpen = true;
+      }
+      return result;
+    }, 'Couldn’t choose this audiobook');
+  }
 </script>
 
 <Shell active="library" {onswitchlistener} {palette}>
@@ -183,7 +229,7 @@
       onplanfrom={planFrom ? () => openPlan('from') : undefined}
       planFromLabel={planFrom}
       onback={() => (location.hash = '#/library')}
-      onmore={() => (location.hash = '#/library/manage')}
+      onmore={() => (menuOpen = true)}
       onplay={play}
       onchangevoice={() => (chooser = true)}
       ondownload={current && !planGoing ? () => (downloadOpen = true) : undefined}
@@ -196,7 +242,7 @@
       onpause={() => act(() => bookStore.pause(), 'Couldn’t pause')}
       onresume={() => act(() => bookStore.resume(), 'Couldn’t resume')}
       onstop={() => act(() => bookStore.stop(), 'Couldn’t stop')}
-      onchoose={(id) => act(() => bookStore.choose(id), 'Couldn’t switch audiobook')}
+      onchoose={(id) => act(() => chooseAudiobook(id), 'Couldn’t switch audiobook')}
       onshowall={() => (expanded = true)}
       onfilter={(v) => (storyOnly = v)}
       ondismissproblem={() => (problem = undefined)}
@@ -206,6 +252,13 @@
       <Callout tone="error" title="Couldn’t open this book">
         {s.error ?? 'Your Bardic computer could not be reached.'}
         {#snippet actions()}<Button variant="glass" onclick={() => bookStore.load()}>Try again</Button>{/snippet}
+      </Callout>
+    </div>
+  {:else if s.status === 'missing' && beingDeleted}
+    <div class="note">
+      <Callout tone="warn" title="This book is being deleted">
+        It is hidden and will be deleted for good when the countdown ends. Undo is below, until then.
+        {#snippet actions()}<Button variant="glass" onclick={() => (location.hash = '#/library')}>Back to library</Button>{/snippet}
       </Callout>
     </div>
   {:else if s.status === 'missing'}
@@ -220,6 +273,9 @@
   {/if}
 
   {#snippet overlay()}
+    {#if menuOpen && s.book && listenerId}
+      <BookMenuHost {listenerId} book={s.book} place={s.place} audiobooks={s.audiobooks} chapters={s.chapters} onclose={() => (menuOpen = false)} onchanged={() => void bookStore.load(false)} />
+    {/if}
     {#if sheet}
       <MakeReadySheet
         model={{ ...sheet.model, busy, error: sheetError }}
@@ -239,10 +295,11 @@
       />
     {/if}
     {#if updateOpen && current}<UpdateAudioHost audiobookId={current.id} onclose={() => (updateOpen = false)} />{/if}
-    {#if chooser}<VoiceChooserSheet {bookId} onclose={closeChooser} onplan={planFromChooser} />{/if}
+    {#if chooser}<VoiceChooserSheet {bookId} onclose={closeChooser} onstart={(ab) => void startChosen(ab)} onmakeready={(ab) => void makeChosen(ab)} onplan={planFromChooser} />{/if}
     <PlanFlow placement={$isTablet ? 'popover' : 'bottom'} />
   {/snippet}
 </Shell>
+<LibraryToast />
 
 {#snippet planBlock()}
   {#if current && (planGoing || planEnded)}

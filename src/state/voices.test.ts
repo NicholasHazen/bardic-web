@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const calls: { method: string; path: string; init?: { body?: unknown; params?: unknown } }[] = [];
-let responses: Record<string, { status?: number; data?: unknown; error?: unknown }> = {};
+type MockResponse = { status?: number; data?: unknown; error?: unknown };
+let responses: Record<string, MockResponse | (() => MockResponse | Promise<MockResponse>)> = {};
 vi.mock('../api/client', () => {
   const run = (method: string) => async (path: string, init?: { body?: unknown; params?: unknown }) => {
     calls.push({ method, path, init });
-    const r = responses[`${method} ${path}`] ?? { status: 200, data: {} };
+    const value = responses[`${method} ${path}`] ?? { status: 200, data: {} };
+    const r = typeof value === 'function' ? await value() : value;
     const status = r.status ?? 200;
     return { data: r.data, error: r.error, response: { ok: status >= 200 && status < 300, status } };
   };
@@ -136,10 +138,61 @@ describe('default voice', () => {
 
   it('keeps the old default when the server refuses the voice', async () => {
     listenerSettings.set({ listenerId: 'l1', status: 'ready', settings: { default_voice_id: 'a', place_conflict: 'ask', continue_into_next_chapter: true } });
+    responses['GET /api/listeners/{listener_id}/settings'] = { data: { default_voice_id: 'a', place_conflict: 'ask', continue_into_next_chapter: true } };
     responses['PUT /api/listeners/{listener_id}/settings'] = { status: 404, error: { code: 'voice_not_found', detail: 'No such voice.' } };
     const r = await settingsActions.setDefaultVoice('l1', 'gone');
     expect(r).toMatchObject({ ok: false, code: 'voice_not_found' });
     expect(get(listenerSettings).settings?.default_voice_id).toBe('a');
+  });
+
+  it('preserves the latest server behaviour choices even when an older default is cached', async () => {
+    listenerSettings.set({ listenerId: 'l1', status: 'ready', settings: { default_voice_id: 'old', place_conflict: 'ask', continue_into_next_chapter: true } });
+    responses['GET /api/listeners/{listener_id}/settings'] = { data: { default_voice_id: 'old', place_conflict: 'this_device', continue_into_next_chapter: false } };
+    responses['PUT /api/listeners/{listener_id}/settings'] = { data: { default_voice_id: 'kore', place_conflict: 'this_device', continue_into_next_chapter: false } };
+    await settingsActions.setDefaultVoice('l1', 'kore');
+    expect(calls.find((c) => c.method === 'PUT')?.init?.body).toEqual({ default_voice_id: 'kore', place_conflict: 'this_device', continue_into_next_chapter: false });
+  });
+
+  it('ignores an older same-listener read that finishes after a successful save', async () => {
+    const old = { default_voice_id: 'a', place_conflict: 'ask', continue_into_next_chapter: true };
+    const changed = { ...old, continue_into_next_chapter: false };
+    let resolve!: (value: MockResponse) => void;
+    responses['GET /api/listeners/{listener_id}/settings'] = () => new Promise((r) => { resolve = r; });
+    const stale = settingsActions.load('l1');
+    responses['GET /api/listeners/{listener_id}/settings'] = { data: old };
+    responses['PUT /api/listeners/{listener_id}/settings'] = { data: changed };
+    expect((await settingsActions.update('l1', { continue_into_next_chapter: false })).ok).toBe(true);
+    resolve({ data: old });
+    await stale;
+    expect(get(listenerSettings).settings).toEqual(changed);
+  });
+
+  it('keeps the newly selected listener when a default-voice save finishes late', async () => {
+    const first = { default_voice_id: 'a', place_conflict: 'ask', continue_into_next_chapter: true };
+    const second = { default_voice_id: 'b', place_conflict: 'newest', continue_into_next_chapter: false };
+    let resolve!: (value: MockResponse) => void;
+    responses['GET /api/listeners/{listener_id}/settings'] = { data: first };
+    responses['PUT /api/listeners/{listener_id}/settings'] = () => new Promise((r) => { resolve = r; });
+    const pending = settingsActions.setDefaultVoice('l1', 'kore');
+    await vi.waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true));
+    responses['GET /api/listeners/{listener_id}/settings'] = { data: second };
+    await settingsActions.load('l2');
+    resolve({ data: { ...first, default_voice_id: 'kore' } });
+    await pending;
+    expect(get(listenerSettings)).toMatchObject({ listenerId: 'l2', settings: second });
+  });
+
+  it('cancels the pending update when its fresh read belongs to a listener that has since changed', async () => {
+    let resolve!: (value: MockResponse) => void;
+    responses['GET /api/listeners/{listener_id}/settings'] = () => new Promise((r) => { resolve = r; });
+    const pending = settingsActions.update('l1', { place_conflict: 'newest' });
+    const second = { default_voice_id: 'b', place_conflict: 'ask', continue_into_next_chapter: false };
+    responses['GET /api/listeners/{listener_id}/settings'] = { data: second };
+    await settingsActions.load('l2');
+    resolve({ data: { ...second, default_voice_id: 'a' } });
+    expect((await pending).ok).toBe(false);
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false);
+    expect(get(listenerSettings)).toMatchObject({ listenerId: 'l2', settings: second });
   });
 });
 

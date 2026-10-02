@@ -49,6 +49,6 @@
   }
   .box:focus-within { border-color: var(--accent); }
   .box.invalid { border: 1.5px solid rgba(255, 120, 100, 0.8); }
-  input { border: 0; outline: 0; background: transparent; flex: 1; min-width: 0; font-family: var(--font-ui); color: var(--ink); }
+  input { border: 0; outline: 0; background: transparent; flex: 1; min-width: 0; min-height: 44px; box-sizing: border-box; font-family: var(--font-ui); color: var(--ink); }
   .count { font-size: 12px; font-weight: 400; color: var(--muted); }
 </style>

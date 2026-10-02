@@ -5,6 +5,7 @@
   import { allowanceSummary, defaultVoiceSummary } from '../../lib/voiceText';
   import { currentListener, listenerStore } from '../../state/listener';
   import { listenerSettings, settingsActions, sources, voiceActions, voices } from '../../state/voices';
+  import { followServer, serverStore } from '../../state/manage';
   import { offline } from '../../offline/offline';
   import { downloadsSummary } from '../offline/connected/mapping';
   import { KeyProblemBanner } from '../account';
@@ -27,6 +28,7 @@
 
   const who = $derived(currentListener($listenerStore));
   const listenerId = $derived($listenerStore.currentId);
+  $effect(() => { if (listenerId) void settingsActions.load(listenerId); });
   let allowance = $state('');
 
   const defaultVoice = $derived.by(() => {
@@ -34,10 +36,12 @@
     return defaultVoiceSummary(id ? $voices.items.find((v) => v.id === id) : null);
   });
 
+  $effect(() => followServer(listenerId));
+  const serverName = $derived($serverStore.server?.name);
+
   onMount(() => {
     void voiceActions.loadSources();
     void voiceActions.loadVoices();
-    if (listenerId) void settingsActions.load(listenerId);
     void api
       .GET('/api/allowance')
       .then((r) => {
@@ -55,5 +59,7 @@
   sources={$sources.items}
   allowance={allowance || 'Monthly limit and what was spent'}
   downloads={downloadsLine}
+  about={serverName ?? 'Name, version, free space'}
+  listening
   {onswitchlistener}
 />

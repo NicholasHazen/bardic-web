@@ -1,7 +1,7 @@
 // The player with no connection (O3 to O5) against a real bardic-server and the fake Breeze: chapters downloaded with
 // the offline engine play and read from this device, the others say why and offer the next one that is held, the place is
 // kept and reaches the server when it is back. The page has both hooks (?e2e=offline gives window.__offline and
-// window.__player). "Offline" is made two ways at once: context.setOffline(true) and a route that aborts /api/**.
+// window.__player). The harness cuts real origin sockets: the server is unreachable while local Blob audio remains usable.
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures';
 import { apiCall } from './harness';
@@ -18,11 +18,10 @@ const st = (page: Page) =>
     return { ...rest, text, lineCount: lines.length } as any;
   });
 const cmd = (page: Page, name: string, ...args: unknown[]) => page.evaluate(([n, a]) => (window.__player as any)[n as string](...(a as unknown[])), [name, args] as const);
-const tap = (page: Page) => page.mouse.click(5, 5);
 
 test.describe.configure({ timeout: 90000 });
 
-test('O3 and O5: downloaded chapters play and read with no server, the others say why, the place follows when it returns', async ({ page, context, stack, breeze }) => {
+test('O3 and O5: downloaded chapters play and read with no server, the others say why, the place follows when it returns', async ({ page, stack, breeze }) => {
   const l = (await apiCall(stack.api, 'POST', '/api/listeners', { name: 'Nick' })).json.id as string;
   expect((await apiCall(stack.api, 'PUT', '/api/voice-sources/breeze', { base_url: breeze.url }, OTHER)).status).toBe(200);
   const bookId = (await apiCall(stack.api, 'POST', '/api/books/sample', undefined, OTHER, l)).json.id as string;
@@ -47,8 +46,8 @@ test('O3 and O5: downloaded chapters play and read with no server, the others sa
     .toEqual(['on_device', 'not_downloaded', 'on_device']);
 
   // the Bardic computer goes away
-  await context.route('**/api/**', (r) => r.abort('connectionrefused'));
-  await context.setOffline(true);
+  stack.setReachable(false);
+  await off(page, 'refresh');
   await expect.poll(async () => (await offState(page)).online, { timeout: 20000 }).toBe(false);
 
   // open: from what the device remembers, at the first chapter that is held
@@ -63,8 +62,7 @@ test('O3 and O5: downloaded chapters play and read with no server, the others sa
   expect(s.chapters.map((c: any) => c.audio)).toEqual(['on_device', 'not_yet', 'on_device']);
 
   // play: the element plays the held copy, the time advances, the line follows (Read mode has the text and the line)
-  await tap(page);
-  await cmd(page, 'play');
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
   await expect.poll(async () => (await st(page)).position, { timeout: 10000 }).toBeGreaterThan(1);
   expect(await page.evaluate(() => window.__audio!.src)).toMatch(/^blob:/);
   expect(await page.evaluate(() => window.__audio!.currentTime)).toBeGreaterThan(0.5);
@@ -90,7 +88,7 @@ test('O3 and O5: downloaded chapters play and read with no server, the others sa
 
   // take the offer: chapter three plays from the device
   await cmd(page, 'gotoChapter', s.offlineNext.chapterId);
-  await cmd(page, 'play');
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
   await expect.poll(async () => (await st(page)).position, { timeout: 10000 }).toBeGreaterThan(1);
   s = await st(page);
   expect(s.chapter.id).toBe(chapters[2]!.id);
@@ -100,6 +98,7 @@ test('O3 and O5: downloaded chapters play and read with no server, the others sa
   await cmd(page, 'pause');
 
   // the place is kept on this device and waits to be sent
+  await expect.poll(async () => (await st(page)).placeSync).toBe('queued_offline');
   s = await st(page);
   expect(s.placeSync).toBe('queued_offline');
   const local = await page.evaluate(([li, b]) => JSON.parse(localStorage.getItem(`bardic.place.${li}.${b}`) ?? 'null'), [l, bookId] as const);
@@ -108,8 +107,8 @@ test('O3 and O5: downloaded chapters play and read with no server, the others sa
 
   // the Bardic computer comes back: the place reaches it, with no conflict and no jump
   const pos = (await st(page)).position;
-  await context.unroute('**/api/**');
-  await context.setOffline(false);
+  stack.setReachable(true);
+  await off(page, 'refresh');
   await expect.poll(async () => (await apiCall(stack.api, 'GET', `/api/books/${bookId}/place`, undefined, OTHER, l)).json?.chapter_id, { timeout: 45000 }).toBe(chapters[2]!.id);
   await expect.poll(async () => (await st(page)).placeSync, { timeout: 20000 }).toBe('saved');
   s = await st(page);
@@ -119,7 +118,7 @@ test('O3 and O5: downloaded chapters play and read with no server, the others sa
   expect(s.playing).toBe(false);
 });
 
-test('opening a book that is not on the device, offline, says so and keeps the place', async ({ page, context, stack, breeze }) => {
+test('opening a book that is not on the device, offline, says so and keeps the place', async ({ page, stack, breeze }) => {
   const l = (await apiCall(stack.api, 'POST', '/api/listeners', { name: 'Nick' })).json.id as string;
   expect((await apiCall(stack.api, 'PUT', '/api/voice-sources/breeze', { base_url: breeze.url }, OTHER)).status).toBe(200);
   const bookId = (await apiCall(stack.api, 'POST', '/api/books/sample', undefined, OTHER, l)).json.id as string;
@@ -127,8 +126,7 @@ test('opening a book that is not on the device, offline, says so and keeps the p
   await page.getByRole('button', { name: /^Nick/ }).click();
   await expect(page.getByRole('button', { name: /Listening as Nick/ })).toBeVisible();
   await page.waitForFunction(() => !!window.__player);
-  await context.route('**/api/**', (r) => r.abort('connectionrefused'));
-  await context.setOffline(true);
+  stack.setReachable(false);
   await page.evaluate((b) => window.__player!.open(b), bookId);
   const s = await st(page);
   expect(s.loaded).toBe(false);

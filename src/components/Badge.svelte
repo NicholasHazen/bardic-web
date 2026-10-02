@@ -27,5 +27,6 @@
   .making { background: rgba(120, 180, 255, 0.2); color: #bcdcff; }
   .paid { background: rgba(246, 185, 92, 0.2); color: #ffd493; }
   .failed { background: rgba(255, 120, 100, 0.22); color: #ffbcae; }
-  .here { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+  .here { background: color-mix(in srgb, var(--accent) 18%, transparent); color: color-mix(in srgb, var(--accent) 30%, var(--ink)); }
+  @media (min-width: 768px) { .idle { background: rgba(255, 255, 255, 0.09); } }
 </style>

@@ -21,15 +21,29 @@
   let opener: Element | null = null;
 
   const focusable = () =>
-    Array.from(dialog.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'));
+    Array.from(dialog.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'))
+      .filter((el) => el.tabIndex >= 0 && !el.closest('[inert],[aria-hidden="true"]') && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden');
 
   onMount(() => {
     opener = document.activeElement;
+    // aria-modal describes the sheet; inert also prevents keyboard and assistive
+    // technology from reaching the covered page, including the app's tab bar.
+    const covered: { el: HTMLElement; inert: boolean }[] = [];
+    for (let branch: HTMLElement | null = dialog; branch?.parentElement; branch = branch.parentElement) {
+      for (const sibling of branch.parentElement.children) {
+        // Keep this sheet's dismissible scrim interactive; only the covered page
+        // should become inert. The scrim directly precedes the dialog.
+        if (sibling === branch || sibling === dialog.previousElementSibling || !(sibling instanceof HTMLElement)) continue;
+        covered.push({ el: sibling, inert: sibling.inert });
+        sibling.inert = true;
+      }
+    }
     tick().then(() => {
       // Land on the first thing to type into, otherwise on the dialog itself (not on a close button).
-      (dialog.querySelector<HTMLElement>('input') ?? dialog).focus({ preventScroll: true });
+      (focusable().find((el) => el.matches('input:not([type="file"]),textarea,select')) ?? dialog).focus({ preventScroll: true });
     });
     return () => {
+      for (const { el, inert } of covered) el.inert = inert;
       if (opener instanceof HTMLElement && opener.isConnected) opener.focus({ preventScroll: true });
     };
   });
@@ -40,23 +54,20 @@
       onclose?.();
     } else if (e.key === 'Tab') {
       const els = focusable();
-      if (!els.length) return;
-      const first = els[0]!;
-      const last = els[els.length - 1]!;
-      if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
+      if (!els.length) { e.preventDefault(); dialog.focus(); return; }
+      // Safari can skip buttons in its native Tab path. Cycle the visible tab
+      // stops explicitly so focus cannot leave the modal on any browser.
+      const at = els.indexOf(document.activeElement as HTMLElement);
+      const next = e.shiftKey ? (at <= 0 ? els.length - 1 : at - 1) : (at + 1) % els.length;
+      e.preventDefault();
+      els[next]!.focus();
     }
   }
 </script>
 
 <!-- The scrim closes the sheet on tap; keyboard users have Escape and the close button. -->
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-<div class="scrim {placement}" class:fixed style:background={scrim === undefined ? undefined : `rgba(10, 8, 16, ${scrim})`} onclick={() => onclose?.()}></div>
+<div class="scrim {placement}" class:fixed aria-hidden="true" style:background={scrim === undefined ? undefined : `rgba(10, 8, 16, ${scrim})`} onclick={() => onclose?.()}></div>
 <div
   bind:this={dialog}
   class="sheet {placement}"
@@ -144,5 +155,11 @@
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 18px rgba(0, 0, 0, 0.25);
     color: var(--ink);
     cursor: pointer;
+  }
+  .close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (max-width: 300px) {
+    .sheet.bottom { padding-inline: 12px; }
+    .sheet.popover { left: 8px; right: 8px; width: auto; }
+    .title { overflow-wrap: anywhere; }
   }
 </style>

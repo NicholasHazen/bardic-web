@@ -66,12 +66,18 @@
   }
 </script>
 
+<!-- Keep the launcher mounted while the initial library load changes the content below it. -->
+<div class="page" class:empty={empty && !error} class:wide={tablet}>
+  <div class="top" class:t={tablet && !(empty && !error)}>
+    <h1>Home</h1>
+    {#if !tablet}
+      <ListenerButton {listener} onclick={onswitchlistener} />
+    {:else if !(empty && !error)}
+      <div class="grow"></div>
+      <Button onclick={onaddbook}><Glyph name="plus" size={18} />Add a book</Button>
+    {/if}
+  </div>
 {#if empty && !error}
-  <div class="page empty" class:wide={tablet}>
-    <div class="top">
-      <h1>Home</h1>
-      {#if !tablet}<ListenerButton {listener} onclick={onswitchlistener} />{/if}
-    </div>
     <div class="hero">
       <h2>Add your first book</h2>
       <p>Press play on any book you own. No setup needed to start with a free voice.</p>
@@ -110,14 +116,7 @@
       <span>Everything stays on your own computer. Paid voices are used only when you turn them on.</span>
     </div>
     <input bind:this={picker} class="file" type="file" accept=".epub,.txt,application/epub+zip,text/plain" tabindex="-1" aria-hidden="true" onchange={picked} />
-  </div>
 {:else if tablet}
-  <div class="page wide">
-    <div class="top t">
-      <h1>Home</h1>
-      <div class="grow"></div>
-      <Button onclick={onaddbook}><Glyph name="plus" size={18} />Add a book</Button>
-    </div>
     {#if error}
       <div class="msg">
         <Callout tone="error" title="Couldn’t load your books">
@@ -160,13 +159,7 @@
         </section>
       {/if}
     </div>
-  </div>
 {:else}
-  <div class="page">
-    <div class="top">
-      <h1>Home</h1>
-      <ListenerButton {listener} onclick={onswitchlistener} />
-    </div>
     {#if offline}<OfflineNotice />{/if}
     {#if error}
       <div class="msg">
@@ -203,7 +196,9 @@
       {#if unavailable.length}
         <section>
           <div class="sh p"><h2>Needs your Bardic computer</h2><span class="count">Reconnect to open</span></div>
-          <div class="row p">{#each unavailable as b (b.id)}<UnavailableBookCard title={b.title} subtitle={b.subtitle} color={b.color} coverSrc={b.coverSrc} width={100} />{/each}</div>
+          <!-- Keyboard users need a focus stop to scroll this row of unavailable, noninteractive books. -->
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+          <div class="row p" tabindex="0" role="region" aria-label="Books that need your Bardic computer">{#each unavailable as b (b.id)}<UnavailableBookCard title={b.title} subtitle={b.subtitle} color={b.color} coverSrc={b.coverSrc} width={100} />{/each}</div>
         </section>
       {/if}
     {:else if recent.length}
@@ -212,8 +207,8 @@
         <div class="row p">{#each recent as b (b.id)}<BookCard title={b.title} subtitle={b.subtitle} color={b.color} coverSrc={b.coverSrc} progress={b.progress} onDevice={b.onDevice} href={b.href} width={100} />{/each}</div>
       </section>
     {/if}
-  </div>
 {/if}
+</div>
 
 <style>
   .page { display: flex; flex-direction: column; gap: 16px; font-family: var(--font-ui); }
@@ -243,10 +238,10 @@
   .hero-t { display: flex; align-items: center; gap: 28px; }
   .info { display: flex; flex-direction: column; gap: 10px; flex: 1; min-width: 0; }
   .info.p { gap: 8px; }
-  .eyebrow { font-size: 11px; font-weight: 700; color: var(--accent); line-height: 1.35; letter-spacing: 0.14em; text-transform: uppercase; }
+  .eyebrow { font-size: 11px; font-weight: 700; color: color-mix(in srgb, var(--accent) 30%, var(--ink)); line-height: 1.35; letter-spacing: 0.14em; text-transform: uppercase; }
   .book-p { font-size: 18px; font-weight: 700; color: var(--ink); line-height: 1.35; letter-spacing: -0.01em; text-decoration: none; }
   .book-t { font-size: 30px; font-weight: 700; color: var(--ink); line-height: 1.35; letter-spacing: -0.02em; }
-  .chapter-p { font-size: 13px; font-weight: 400; color: var(--muted); line-height: 1.35; }
+  .chapter-p { font-size: 13px; font-weight: 400; color: color-mix(in srgb, var(--muted) 82%, var(--ink)); line-height: 1.35; }
   .chapter-t { font-size: 14px; font-weight: 400; color: var(--muted); line-height: 1.35; }
   .play { display: flex; align-items: center; gap: 12px; }
   .prog { display: flex; align-items: center; gap: 12px; }
@@ -260,8 +255,20 @@
   .sh.p { padding: 0 20px; }
   .sh h2 { font-size: 17px; font-weight: 700; color: var(--ink); line-height: 1.35; }
   .count { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
+  @media (min-width: 768px) { .copy p, .chapter-p { color: var(--ink); } }
   .row { display: flex; align-items: flex-start; }
   .row.p { gap: 14px; padding: 0 20px; overflow-x: auto; scrollbar-width: none; }
   .row.t { gap: 16px; }
   .shelves { display: flex; align-items: flex-start; gap: 56px; padding: 0 40px; }
+  .book-p { position: relative; }
+  .book-p::after { content: ''; position: absolute; inset: -10px 0; min-height: 44px; }
+  @media (max-width: 300px) {
+    .top { flex-wrap: wrap; padding-inline: 12px; }
+    .top h1 { flex-basis: 100%; }
+    .hero-p { flex-wrap: wrap; }
+    .hero-p .info { flex-basis: 100%; }
+    .btns { flex-wrap: wrap; }
+    .sh { flex-wrap: wrap; }
+    .hero h2 { overflow-wrap: anywhere; }
+  }
 </style>

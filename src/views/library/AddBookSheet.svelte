@@ -53,8 +53,11 @@
   }
   // Each step swaps the panel's buttons; keep the keyboard inside the dialog so Escape and Tab still work.
   let layer: HTMLDivElement | undefined = $state();
+  let previousKind = 'closed';
   $effect(() => {
-    void st.kind;
+    const initial = previousKind === 'closed';
+    previousKind = st.kind;
+    if (initial) return; // Sheet captures the opener and moves focus on first mount.
     queueMicrotask(() => {
       const dialog = layer?.querySelector<HTMLElement>('[role="dialog"]');
       if (dialog && !dialog.contains(document.activeElement)) dialog.focus({ preventScroll: true });

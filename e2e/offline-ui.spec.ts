@@ -3,7 +3,8 @@
 // off, and the Now Playing notice for a chapter that is not on the device. The engine's own rules are in e2e/offline.spec.ts.
 // "Cut off" is two things at once: Playwright's context.setOffline(true) and a route that aborts /api/**.
 import { test, expect } from './fixtures';
-import { apiCall } from './harness';
+import { reloadCachedPage } from './helpers/offlineReload';
+import { apiCall, type Running } from './harness';
 import { epub } from './zip';
 import type { BrowserContext, Page } from '@playwright/test';
 import type { Fake } from './fakes';
@@ -94,18 +95,14 @@ async function downloadFromBookPage(page: Page, book: string, opts: { chapters?:
   await startButton(page).click();
 }
 
-const cut = async (page: Page, context: BrowserContext) => {
+const cut = async (page: Page, stack: Running) => {
   // the worker already has the app shell before the network goes
   await expect
     .poll(() => page.evaluate(async () => (await caches.keys()).some((k) => k.startsWith('bardic-app-')) && !!(await caches.match('/index.html')) && !!navigator.serviceWorker.controller), { timeout: 15000 })
     .toBe(true);
-  await context.setOffline(true);
-  await context.route('**/api/**', (r) => r.abort('connectionrefused'));
+  stack.setReachable(false);
 };
-const reconnect = async (context: BrowserContext) => {
-  await context.unroute('**/api/**');
-  await context.setOffline(false);
-};
+const reconnect = async (stack: Running) => { stack.setReachable(true); };
 
 test('O1: the Download sheet shows the size and the free space; Start downloads; the chapters say On this device and the bytes match the manifest', async ({ page, stack, breeze }) => {
   const l = await signIn(page, stack);
@@ -163,6 +160,8 @@ test('O2: progress, pause, resume and cancel are visible on the book page; what 
   await expect(card).toBeHidden();
 });
 
+test.describe('cached app shell', () => {
+test.use({ serviceWorkers: 'allow' });
 test('O3 and O4: with the server cut off, Home opens the downloaded book and shows the rest as unavailable; the book page does not wait for the server', async ({ page, context, stack, breeze }) => {
   const l = await signIn(page, stack);
   const { book, ab, title } = await readyBook(stack, breeze, l);
@@ -174,8 +173,8 @@ test('O3 and O4: with the server cut off, Home opens the downloaded book and sho
   await page.goto('/?e2e=offline#/');
   await expect(page.getByRole('link', { name: new RegExp(title) }).first()).toBeVisible();
   await expect(page.getByText(otherTitle).first()).toBeVisible();
-  await cut(page, context);
-  await page.reload();
+  await cut(page, stack);
+  await reloadCachedPage(page);
   await expect(page.getByText('Can’t reach your Bardic computer')).toBeVisible({ timeout: 15000 });
   await expect(page.getByRole('link', { name: new RegExp(title) }).first()).toBeVisible();
   await expect(page.getByRole('group', { name: new RegExp(`${otherTitle}.*Needs your Bardic computer`) })).toBeVisible();
@@ -196,7 +195,7 @@ test('O3 and O4: with the server cut off, Home opens the downloaded book and sho
   await page.getByRole('button', { name: 'Try again' }).click();
   await expect(page.getByRole('heading', { name: 'Can’t reach Bardic' })).toBeVisible();
   // everything comes back by itself when the server does
-  await reconnect(context);
+  await reconnect(stack);
   await page.getByRole('button', { name: 'Try again' }).click({ timeout: 3000 }).catch(() => {}); // or the app has already noticed by itself
   await expect(page.getByRole('heading', { name: 'Can’t reach Bardic' })).toBeHidden({ timeout: 15000 });
   await expect(page.getByText(otherTitle).first()).toBeVisible({ timeout: 15000 });
@@ -210,8 +209,8 @@ test('O3: with the server cut off, Listen plays from the device and Read shows t
   await expect.poll(() => chapterStates(page, ab), { timeout: 30000 }).toEqual(['on_device', 'on_device', 'on_device']);
   await page.goto('/?e2e=offline#/');
   await expect(page.getByRole('link', { name: new RegExp(title) }).first()).toBeVisible();
-  await cut(page, context);
-  await page.reload();
+  await cut(page, stack);
+  await reloadCachedPage(page);
   await page.getByRole('link', { name: new RegExp(title) }).first().click();
   await page.getByRole('button', { name: /^(Listen|Continue listening)$/ }).click();
   await expect(page).toHaveURL(new RegExp(`#/listen/${book}`), { timeout: 15000 });
@@ -235,8 +234,8 @@ test('O5: a chapter that is not on the device says why and offers the next downl
   await expect.poll(() => chapterStates(page, ab), { timeout: 30000 }).toEqual(['on_device', 'not_downloaded', 'on_device']);
   await page.goto('/?e2e=offline#/');
   await expect(page.getByRole('link', { name: new RegExp(title) }).first()).toBeVisible();
-  await cut(page, context);
-  await page.reload();
+  await cut(page, stack);
+  await reloadCachedPage(page);
   await page.getByRole('link', { name: new RegExp(title) }).first().click();
   await page.getByRole('button', { name: /^(Listen|Continue listening)$/ }).click();
   await expect(page).toHaveURL(new RegExp(`#/listen/${book}`), { timeout: 15000 });
@@ -248,6 +247,8 @@ test('O5: a chapter that is not on the device says why and offers the next downl
   await page.getByRole('button', { name: 'Play chapter 3' }).click();
   await expect(page.getByText(/Chapter 3 · /)).toBeVisible({ timeout: 15000 });
   await expect(notice).toBeHidden();
+});
+
 });
 
 test('O2: the Read ring shows while this book downloads and opens Downloads', async ({ page, stack, breeze }) => {

@@ -34,7 +34,7 @@ export const BREEZE_VOICES = [
 ];
 
 /** 10 ms of audio per character, one segment per sentence (the shape the server reads). */
-export async function startBreeze(opts: { key?: string } = {}): Promise<Fake> {
+export async function startBreeze(opts: { key?: string; beforeSpeech?: () => Promise<void> } = {}): Promise<Fake> {
   const spoken: string[] = [];
   let received = 0;
   let down = false;
@@ -58,6 +58,7 @@ export async function startBreeze(opts: { key?: string } = {}): Promise<Fake> {
       const body = JSON.parse(await readBody(req));
       const text: string[] = [...String(body.input ?? '')];
       spoken.push(text.join(''));
+      await opts.beforeSpeech?.();
       const totalMs = text.length * 10;
       const pcm = Buffer.alloc(totalMs * 48);
       for (let i = 0; i < pcm.length; i++) pcm[i] = i % 2 === 0 ? 0x00 : 0x40;

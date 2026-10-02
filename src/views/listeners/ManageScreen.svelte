@@ -23,7 +23,7 @@
   let { listeners, currentId, intro = true, badge = true, onback, onedit, onadd }: Props = $props();
 </script>
 
-<div class="screen">
+<main class="screen">
   <Aura />
   <div class="col">
     <div class="head">
@@ -60,7 +60,7 @@
       <div class="pad strut"><span class="desc small">Names and places are visible to anyone who opens Bardic. Books, audio, voices and provider keys are not per listener, and paid plans count against the same Allowance.</span></div>
     {/if}
   </div>
-</div>
+</main>
 
 <style>
   span { line-height: 1.35; }
@@ -83,5 +83,15 @@
   .line { display: flex; align-items: center; gap: 8px; }
   .name { font-size: 15px; font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .name.cur { font-weight: 700; }
-  .detail { font-size: 12px; color: var(--muted); }
+  .detail { font-size: 12px; color: color-mix(in srgb, var(--muted) 94%, var(--ink)); }
+  @media (min-width: 768px) {
+    .detail { color: var(--ink); }
+  }
+  @media (max-width: 300px) {
+    .screen { overflow-y: auto; }
+    .col { height: auto; min-height: 100%; overflow: visible; }
+    .line { flex-wrap: wrap; }
+    .name { white-space: normal; overflow-wrap: anywhere; }
+    li { padding-block: 8px; flex-wrap: wrap; }
+  }
 </style>

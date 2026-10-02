@@ -47,10 +47,11 @@
   h1 { margin: 0 0 0 4px; flex: 1; font-size: 20px; font-weight: 700; color: var(--ink); line-height: 1.35; }
   .field { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; margin: 0; }
   .icon { display: inline-flex; color: var(--muted); }
-  input { flex: 1; min-width: 0; padding: 0; border: 0; outline: 0; background: transparent; font-family: var(--font-ui); font-size: 15px; font-weight: 500; color: var(--ink); line-height: 1.35; }
+  input { flex: 1; min-width: 0; min-height: 44px; padding: 0; border: 0; outline: 0; background: transparent; font-family: var(--font-ui); font-size: 15px; font-weight: 500; color: var(--ink); line-height: 1.35; }
   input::-webkit-search-cancel-button { display: none; }
   /* 16 px icon in a 44 px target that takes no more room than the icon. */
   .clear { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: -14px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; border-radius: 22px; flex-shrink: 0; }
   .clear:focus-visible { outline: 2px solid var(--accent); }
   input:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; border-radius: 4px; }
+  @media (max-width: 300px) { .page { height: auto; min-height: 100%; overflow: visible; padding-bottom: 24px; } }
 </style>

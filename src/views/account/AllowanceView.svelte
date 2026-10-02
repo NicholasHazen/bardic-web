@@ -139,7 +139,7 @@
   .line { display: flex; align-items: center; gap: 8px; }
   .k { flex: 1; font-family: var(--font-ui); font-size: 13px; font-weight: 600; color: var(--ink); line-height: 1.35; }
   .v { font-family: var(--font-ui); font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.35; }
-  .small { font-family: var(--font-ui); font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
+  .small { font-family: var(--font-ui); font-size: 12px; font-weight: 400; color: color-mix(in srgb, var(--muted) 80%, var(--ink)); line-height: 1.35; }
   .row { width: 100%; min-height: 66px; display: flex; align-items: center; gap: 12px; padding: 0 14px; box-sizing: border-box; border: 0; background: none; text-align: left; cursor: pointer; color: inherit; font: inherit; }
   .row.ruled { border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
   .row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 16px; }
@@ -156,4 +156,7 @@
   .pad > .err { display: block; margin-top: 6px; }
   .msg { margin: 0; font-family: var(--font-ui); font-size: 13px; line-height: 1.35; color: var(--ink); }
   .msg.err { color: #ffbcae; }
+  @media (min-width: 768px) {
+    .d, .small { color: var(--ink); }
+  }
 </style>

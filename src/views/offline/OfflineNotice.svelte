@@ -23,6 +23,7 @@
 <style>
   .notice { margin: 0 20px; border-radius: 16px; background: rgba(246, 185, 92, 0.2); border: 1px solid rgba(255, 255, 255, 0.14); padding: 12px 14px; display: flex; gap: 12px; align-items: flex-start; font-family: var(--font-ui); }
   .words { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-  .title { font-size: 14px; font-weight: 700; color: #ffd493; line-height: 1.35; }
+  .title { font-size: 14px; font-weight: 700; color: #ffdbab; line-height: 1.35; }
   .text { font-size: 13px; font-weight: 400; color: var(--ink); line-height: 1.35; }
+  @media (min-width: 768px) { .title { color: var(--ink); } }
 </style>

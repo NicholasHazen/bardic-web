@@ -17,10 +17,14 @@
     /** "1.2 GB · 3 books". */
     downloads: string;
     reader?: string;
+    /** The About row's second line (the server's name). Left out, the row is not shown: the design's Settings has no About row. */
+    about?: string;
+    /** Connected Settings offers the listening preferences; board fixtures omit this additional row. */
+    listening?: boolean;
     /** Kept for the shell's callers: the listener row opens Listeners, where switching lives. */
     onswitchlistener?: () => void;
   }
-  let { listener, defaultVoice, sources, allowance, downloads, reader = 'Colour, size, font, spacing', onswitchlistener }: Props = $props();
+  let { listener, defaultVoice, sources, allowance, downloads, reader = 'Colour, size, font, spacing', about, listening = false, onswitchlistener }: Props = $props();
 
   interface Row {
     key: string;
@@ -58,11 +62,25 @@
         </span>
         <Glyph name="next" size={16} color="var(--muted)" />
       </a>
+      {#if listening}
+        <a class="row" href="#/settings/listening">
+          <span class="icon"><Glyph name="headphones" size={18} color="var(--ink)" /></span>
+          <span class="text"><span class="name">Listening behaviour</span><span class="sub">Next chapter, screen, when places differ</span></span>
+          <Glyph name="next" size={16} color="var(--muted)" />
+        </a>
+      {/if}
     </Glass>
   </div>
   <div class="group">
-    <h2><a href="#/settings/voices">Voices</a></h2>
+    <h2>Voices</h2>
     <Glass radius={16} style="margin:0 20px;overflow:hidden">
+      {#if listening}
+        <a class="row" href="#/settings/voices" aria-label="Voices">
+          <span class="icon"><Glyph name="wave" size={18} color="var(--ink)" /></span>
+          <span class="text"><span class="name">Voices</span><span class="sub">Sources and examples</span></span>
+          <Glyph name="next" size={16} color="var(--muted)" />
+        </a>
+      {/if}
       {#each voiceRows as r (r.key)}
         <a class="row" href={r.href}>
           <span class="icon"><Glyph name={r.icon} size={18} color="var(--ink)" /></span>
@@ -110,6 +128,21 @@
       </a>
     </Glass>
   </div>
+  {#if about !== undefined}
+    <div class="group">
+      <h2>About</h2>
+      <Glass radius={16} style="margin:0 20px;overflow:hidden">
+        <a class="row" href="#/settings/about">
+          <span class="icon"><Glyph name="server" size={18} color="var(--ink)" /></span>
+          <span class="text">
+            <span class="name">About this Bardic</span>
+            <span class="sub">{about}</span>
+          </span>
+          <Glyph name="next" size={16} color="var(--muted)" />
+        </a>
+      </Glass>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -119,7 +152,6 @@
   h1 { margin: 0; flex: 1; font-size: 32px; font-weight: 700; color: var(--ink); letter-spacing: -0.02em; }
   .group { display: flex; flex-direction: column; gap: 8px; }
   h2 { margin: 0; padding: 0 24px; font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
-  h2 a { color: inherit; text-decoration: none; }
   .row { min-height: 62px; display: flex; align-items: center; gap: 12px; padding: 0 14px; box-sizing: border-box; border-bottom: 1px solid rgba(255, 255, 255, 0.08); color: var(--ink); text-decoration: none; }
   .row:last-child { border-bottom: 0; }
   .row.who { min-height: 66px; }
@@ -129,4 +161,7 @@
   .name.strong { font-weight: 600; }
   .sub { font-size: 12px; font-weight: 400; color: var(--muted); }
   a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  @media (min-width: 768px) {
+    .sub { color: var(--ink); }
+  }
 </style>

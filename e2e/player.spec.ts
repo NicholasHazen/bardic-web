@@ -79,8 +79,18 @@ const hist = (page: Page) => page.evaluate(() => (window as any).__hist as (stri
 
 const open = (page: Page, bookId: string, opts: Record<string, unknown> = {}) => page.evaluate(([b, o]) => window.__player!.open(b as string, o as any), [bookId, opts] as const);
 const cmd = (page: Page, name: string, ...args: unknown[]) => page.evaluate(([n, a]) => (window.__player as any)[n as string](...(a as unknown[])), [name, args] as const);
-/** a real tap, so the browser lets the page play */
-const tap = (page: Page) => page.mouse.click(5, 5);
+/** Run play inside the real click handler, as the app's Play button does. */
+const tap = async (page: Page) => {
+  await page.evaluate(() => {
+    const button = document.createElement('button');
+    button.dataset.testPlayback = '';
+    button.textContent = 'Start test playback';
+    button.style.cssText = 'position:fixed;top:0;left:0;z-index:9999;padding:12px';
+    button.onclick = () => { window.__player!.play(); button.remove(); };
+    document.body.append(button);
+  });
+  await page.locator('[data-test-playback]').click();
+};
 const placeOf = async (api: Api, w: World) => (await apiCall(api, 'GET', `/api/books/${w.bookId}/place`, undefined, OTHER, w.listener));
 const historyOf = async (api: Api, w: World) => (await apiCall(api, 'GET', `/api/books/${w.bookId}/place/history`, undefined, OTHER, w.listener)).json.items as { chapter_id: string }[];
 
@@ -100,7 +110,6 @@ test('S1: open a book with ready audio and play: position, pause, speed, the lin
   expect(s.duration).toBeGreaterThan(5);
 
   await tap(page);
-  await cmd(page, 'play');
   await expect.poll(async () => (await st(page)).position, { timeout: 10000 }).toBeGreaterThan(1.5);
   s = await st(page);
   expect(s.playing).toBe(true);
@@ -151,7 +160,6 @@ test('S8: a chapter that is not made yet is made when you press play (a free voi
   expect(breeze.received()).toBe(received);
 
   await tap(page);
-  await cmd(page, 'play');
   s = await st(page);
   expect(s.listening).toBe('getting_ready');
   expect(s.detail).toBe('First audio in about 10 s');
@@ -173,7 +181,6 @@ test('C1: the place is saved on pause and restored on reload, exactly on this de
   await cmd(page, 'gotoChapter', w.chapters[1]!.id);
   await expect.poll(async () => (await st(page)).chapter.id).toBe(w.chapters[1]!.id);
   await tap(page);
-  await cmd(page, 'play');
   await expect.poll(async () => (await st(page)).position, { timeout: 10000 }).toBeGreaterThan(2);
   await cmd(page, 'pause');
   const s = await st(page);
@@ -209,7 +216,6 @@ for (const policy of ['ask', 'newest', 'this_device'] as const) {
     await signIn(page);
     await open(page, w.bookId);
     await tap(page);
-    await cmd(page, 'play');
     await expect.poll(async () => (await st(page)).position, { timeout: 10000 }).toBeGreaterThan(1);
     await cmd(page, 'pause');
     await expect.poll(async () => (await placeOf(stack.api, w)).json?.revision).toBeGreaterThan(0);
@@ -242,7 +248,6 @@ for (const policy of ['ask', 'newest', 'this_device'] as const) {
       expect(s.conflict).toBeNull();
       expect(s.chapter.id).toBe(w.chapters[0]!.id);
       await tap(page);
-      await cmd(page, 'play');
       await expect.poll(async () => (await st(page)).position, { timeout: 10000 }).toBeGreaterThan(0.5);
       await cmd(page, 'pause');
       await expect.poll(async () => (await placeOf(stack.api, w)).json.chapter_id).toBe(w.chapters[0]!.id);
@@ -256,7 +261,6 @@ test("C4: ask, and the listener keeps this device's place: it is written on the 
   await signIn(page);
   await open(page, w.bookId);
   await tap(page);
-  await cmd(page, 'play');
   await expect.poll(async () => (await st(page)).position, { timeout: 10000 }).toBeGreaterThan(1);
   await cmd(page, 'pause');
   await expect.poll(async () => (await placeOf(stack.api, w)).json?.revision).toBeGreaterThan(0);
@@ -276,7 +280,6 @@ test('C5: a place written by another device while this one is paused is offered,
   await signIn(page);
   await open(page, w.bookId);
   await tap(page);
-  await cmd(page, 'play');
   await expect.poll(async () => (await st(page)).position, { timeout: 10000 }).toBeGreaterThan(1);
   await cmd(page, 'pause');
   await expect.poll(async () => (await placeOf(stack.api, w)).json?.revision).toBeGreaterThan(0);
@@ -293,7 +296,6 @@ test('listener switch pauses, saves under the previous listener and unloads', as
   await signIn(page);
   await open(page, w.bookId);
   await tap(page);
-  await cmd(page, 'play');
   await expect.poll(async () => (await st(page)).position, { timeout: 10000 }).toBeGreaterThan(2);
   await page.getByRole('button', { name: /Listening as Nick/ }).click();
   await page.getByRole('dialog').getByRole('button', { name: /^Sam/ }).click();
@@ -314,7 +316,6 @@ test('sleep timer: end of chapter pauses at the end and the next chapter waits, 
   await signIn(page);
   await open(page, w.bookId);
   await tap(page);
-  await cmd(page, 'play');
   await expect.poll(async () => (await st(page)).position, { timeout: 10000 }).toBeGreaterThan(1);
   await cmd(page, 'setSleep', { kind: 'end_of_chapter' });
   const dur = (await st(page)).duration;
@@ -341,7 +342,6 @@ test('P2: a premium audiobook chapter that is not made is never requested', asyn
   });
   expect((await st(page)).voice.tier).toBe('premium');
   await tap(page);
-  await cmd(page, 'play');
   await expect.poll(async () => (await st(page)).listening).toBe('needs_you');
   const s = await st(page);
   expect(s.needsYou.text).toContain('Premium audio is made under a plan');
@@ -361,7 +361,6 @@ test('S9: the end of the book keeps the place at the end; finishing is the serve
   await signIn(page);
   await open(page, w.bookId, { chapterId: w.chapters[2]!.id, offset: 0 });
   await tap(page);
-  await cmd(page, 'play');
   await expect.poll(async () => (await st(page)).position, { timeout: 10000 }).toBeGreaterThan(1);
   await cmd(page, 'seek', (await st(page)).duration - 1);
   await expect.poll(async () => (await st(page)).finishedBook, { timeout: 15000 }).toBe(true);
@@ -384,7 +383,6 @@ test('C3: choosing theirs keeps this device\'s unsynced position in the place hi
   await signIn(page);
   await open(page, w.bookId);
   await tap(page);
-  await cmd(page, 'play');
   await expect.poll(async () => (await st(page)).position, { timeout: 10000 }).toBeGreaterThan(1);
   await cmd(page, 'pause');
   await expect.poll(async () => (await placeOf(stack.api, w)).json?.revision).toBeGreaterThan(0);

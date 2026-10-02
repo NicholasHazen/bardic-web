@@ -858,6 +858,29 @@ describe('places across devices', () => {
 });
 
 describe('closing and switching listener', () => {
+  it.each(['close', 'listenerChanged', 'destroy'] as const)('%s cancels an opening whose metadata arrives late', async (action) => {
+    const h = make();
+    const response = await h.api.book();
+    h.api.book.mockClear();
+    let release!: () => void;
+    const held = new Promise<void>((r) => { release = r; });
+    h.api.book.mockImplementationOnce(async () => { await held; return response; });
+    const opening = h.player.open(BOOK_ID, { autoplay: true });
+    await h.clock.flush();
+    expect(h.api.book).toHaveBeenCalledOnce();
+    if (action === 'listenerChanged') h.listener.id = 'listener-2';
+    h.player[action]();
+    release();
+    await opening;
+    await h.clock.flush();
+    expect(h.st()).toMatchObject({ loaded: false, book: null, playing: false });
+    expect(h.el().src).toBe('');
+    expect(h.el().paused).toBe(true);
+    expect(h.events.handlers).toHaveLength(0);
+    expect(h.api.requestChapter).not.toHaveBeenCalled();
+    expect(h.places.puts).toHaveLength(0);
+  });
+
   it('listenerChanged pauses, saves the place under the OLD listener and unloads', async () => {
     const h = make();
     await open(h);
@@ -944,5 +967,149 @@ describe('words', () => {
     await h.clock.flush();
     h.api.onRequest = () => ({ ok: false, status: 409, code: 'key_rejected', detail: 'The key was rejected.' });
     expect(seen.join('\n')).not.toMatch(/private|protected/i);
+  });
+});
+
+describe('switching audiobook at the current text place', () => {
+  function secondVoice(h: H, ready = true) {
+    h.api.audiobooks_.push(audiobook('free', { id: 'ab2', voice_id: 'v-tobias', voice_name: 'Tobias' }));
+    let available = ready;
+    const ref = () => ({ ...readyChapter('c1', 200), audio: { ...readyChapter('c1', 200).audio!, id: 'new-c1', url: '/new-c1' } });
+    h.audio.durations['/new-c1'] = 200;
+    h.api.timingsFor.set('new-c1', linesOf('c1').map((l, i) => ({ line_id: l.id, start_ms: [0, 60_000, 120_000][i]!, end_ms: [60_000, 120_000, 200_000][i]! })));
+    h.api.audioChapters = vi.fn(async (id?: string) => ({ ok: true as const, value: id === 'ab2' ? [available ? ref() : notYet('c1')] : [...h.api.audio.values()] }));
+    return { ready: () => { available = true; } };
+  }
+
+  it('a paused switch carries the text offset across different audio clocks and stays paused', async () => {
+    const h = make();
+    secondVoice(h);
+    await open(h);
+    h.player.gotoChapter('c1');
+    await h.clock.flush();
+    h.player.gotoOffset('c1', linesOf('c1')[1]!.start);
+    await h.clock.flush();
+    expect(h.st().position).toBe(30);
+    expect(await h.player.switchAudiobook('ab2')).toBe(true);
+    await h.clock.flush();
+    expect(h.st()).toMatchObject({ audiobookId: 'ab2', voice: { name: 'Tobias' }, position: 60, playing: false });
+    expect(h.el().src).toBe('/new-c1');
+    expect(h.places.server).toMatchObject({ audiobook_id: 'ab2', chapter_id: 'c1', offset: linesOf('c1')[1]!.start });
+    h.player.destroy();
+  });
+
+  it('keeps old audio playing while the new free chapter is made, then switches at the latest text offset', async () => {
+    const h = make();
+    const next = secondVoice(h, false);
+    await open(h, { autoplay: true });
+    expect(h.st().playing).toBe(true);
+    await h.player.switchAudiobook('ab2');
+    expect(h.st()).toMatchObject({ audiobookId: 'ab1', playing: true, listening: 'getting_ready' });
+    expect(h.el().src).toBe(audioUrl('c1'));
+    expect(h.api.requests.filter((r) => r.audiobookId === 'ab2')).toEqual([{ audiobookId: 'ab2', chapterId: 'c1', ahead: 2 }]);
+    h.el().tick(31);
+    expect(h.player.sync.readLocal(LISTENER, BOOK_ID)).toMatchObject({ audiobookId: 'ab2', time: null });
+    next.ready();
+    await h.clock.advance(2000);
+    expect(h.st()).toMatchObject({ audiobookId: 'ab2', playing: true, position: 60 });
+    expect(h.el().src).toBe('/new-c1');
+    h.player.destroy();
+  });
+
+  it('a premium switch leaves old sound intact and never requests premium generation', async () => {
+    const h = make();
+    h.api.audiobooks_.push(audiobook('premium', { id: 'premium' }));
+    h.api.audioChapters = vi.fn(async (id?: string) => ({ ok: true as const, value: id === 'premium' ? [notYet('c1')] : [...h.api.audio.values()] }));
+    await open(h, { autoplay: true });
+    await h.player.switchAudiobook('premium');
+    expect(h.st()).toMatchObject({ audiobookId: 'ab1', playing: true, listening: 'needs_you', needsYou: { code: 'premium_plan_required' } });
+    expect(h.api.requests.filter((r) => r.audiobookId === 'premium')).toEqual([]);
+    expect(h.el().src).toBe(audioUrl('c1'));
+    h.player.destroy();
+  });
+
+  it('selecting a free voice for Make ready waits for confirmation or an explicit Play', async () => {
+    const h = make();
+    secondVoice(h, false);
+    await open(h);
+    await h.player.switchAudiobook('ab2', { makeAudio: false });
+    await h.clock.advance(2500);
+    expect(h.api.requests.filter((r) => r.audiobookId === 'ab2')).toEqual([]);
+    expect(h.st().playing).toBe(false);
+    h.player.play();
+    await h.clock.flush();
+    expect(h.api.requests.filter((r) => r.audiobookId === 'ab2')).toEqual([{ audiobookId: 'ab2', chapterId: 'c1', ahead: 2 }]);
+    h.player.destroy();
+  });
+
+  it('choosing the original audiobook cancels the pending change and persists that choice', async () => {
+    const h = make();
+    secondVoice(h, false);
+    await open(h, { autoplay: true });
+    await h.player.switchAudiobook('ab2');
+    await h.player.switchAudiobook('ab1');
+    await h.clock.advance(2500);
+    expect(h.st()).toMatchObject({ audiobookId: 'ab1', playing: true, listening: 'playing' });
+    expect(h.places.server?.audiobook_id).toBe('ab1');
+    h.player.destroy();
+  });
+
+  it('choosing the other device place cancels a conflicting pending voice change', async () => {
+    const h = make();
+    const next = secondVoice(h, false);
+    await open(h, { autoplay: true });
+    h.el().tick(31);
+    await h.player.sync.flush();
+    h.places.other({ chapter_id: 'c2', offset: 12 });
+    expect(await h.player.switchAudiobook('ab2')).toBe(false);
+    expect(h.st().conflict).not.toBeNull();
+    await h.player.sync.resolve('theirs');
+    await h.clock.flush();
+    next.ready();
+    await h.clock.advance(2500);
+    expect(h.st()).toMatchObject({ audiobookId: 'ab1', chapter: { id: 'c2' }, playing: false });
+    expect(h.el().src).toBe(audioUrl('c2'));
+    expect(h.places.server?.audiobook_id).toBe('ab1');
+    h.player.destroy();
+  });
+});
+
+describe('restoring a recent place', () => {
+  it('saves the position being left, restores mode/chapter/offset paused, and requests no audio', async () => {
+    const h = make();
+    await open(h, { autoplay: true });
+    h.el().tick(31);
+    const history = place({ chapter_id: 'c3', offset: 12, mode: 'reading', revision: 1 });
+    expect(await h.player.restorePlace(BOOK_ID, history)).toBe('restored');
+    expect(h.st()).toMatchObject({ chapter: { id: 'c3' }, mode: 'read', playing: false });
+    expect(h.places.puts.at(-1)?.input).toMatchObject({ chapter_id: 'c3', offset: 12, mode: 'reading', base_revision: 1 });
+    expect(h.api.requests).toEqual([]);
+    h.player.destroy();
+  });
+
+  it('does not replace an unresolved two-device place conflict', async () => {
+    const h = make();
+    await open(h, { autoplay: true });
+    h.el().tick(31);
+    await h.player.sync.flush();
+    h.places.other({ chapter_id: 'c2', offset: 12 });
+    h.player.gotoOffset('c1', 15);
+    await h.player.sync.flush();
+    expect(h.st().conflict).not.toBeNull();
+    expect(await h.player.restorePlace(BOOK_ID, place({ chapter_id: 'c3' }))).toBe('conflict_before');
+    expect(h.st().conflict).not.toBeNull();
+    expect(h.st().chapter?.id).toBe('c1');
+    h.player.destroy();
+  });
+
+  it('restores a historical reading place that has no audiobook without keeping the old sound', async () => {
+    const h = make();
+    await open(h, { autoplay: true });
+    expect(await h.player.restorePlace(BOOK_ID, place({ chapter_id: 'c2', offset: 12, mode: 'reading', audiobook_id: null }))).toBe('restored');
+    expect(h.st()).toMatchObject({ audiobookId: null, voice: null, chapter: { id: 'c2' }, mode: 'read', playing: false });
+    expect(h.el().src).toBe('');
+    expect(h.places.server).toMatchObject({ audiobook_id: null, chapter_id: 'c2', offset: 12 });
+    expect(h.api.requests).toEqual([]);
+    h.player.destroy();
   });
 });

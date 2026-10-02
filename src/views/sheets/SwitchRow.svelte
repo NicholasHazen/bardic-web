@@ -23,7 +23,7 @@
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 8px; }
   .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
   .label { font-size: 14px; font-weight: 600; color: var(--ink); line-height: 1.35; }
-  .detail { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
+  .detail { font-size: 12px; font-weight: 400; color: color-mix(in srgb, var(--muted) 60%, var(--ink)); line-height: 1.35; }
   .track { width: 50px; height: 30px; border-radius: 15px; background: rgba(255, 255, 255, 0.2); position: relative; flex-shrink: 0; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3); }
   .track.on { background: var(--accent); }
   .knob { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4); }

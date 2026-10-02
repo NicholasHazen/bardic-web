@@ -3,7 +3,7 @@
     /** 0 to 1 */
     value: number;
     label?: string;
-    /** Slim: the track is the whole box (inside the Now Playing card). */
+    /** Slim visual spacing; both variants retain a 44 px slider target. */
     slim?: boolean;
     onchange?: (value: number) => void;
   }
@@ -52,12 +52,12 @@
 </div>
 
 <style>
-  .scrub { position: relative; height: 20px; touch-action: none; cursor: pointer; }
-  .scrub.slim { height: 5px; }
-  .track, .fill { position: absolute; top: 7px; height: 5px; border-radius: 3px; }
-  .slim .track, .slim .fill { top: 0; }
+  .scrub { position: relative; height: 44px; margin-top: -12px; margin-bottom: -12px; touch-action: none; cursor: pointer; }
+  .scrub.slim { margin-top: -19.5px; margin-bottom: -19.5px; }
+  .track, .fill { position: absolute; top: 19px; height: 5px; border-radius: 3px; pointer-events: none; }
+  .slim .track, .slim .fill { top: 19.5px; }
   .track { left: 0; right: 0; background: rgba(255, 255, 255, 0.2); }
   .fill { left: 0; background: var(--accent); }
-  .thumb { position: absolute; top: 1px; width: 17px; height: 17px; margin-left: -8px; border-radius: 50%; background: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45); }
-  .slim .thumb { top: -6px; }
+  .thumb { position: absolute; top: 13px; width: 17px; height: 17px; margin-left: -8px; border-radius: 50%; background: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45); pointer-events: none; }
+  .slim .thumb { top: 13.5px; }
 </style>

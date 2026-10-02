@@ -68,7 +68,11 @@ export interface PlayerDeps {
   deviceId?: () => string;
 }
 
+export type RestoreResult = 'restored' | 'conflict_before' | 'conflict_after' | 'failed';
+
 export interface Player extends Readable<PlayerState>, PlayerCommands {
+  /** Restore a recent text place, paused, through the same revision/conflict flow as ordinary places. */
+  restorePlace(bookId: string, place: Place): Promise<RestoreResult>;
   /** The end of the book screen: mark finished (true) or reopen (false). The server computes the automatic finish itself (C6). */
   markFinished(finished: boolean): Promise<boolean>;
   /** The end of the book screen: listen again from the start of the story. */
@@ -142,6 +146,13 @@ interface Pending {
   tries: number;
 }
 
+interface AudiobookSwitch {
+  audiobook: Audiobook;
+  requestedChapter: string | null;
+  checking: boolean;
+  makeAudio: boolean;
+}
+
 type TextEntry = { text: string; lines: TextLine[] };
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
@@ -177,6 +188,10 @@ class PlayerImpl {
   private anchor: { chapterId: string; offset: number; time: number } | null = null;
   private wantPlay = false;
   private transition = false;
+  private switching: AudiobookSwitch | null = null;
+  private switchTimer: number | undefined;
+  private switchRun = 0;
+  private adopting: Promise<void> = Promise.resolve();
   private pending: Pending | null = null;
   private job: Job | null = null;
   private needs: NeedsYou | null = null;
@@ -233,7 +248,7 @@ class PlayerImpl {
         policy: () => this.settings.place_conflict,
         lifecycle: d.lifecycle,
       });
-    this.sync.onAdopt = (place) => void this.adoptPlace(place);
+    this.sync.onAdopt = (place) => { this.adopting = this.adoptPlace(place); };
     this.unsubs.push(
       this.sync.conflict.subscribe((c) => this.onConflict(c)),
       this.sync.status.subscribe((s) => this.push({ placeSync: s })),
@@ -273,7 +288,7 @@ class PlayerImpl {
 
   /** The four states and their detail line, from what is true now. */
   private refreshState(): void {
-    const awaitingAudio = !!this.pending && this.wantPlay && !this.needs;
+    const awaitingAudio = (!!this.switching || (!!this.pending && this.wantPlay)) && !this.needs;
     const { listening, detail } = deriveListening({
       needs: this.needs,
       waiting: this.waiting,
@@ -523,6 +538,7 @@ class PlayerImpl {
   async open(bookId: string, opts: { autoplay?: boolean; chapterId?: string; offset?: number } = {}): Promise<void> {
     const l = this.d.listener();
     if (!l) return;
+    if (opts.autoplay) this.preparePlayback();
     if (this.bookId === bookId && this.listenerId === l && this.st.loaded) {
       if (opts.chapterId) this.gotoOffset(opts.chapterId, opts.offset ?? 0);
       if (opts.autoplay) this.play();
@@ -656,6 +672,10 @@ class PlayerImpl {
     this.stopEvents?.();
     this.stopEvents = null;
     this.chapterRun++;
+    this.switchRun++;
+    this.clock.clearTimeout(this.switchTimer ?? 0);
+    this.switchTimer = undefined;
+    this.switching = null;
     this.engine.pause();
     this.engine.unload();
     this.engine.setActions(null);
@@ -1019,6 +1039,12 @@ class PlayerImpl {
   private onNotice(n: Notice): void {
     const l = this.listenerId;
     if (!l || (n.listener_id && n.listener_id !== l)) return;
+    if (n.type === 'listener.updated') {
+      void this.d.api.settings(l).then((r) => {
+        if (r.ok && this.listenerId === l) this.settings = r.value;
+      });
+      return;
+    }
     if (n.type === 'place.updated') {
       if (n.book_id === this.bookId) void this.checkRemotePlace();
       return;
@@ -1028,7 +1054,10 @@ class PlayerImpl {
       void this.checkRemotePlace();
       return;
     }
-    if ((n.type === 'job.updated' || n.type === 'chapter.updated' || n.type === 'audiobook.updated') && (!n.book_id || n.book_id === this.bookId)) this.kickRefresh();
+    if ((n.type === 'job.updated' || n.type === 'chapter.updated' || n.type === 'audiobook.updated') && (!n.book_id || n.book_id === this.bookId)) {
+      this.kickRefresh();
+      if (this.switching) void this.checkSwitch(this.switching);
+    }
   }
 
   private async checkRemotePlace(): Promise<void> {
@@ -1092,11 +1121,11 @@ class PlayerImpl {
     const chapterId = this.curChapterId;
     if (!chapterId) return null;
     const mode = toPlaceMode(this.st.mode);
-    const audiobookId = this.audiobook?.id ?? null;
+    const audiobookId = this.switching?.audiobook.id ?? this.audiobook?.id ?? null;
     if (this.audioChapterId === chapterId && this.engine.loaded) {
       const pos = this.engine.position;
       const dur = this.engine.duration || this.st.duration;
-      return { chapterId, offset: this.offsetFor(pos, dur), time: pos, mode, audiobookId };
+      return { chapterId, offset: this.offsetFor(pos, dur), time: this.switching ? null : pos, mode, audiobookId };
     }
     return { chapterId, offset: this.cursorOffset, time: null, mode, audiobookId };
   }
@@ -1245,6 +1274,11 @@ class PlayerImpl {
   /** The server's place was chosen (by the listener or the setting): go there, paused. */
   private async adoptPlace(place: Place): Promise<void> {
     if (place.book_id !== this.bookId) return;
+    // Choosing the other place supersedes a voice change whose write conflicted with it.
+    this.switchRun++;
+    this.switching = null;
+    this.clock.clearTimeout(this.switchTimer ?? 0);
+    this.switchTimer = undefined;
     this.wantPlay = false;
     if (this.engine.playing) this.engine.pause();
     this.push({ playing: false, mode: toMode(place.mode), bookProgress: place.progress });
@@ -1261,8 +1295,147 @@ class PlayerImpl {
 
   // ----------------------------------------------------------------------------- commands
 
+  preparePlayback = (): void => {
+    if (!this.engine.loaded) this.engine.unlock();
+  };
+
+  /** Select a voice without replacing the sound that is already playing while its chapter is made. */
+  switchAudiobook = async (audiobookId: string, opts: { makeAudio?: boolean } = {}): Promise<boolean> => {
+    const l = this.listenerId;
+    const b = this.bookId;
+    if (!l || !b || !this.st.loaded || this.held) return false;
+    const run = ++this.switchRun;
+    const r = await this.d.api.audiobooks(b);
+    if (run !== this.switchRun || this.listenerId !== l || this.bookId !== b || !r.ok) return false;
+    this.audiobooks = r.value;
+    const next = r.value.find((a) => a.id === audiobookId);
+    if (!next) return false;
+    this.clock.clearTimeout(this.switchTimer ?? 0);
+    this.switchTimer = undefined;
+    this.switching = null;
+    this.needs = null;
+    this.waiting = null;
+    if (next.id === this.audiobook?.id) {
+      this.recordNow(false);
+      await this.sync.flush();
+      this.refreshState();
+      return true;
+    }
+    const pending: AudiobookSwitch = { audiobook: next, requestedChapter: null, checking: false, makeAudio: opts.makeAudio !== false };
+    this.switching = pending;
+    // The free Make ready confirmation can select a voice without starting its background job or a prior failed play.
+    if (!pending.makeAudio) this.wantPlay = this.st.playing;
+    // The chosen audiobook follows the precise local text place, including while the previous audio is playing.
+    this.recordNow(false);
+    await this.sync.flush();
+    if (this.switching !== pending || this.held) return false;
+    this.refreshState();
+    await this.checkSwitch(pending);
+    return true;
+  };
+
+  private async checkSwitch(pending: AudiobookSwitch): Promise<void> {
+    if (this.switching !== pending || pending.checking || this.held) return;
+    pending.checking = true;
+    try {
+      const l = this.listenerId;
+      const chapterId = this.curChapterId;
+      if (!l || !chapterId) return;
+      const ab = pending.audiobook;
+      const r = await this.d.api.audioChapters(ab.id);
+      const held = await this.d.held?.(ab.id, chapterId).catch(() => null);
+      if (this.switching !== pending || this.curChapterId !== chapterId) return;
+      const made = r.ok ? r.value.find((c) => c.chapter_id === chapterId) : undefined;
+      if (held || (made?.state === 'ready' && made.audio)) {
+        const pos = this.currentPosition();
+        if (!pos) return;
+        const play = this.st.playing || this.wantPlay;
+        this.audiobook = ab;
+        this.tierKnown = true;
+        this.audio = new Map(r.ok ? r.value.map((c) => [c.chapter_id, c]) : []);
+        if (held) {
+          this.heldCache.set(`${ab.id}:${chapterId}`, Promise.resolve(held));
+          this.audio.set(chapterId, this.heldAudio(chapterId, held));
+        }
+        this.switching = null;
+        this.requestedAhead.clear();
+        this.preloadedFor = null;
+        this.engine.preload(null);
+        this.push({ audiobookId: ab.id, voice: { id: ab.voice_id, name: ab.voice_name, tier: ab.tier }, chapters: this.chapterList() });
+        // Audio clocks differ between voices: only the text offset carries across.
+        await this.enterChapter(chapterId, { offset: pos.offset }, play, true);
+        return;
+      }
+      if (!r.ok) {
+        this.needs = needsYou('offline', r.detail, this.route());
+      } else if (ab.tier !== 'free') {
+        this.needs = premiumNeeds(this.route());
+      } else if (made?.detail) {
+        this.needs = needsFromServer(made.detail, this.route());
+      } else if (pending.makeAudio && pending.requestedChapter !== chapterId) {
+        pending.requestedChapter = chapterId;
+        const request = await this.d.api.requestChapter(l, ab.id, chapterId, AHEAD_ON_DEMAND);
+        if (this.switching !== pending) return;
+        if (!request.ok) this.needs = needsFromServer({ code: request.code ?? 'other', text: request.detail }, this.route());
+        else if (request.value.kind === 'job') this.applyJob(request.value.job);
+        else pending.requestedChapter = null; // the next check attaches the now-ready chapter
+      }
+      this.refreshState();
+    } finally {
+      pending.checking = false;
+      if (this.switching === pending) {
+        this.clock.clearTimeout(this.switchTimer ?? 0);
+        this.switchTimer = this.clock.setTimeout(() => void this.checkSwitch(pending), POLL_MS);
+      }
+    }
+  }
+
+  restorePlace = async (bookId: string, place: Place): Promise<RestoreResult> => {
+    if (place.book_id !== bookId) return 'failed';
+    await this.adopting;
+    this.pause();
+    await this.sync.flush();
+    await this.adopting;
+    await this.open(bookId, { autoplay: false });
+    await this.adopting;
+    if (this.bookId !== bookId || !this.st.loaded || !this.chapters.some((c) => c.id === place.chapter_id)) return 'failed';
+    if (this.held) return 'conflict_before';
+    this.switchRun++;
+    this.switching = null;
+    this.clock.clearTimeout(this.switchTimer ?? 0);
+    const ab = this.audiobooks.find((a) => a.id === place.audiobook_id);
+    if (ab && ab.id !== this.audiobook?.id) {
+      this.audiobook = ab;
+      this.push({ audiobookId: ab.id, voice: { id: ab.voice_id, name: ab.voice_name, tier: ab.tier } });
+      await this.loadAudio();
+    } else if (!place.audiobook_id) {
+      this.audiobook = null;
+      this.audio.clear();
+      this.dropAudio();
+      this.push({ audiobookId: null, voice: null });
+    }
+    this.push({ mode: toMode(place.mode), playing: false });
+    await this.enterChapter(place.chapter_id, { offset: place.offset }, false, false);
+    await this.sync.flush();
+    await this.adopting;
+    return this.held ? 'conflict_after' : 'restored';
+  };
+
   play = (): void => {
     if (!this.st.loaded || this.held) return;
+    if (this.switching) {
+      this.wantPlay = true;
+      this.switching.makeAudio = true;
+      if (this.needs) {
+        this.needs = null;
+        this.switching.requestedChapter = null;
+      }
+      if (this.engine.loaded) void this.startPlayback(this.chapterRun);
+      else this.preparePlayback();
+      void this.checkSwitch(this.switching);
+      this.refreshState();
+      return;
+    }
     if (this.st.finishedBook) {
       this.listenAgain();
       return;
@@ -1410,11 +1583,13 @@ class PlayerImpl {
   };
 
   close = (): void => {
+    ++this.run; // invalidate metadata awaited by an opening player, as well as chapter work
     void this.teardown();
   };
 
   listenerChanged = (): void => {
     // the place is written under the listener the book was opened with (the sync session keeps it)
+    ++this.run;
     void this.teardown();
   };
 
@@ -1433,6 +1608,7 @@ class PlayerImpl {
   };
 
   destroy = (): void => {
+    ++this.run;
     void this.teardown();
     this.engine.destroy();
     this.sync.dispose();
@@ -1492,7 +1668,10 @@ export function createPlayer(deps: PlayerDeps): Player {
   const impl = new PlayerImpl(deps);
   return {
     subscribe: impl.subscribe,
+    preparePlayback: impl.preparePlayback,
     open: (bookId, opts) => impl.open(bookId, opts),
+    switchAudiobook: impl.switchAudiobook,
+    restorePlace: impl.restorePlace,
     play: impl.play,
     pause: impl.pause,
     toggle: impl.toggle,

@@ -81,6 +81,9 @@
   .name { font-size: 15px; font-weight: 500; color: var(--ink); }
   .name.on { font-weight: 700; }
   .detail { font-size: 12px; font-weight: 400; color: var(--muted); }
+  @media (min-width: 768px) {
+    .detail { color: var(--ink); }
+  }
   .mark { width: 22px; flex-shrink: 0; display: flex; justify-content: center; }
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 </style>

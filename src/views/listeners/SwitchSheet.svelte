@@ -14,12 +14,13 @@
     playing?: { bookTitle: string } | null;
     placement?: 'bottom' | 'popover';
     fixed?: boolean;
+    serverName?: string;
     onselect?: (id: string) => void;
     onadd?: () => void;
     onmanage?: () => void;
     onclose?: () => void;
   }
-  let { listeners, currentId, playing = null, placement = 'bottom', fixed = false, onselect, onadd, onmanage, onclose }: Props = $props();
+  let { listeners, currentId, playing = null, placement = 'bottom', fixed = false, serverName, onselect, onadd, onmanage, onclose }: Props = $props();
 
   const current = $derived(listeners.find((l) => l.id === currentId));
   const other = $derived(listeners.find((l) => l.id !== currentId));
@@ -28,6 +29,7 @@
 </script>
 
 <Sheet title="Switch listener" eyebrow="Listening as" {placement} {fixed} {onclose}>
+  {#if serverName}<p class="server-name">{serverName}</p>{/if}
   <Glass radius={16} style="overflow:hidden">
     <ul class="rows" aria-label="Listeners">
       {#each listeners as l (l.id)}
@@ -59,6 +61,7 @@
 
 <style>
   span { line-height: 1.35; }
+  .server-name { margin: 0; color: var(--ink); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
   .rows { list-style: none; margin: 0; padding: 0; }
   li:not(:last-child) .row { border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
   .row { width: 100%; min-height: 64px; display: flex; align-items: center; gap: 12px; padding: 0 14px; box-sizing: border-box; background: transparent; border: 0 solid transparent; cursor: pointer; text-align: left; color: var(--ink); font-family: inherit; }

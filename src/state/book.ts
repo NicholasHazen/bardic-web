@@ -350,7 +350,7 @@ const fail = (r: { detail: string; code?: string }): ActionResult => ({ ok: fals
 
 /** Notices that change what the book page shows; the first group only changes audio. */
 const AUDIO_NOTICES = new Set(['audiobook.updated', 'chapter.updated', 'job.updated', 'plan.updated']);
-const PAGE_NOTICES = new Set(['book.updated', 'place.updated', 'resync', 'listener.updated', 'source.updated']);
+const PAGE_NOTICES = new Set(['book.updated', 'place.updated', 'resync', 'listener.updated', 'source.updated', 'deletion.updated']);
 
 export function noticeNeeds(notice: { type?: string; book_id?: string | null; listener_id?: string | null }, bookId: string, listenerId: string): 'audio' | 'all' | null {
   if (!notice.type) return null;
@@ -475,7 +475,7 @@ export class BookStore {
   // ---- choosing the current audiobook (B3)
 
   /** Make another audiobook this listener's current one. The place is kept: same chapter, same offset. */
-  async choose(audiobookId: string): Promise<ActionResult> {
+  async choose(audiobookId: string, opts: { writePlace?: boolean } = {}): Promise<ActionResult> {
     const l = this.listenerId;
     const bookId = this.bookId;
     const s = get(this.store);
@@ -483,7 +483,7 @@ export class BookStore {
     rememberChoice(l, bookId, audiobookId);
     const place = s.place;
     this.store.update((x) => ({ ...x, currentId: audiobookId, audio: new Map(), job: null }));
-    if (place) {
+    if (place && opts.writePlace !== false) {
       const r = await this.gw.putPlace(l, bookId, {
         chapter_id: place.chapter_id,
         offset: place.offset,
@@ -500,6 +500,7 @@ export class BookStore {
           : fail(r);
       }
     }
+    if (place && opts.writePlace === false) this.store.update((x) => ({ ...x, place: { ...place, audiobook_id: audiobookId } }));
     await this.loadAudio();
     return { ok: true };
   }

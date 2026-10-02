@@ -14,7 +14,7 @@
 
 <!-- The bar above the tab bar (phone) or at the bottom of the content (tablet). Nothing loaded: no bar. -->
 {#if state.loaded && state.book}
-  <div class="bar">
+  <div class="bar" role="region" aria-label="Player">
     <button type="button" class="open" aria-label="Open Now Playing: {state.book.title}" onclick={onexpand}></button>
     <MiniPlayer
       title={state.book.title}

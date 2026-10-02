@@ -31,7 +31,7 @@
 
 <div class="shell" bind:this={root}>
   <Aura {glows} />
-  <div class="content" class:with-player={!!player} class:bare={!tabbar}>{@render children()}</div>
+  <main class="content" class:with-player={!!player} class:bare={!tabbar}>{@render children()}</main>
   {#if player}<div class="player">{@render player()}</div>{/if}
   {#if tabbar}<TabBar {active} {onnavigate} />{/if}
   {@render overlay?.()}
@@ -39,9 +39,12 @@
 
 <style>
   .shell { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--base); color: var(--ink); font-family: var(--font-ui); }
-  .content { position: relative; height: 100%; overflow-y: auto; scrollbar-width: none; box-sizing: border-box; padding-bottom: 104px; }
+  .content { position: relative; height: calc(100% - 80px); overflow-y: auto; scrollbar-width: none; box-sizing: border-box; padding-bottom: 24px; }
   .content::-webkit-scrollbar { display: none; }
-  .content.with-player { padding-bottom: 200px; }
-  .content.bare { padding-bottom: 24px; }
+  /* Native focus scrolling uses this viewport, so focused controls must not sit
+     underneath the tab bar or an active mini-player. An empty player snippet
+     reserves no space. */
+  .shell:has(> .player:not(:empty)) .content.with-player { height: calc(100% - 180px); padding-bottom: 20px; }
+  .content.bare { height: 100%; padding-bottom: 24px; }
   .player { position: absolute; left: 14px; right: 14px; bottom: 96px; }
 </style>

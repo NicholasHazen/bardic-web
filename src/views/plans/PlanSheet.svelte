@@ -54,7 +54,7 @@
         <div class="r"><dt>Estimated cost</dt><dd class="soft" role="status">{model.loading ? 'Working it out…' : 'Not known'}</dd></div>
       {/if}
       {#if model.rows}
-        <LimitRow value={model.limitText} shown={model.limitShown} invalid={!!model.limitProblem} describedby={model.limitProblem || model.limitNote ? 'limit-line' : undefined} disabled={model.busy} onchange={onlimit} />
+        <div class="limit-definition"><dt class="sr-only">Limit for this plan</dt><dd><LimitRow value={model.limitText} shown={model.limitShown} invalid={!!model.limitProblem} describedby={model.limitProblem || model.limitNote ? 'limit-line' : undefined} disabled={model.busy} onchange={onlimit} /></dd></div>
       {/if}
       <div class="r last"><dt>Monthly limit</dt><dd>{model.monthly}</dd></div>
     </dl>
@@ -115,4 +115,6 @@
   .line { margin: 0; font-family: var(--font-ui); font-size: 12px; line-height: 1.45; color: var(--muted); }
   .line.bad { color: #ffbcae; }
   .actions { display: flex; flex-direction: column; gap: 8px; }
+  .limit-definition dd { margin: 0; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 </style>

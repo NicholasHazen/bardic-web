@@ -19,8 +19,9 @@
     onretry?: () => void;
     /** Extra space under the button; the design leaves room for the tab bar when the view fills the screen. */
     inset?: number;
+    serverName?: string;
   }
-  let { playable, checking = false, onplay, onretry, inset = 0 }: Props = $props();
+  let { playable, checking = false, onplay, onretry, inset = 0, serverName }: Props = $props();
 
   const steps = ['Is your computer awake and Bardic running?', 'Are you on the same network, or connected to it?', 'Try again below.'];
 </script>
@@ -29,7 +30,7 @@
   <div class="gap"></div>
   <div class="hero" role="status">
     <div class="disc"><OfflineGlyph name="wifi-off" size={30} color="#ffd493" /></div>
-    <h1>Can’t reach Bardic</h1>
+    <h1>Can’t reach {serverName ?? 'Bardic'}</h1>
     <p>Your computer isn’t answering. Books are stored there and haven’t changed. Downloaded chapters still play.</p>
   </div>
   <div class="section">
