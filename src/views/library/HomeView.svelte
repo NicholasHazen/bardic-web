@@ -90,7 +90,7 @@
           <p>A DRM-free EPUB or a UTF-8 text file. The words are kept exactly as written.</p>
         </div>
         <div class="act">
-          <Button size={44} style="width: 100%; height: 48px; border-radius: 24px" onclick={() => picker?.click()}>
+          <Button size={44} style="width: 100%; min-height: 48px; border-radius: 24px" onclick={() => picker?.click()}>
             <Glyph name="upload" size={18} />Choose a file
           </Button>
         </div>
@@ -104,7 +104,7 @@
           <p>A short original story, so you can hear how it reads first.</p>
         </div>
         <div class="act">
-          <Button variant="glass" style="width: 100%; height: 48px; border-radius: 24px" disabled={sampleBusy} onclick={onsample}>
+          <Button variant="glass" style="width: 100%; min-height: 48px; border-radius: 24px" disabled={sampleBusy} onclick={onsample}>
             {sampleBusy ? 'Adding the sample' : 'Open the sample'}
             {#if !sampleBusy}<Glyph name="arrow" size={16} />{/if}
           </Button>
@@ -138,7 +138,7 @@
               <span class="detail nowrap">{continueItem.detail}</span>
             </div>
             <div class="btns">
-              <Button style="height: 48px; border-radius: 24px" onclick={oncontinue}><Glyph name="play" size={18} filled />Continue listening</Button>
+              <Button style="min-height: 48px; border-radius: 24px" onclick={oncontinue}><Glyph name="play" size={18} filled />Continue listening</Button>
               <a class="linkbtn" href={continueItem.href}>Open book</a>
             </div>
           </div>
@@ -243,11 +243,12 @@
   .book-t { font-size: 30px; font-weight: 700; color: var(--ink); line-height: 1.35; letter-spacing: -0.02em; }
   .chapter-p { font-size: 13px; font-weight: 400; color: color-mix(in srgb, var(--muted) 82%, var(--ink)); line-height: 1.35; }
   .chapter-t { font-size: 14px; font-weight: 400; color: var(--muted); line-height: 1.35; }
-  .play { display: flex; align-items: center; gap: 12px; }
+  .book-p, .book-t, .chapter-p, .chapter-t { overflow-wrap: anywhere; }
+  .play { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .prog { display: flex; align-items: center; gap: 12px; }
   .detail { font-size: 13px; font-weight: 400; color: var(--muted); line-height: 1.35; }
   .nowrap { white-space: nowrap; }
-  .btns { display: flex; align-items: center; gap: 12px; }
+  .btns { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .linkbtn { display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0 20px; border-radius: 24px; box-sizing: border-box; font-size: 14px; font-weight: 600; white-space: nowrap; text-decoration: none; background: rgba(255, 255, 255, 0.1); color: var(--ink); border: 1px solid var(--edge); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 6px 18px rgba(0, 0, 0, 0.25); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
 
   section { display: flex; flex-direction: column; gap: 10px; }
@@ -259,7 +260,7 @@
   .row { display: flex; align-items: flex-start; }
   .row.p { gap: 14px; padding: 0 20px; overflow-x: auto; scrollbar-width: none; }
   .row.t { gap: 16px; }
-  .shelves { display: flex; align-items: flex-start; gap: 56px; padding: 0 40px; }
+  .shelves { display: flex; align-items: flex-start; gap: 56px; padding: 0 40px; flex-wrap: wrap; }
   .book-p { position: relative; }
   .book-p::after { content: ''; position: absolute; inset: -10px 0; min-height: 44px; }
   @media (max-width: 300px) {

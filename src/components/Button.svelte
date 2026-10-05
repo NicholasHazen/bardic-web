@@ -31,11 +31,15 @@
     font-family: var(--font-ui);
     font-size: 14px;
     font-weight: 600;
-    white-space: nowrap;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
     cursor: pointer;
   }
-  .s44 { height: 44px; border-radius: 22px; }
-  .s52 { height: 52px; border-radius: 26px; font-size: 15px; }
+  .s44 { min-height: 44px; border-radius: 22px; }
+  .s52 { min-height: 52px; border-radius: 26px; font-size: 15px; }
+  .btn :global(svg) { flex-shrink: 0; }
   .primary {
     background: var(--accent);
     color: #1a1206;

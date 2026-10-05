@@ -43,9 +43,9 @@
 </div>
 
 <style>
-  .cover { box-sizing: border-box; display: flex; flex-direction: column; justify-content: flex-end; flex-shrink: 0; border: 1px solid rgba(255, 255, 255, 0.18); }
+  .cover { box-sizing: border-box; display: flex; flex-direction: column; justify-content: flex-end; flex-shrink: 0; min-height: 0; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.18); }
   .img { position: relative; }
   .fluid { aspect-ratio: 2 / 3; }
-  span { font-family: var(--font-ui); font-size: 13px; font-weight: 700; line-height: 1; color: #fff; letter-spacing: -0.02em; }
+  span { min-height: 0; max-height: 100%; overflow: hidden; overflow-wrap: anywhere; font-family: var(--font-ui); font-size: 13px; font-weight: 700; line-height: 1; color: #fff; letter-spacing: -0.02em; }
   img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 </style>

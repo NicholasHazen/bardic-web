@@ -154,27 +154,45 @@ test('S9: a long next-volume title wraps within its button and both next and res
   await reachEnd(page, w.current);
   const button = nextButton(page);
   await expect(button).toHaveText(`${title} · next you own`);
-  await button.scrollIntoViewIfNeeded();
-  await button.click({ trial: true });
-  const bounds = await button.evaluate((el) => {
-    const b = el.getBoundingClientRect();
-    const label = el.querySelector('.next-title')!;
-    const range = document.createRange();
-    range.selectNodeContents(label);
-    return { button: { left: b.left, top: b.top, right: b.right, bottom: b.bottom, height: b.height }, width: innerWidth, height: innerHeight, lines: [...range.getClientRects()].map((r) => ({ left: r.left, top: r.top, right: r.right, bottom: r.bottom })) };
-  });
-  expect(bounds.button.height).toBeGreaterThanOrEqual(44);
-  expect(bounds.button.left).toBeGreaterThanOrEqual(0);
-  expect(bounds.button.right).toBeLessThanOrEqual(bounds.width);
-  expect(bounds.button.top).toBeGreaterThanOrEqual(0);
-  expect(bounds.button.bottom).toBeLessThanOrEqual(bounds.height);
-  expect(bounds.lines.length).toBeGreaterThan(1);
-  for (const line of bounds.lines) {
-    expect(line.left).toBeGreaterThanOrEqual(bounds.button.left - 1);
-    expect(line.right).toBeLessThanOrEqual(bounds.button.right + 1);
-    expect(line.top).toBeGreaterThanOrEqual(bounds.button.top - 1);
-    expect(line.bottom).toBeLessThanOrEqual(bounds.button.bottom + 1);
-  }
+  // The first SSE open refreshes the series list and briefly replaces its next
+  // button. Measure the current connected node and player end state together,
+  // rather than an ElementHandle that can detach after a trial click.
+  await expect(async () => {
+    await expect(page.getByRole('heading', { name: `You finished ${w.title}`, exact: true })).toBeVisible();
+    await expect(button).toHaveText(`${title} · next you own`);
+    await button.scrollIntoViewIfNeeded();
+    await button.click({ trial: true });
+    const bounds = await page.evaluate(() => {
+      const label = document.querySelector('.overlay .next-title');
+      const el = label?.closest('button');
+      if (!label || !el || !el.isConnected) return null;
+      let playerState: { finishedBook: boolean; book: { id: string } | null } | undefined;
+      window.__player!.subscribe((s) => { playerState = s; })();
+      const b = el.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(label);
+      return { finishedBook: playerState!.finishedBook, book: playerState!.book?.id, label: label.textContent,
+        button: { left: b.left, top: b.top, right: b.right, bottom: b.bottom, height: b.height },
+        width: innerWidth, height: innerHeight,
+        lines: [...range.getClientRects()].map((r) => ({ left: r.left, top: r.top, right: r.right, bottom: r.bottom })) };
+    });
+    expect(bounds).not.toBeNull();
+    expect(bounds!.finishedBook).toBe(true);
+    expect(bounds!.book).toBe(w.current);
+    expect(bounds!.label).toBe(`${title} · next you own`);
+    expect(bounds!.button.height).toBeGreaterThanOrEqual(44);
+    expect(bounds!.button.left).toBeGreaterThanOrEqual(0);
+    expect(bounds!.button.right).toBeLessThanOrEqual(bounds!.width);
+    expect(bounds!.button.top).toBeGreaterThanOrEqual(0);
+    expect(bounds!.button.bottom).toBeLessThanOrEqual(bounds!.height);
+    expect(bounds!.lines.length).toBeGreaterThan(1);
+    for (const line of bounds!.lines) {
+      expect(line.left).toBeGreaterThanOrEqual(bounds!.button.left - 1);
+      expect(line.right).toBeLessThanOrEqual(bounds!.button.right + 1);
+      expect(line.top).toBeGreaterThanOrEqual(bounds!.button.top - 1);
+      expect(line.bottom).toBeLessThanOrEqual(bounds!.button.bottom + 1);
+    }
+  }).toPass({ timeout: 5000 });
   await restart(page).scrollIntoViewIfNeeded();
   await restart(page).click({ trial: true });
   const again = await restart(page).boundingBox();

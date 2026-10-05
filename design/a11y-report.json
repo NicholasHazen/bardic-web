@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-02",
+ "generated": "2026-10-05",
  "tool": "axe-core 4.13.0 injected with page.addScriptTag (no @axe-core/playwright)",
  "tags": [
   "wcag2a",
@@ -24,47 +24,15 @@
    "height": 1194
   }
  },
- "verification": {
-  "method": "Latest passing record for each of 77 states at all three viewports, preserved from the full run and subsequent repaired reruns. Earlier failed records are superseded only by the same screen and viewport passing again.",
-  "runs": [
-   {
-    "pairs": 231,
-    "unreached": 0,
-    "findings": 34,
-    "evidence": "a11y-evidence/a11y-full-231-before-final.json"
-   },
-   {
-    "pairs": 154,
-    "unreached": 0,
-    "findings": 1,
-    "evidence": "a11y-evidence/a11y-tablet-154-final-before-one.json"
-   },
-   {
-    "pairs": 24,
-    "unreached": 2,
-    "findings": 1,
-    "evidence": "a11y-evidence/a11y-final-24-state-assertions.json"
-   },
-   {
-    "pairs": 9,
-    "unreached": 0,
-    "findings": 0,
-    "evidence": "a11y-evidence/a11y-final-9-home-completed.json"
-   },
-   {
-    "pairs": 3,
-    "unreached": 0,
-    "findings": 0,
-    "evidence": "a11y-evidence/a11y-final-3-stopped-kept.json"
-   },
-   {
-    "pairs": 6,
-    "unreached": 0,
-    "findings": 0,
-    "evidence": "a11y-evidence/a11y-final-6-downloading.json"
-   }
+ "provenance": {
+  "date": "2026-10-05",
+  "full": "npm run audit:a11y: 77 states at three viewports; 231 records",
+  "repaired": "Rebuilt dist-audit and reran all three viewports for Book (plan running), Book (plan paused), Book (plan stopped, audio kept), and Library + Deletion undo banner; 12 replacement records",
+  "changes": "The stopped-plan fixture waits for the prior fake-provider chapter before starting fresh work. The deletion banner title wraps at narrow reflow widths. All other records are retained from the full run.",
+  "evidence": [
+   "a11y-evidence/ui-review-2026-10-05-full.json",
+   "a11y-evidence/ui-review-2026-10-05-repaired.json"
   ],
-  "modalRegression": "9/9 passed: a held initial library response is released while a modal is open; keyboard cycle, pointer dismissal and focus return verified in Chromium, Firefox and WebKit.",
   "allowances": 0
  },
  "scans": 231,
@@ -154,14 +122,14 @@
  ],
  "summary": {
   "findingsByRule": {},
-  "targetsChecked": 2535,
+  "targetsChecked": 2538,
   "screensThatCouldNotBeScanned": []
  },
  "axeIncomplete": [
   {
    "rule": "color-contrast",
-   "nodes": 646,
-   "screens": 74
+   "nodes": 761,
+   "screens": 75
   },
   {
    "rule": "aria-valid-attr-value",

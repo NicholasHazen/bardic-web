@@ -118,7 +118,7 @@
   .disc { width: 40px; height: 40px; border-radius: 20px; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .disc.warn { background: rgba(246, 185, 92, 0.2); color: #ffd493; }
   .disc.bad { background: rgba(255, 120, 100, 0.22); color: #ffbcae; }
-  .words { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+  .words { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .title { font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.35; }
   .detail { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
   .btns { display: flex; align-items: center; gap: 10px; }

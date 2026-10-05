@@ -44,14 +44,14 @@
     </Glass>
   {/if}
   {#if error}<Callout tone="error" title="Your places are kept">{error}</Callout>{/if}
-  <Button variant="glass" style="width: 100%; height: 48px; border-radius: 24px" onclick={onclose}>Close</Button>
+  <Button variant="glass" style="width: 100%; min-height: 48px; border-radius: 24px" onclick={onclose}>Close</Button>
 </Sheet>
 
 <style>
   .intro { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.5; }
   ul { margin: 0; padding: 0; list-style: none; }
   li + li { border-top: 1px solid rgba(255,255,255,0.08); }
-  button { display: flex; flex-direction: column; gap: 5px; width: 100%; min-height: 68px; padding: 14px; border: 0; background: transparent; text-align: left; color: var(--ink); font-family: var(--font-ui); cursor: pointer; }
+  button { display: flex; flex-direction: column; gap: 5px; width: 100%; min-height: 68px; padding: 14px; border: 0; background: transparent; text-align: left; color: var(--ink); font-family: var(--font-ui); cursor: pointer; overflow-wrap: anywhere; }
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   button:disabled { opacity: 0.6; cursor: default; }
   .name { font-size: 15px; font-weight: 600; }

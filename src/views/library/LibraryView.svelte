@@ -215,10 +215,10 @@
   .page.wide { gap: 18px; }
   h1 { margin: 0; font-size: 32px; font-weight: 700; color: var(--ink); line-height: 1.35; letter-spacing: -0.02em; }
   .top { display: flex; align-items: center; gap: 8px; padding: 16px 20px 0; }
-  .top.t { gap: 12px; padding: 28px 40px 0; }
+  .top.t { gap: 12px; padding: 28px 40px 0; flex-wrap: wrap; }
   .top.t h1 { font-size: 36px; letter-spacing: -0.025em; }
   .grow { flex: 1; }
-  .total { font-size: 13px; font-weight: 400; color: var(--muted); line-height: 1.35; flex: 1; margin-left: 8px; }
+  .total { font-size: 13px; font-weight: 400; color: var(--muted); line-height: 1.35; flex: 1; margin-left: 8px; white-space: nowrap; }
   .find { display: flex; align-items: center; gap: 8px; width: 100%; }
   .find input { padding: 0; border: 0; outline: 0; background: transparent; flex: 1; min-width: 0; font-family: var(--font-ui); font-size: 13px; color: var(--ink); height: 44px; margin-block: -2px; }
   .find input::placeholder { color: var(--muted); opacity: 1; }
@@ -235,7 +235,7 @@
   .menu.left { right: auto; left: 0; }
   .menu button { min-height: 44px; padding: 0 14px; border: 0; border-radius: 10px; background: none; text-align: left; font-family: var(--font-ui); font-size: 14px; font-weight: 500; color: var(--ink); cursor: pointer; }
   .menu button.on { background: rgba(255, 255, 255, 0.14); color: var(--accent); font-weight: 600; }
-  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 14px; padding: 0 20px; }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 14px; padding: 0 20px; align-items: start; }
   .grid.t { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 22px 18px; padding: 0 40px; }
   .adding { display: flex; flex-direction: column; gap: 6px; }
   .ghost { aspect-ratio: 2 / 3; border-radius: 8px; border: 1.5px dashed rgba(255, 255, 255, 0.4); box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; padding: 8px; }
@@ -247,6 +247,9 @@
   .empty { margin: 0; padding: 0 24px; font-size: 14px; color: var(--muted); line-height: 1.5; }
   .none .empty { padding: 0; }
   .find:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (max-width: 1100px) {
+    .grid.t { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
   @media (max-width: 300px) {
     .top { flex-wrap: wrap; padding-inline: 12px; }
     .top h1 { width: 100%; }

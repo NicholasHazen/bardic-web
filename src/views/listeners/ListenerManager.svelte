@@ -21,7 +21,7 @@
 
 <!-- Settings > Listeners (L5). Add, rename and delete are sheets over the list. -->
 <div class="page">
-  <ManageScreen listeners={rows} currentId={$listenerStore.currentId} intro={mode.kind === 'none'} {onback} onedit={(id) => (mode = { kind: 'edit', id })} onadd={() => (mode = { kind: 'add' })} />
+  <ManageScreen embedded listeners={rows} currentId={$listenerStore.currentId} intro={mode.kind === 'none'} {onback} onedit={(id) => (mode = { kind: 'edit', id })} onadd={() => (mode = { kind: 'add' })} />
   {#if mode.kind === 'add'}
     <AddListenerSheet select={false} onadded={close} onclose={close} />
   {:else if mode.kind === 'edit'}

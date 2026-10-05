@@ -15,6 +15,7 @@
 
 <main class="screen">
   <Aura />
+  <div class="scroll">
   <div class="col">
     <div class="top"></div>
     <div class="pad">
@@ -47,12 +48,15 @@
     <div class="grow"></div>
     <div class="foot strut"><span>Bardic remembers your choice on this device. Change it any time from Library or Settings.</span></div>
   </div>
+  </div>
 </main>
 
 <style>
   span { line-height: 1.35; }
   .screen { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--base); font-family: var(--font-ui); color: var(--ink); }
-  .col { position: relative; display: flex; flex-direction: column; gap: 20px; height: 100%; }
+  .scroll { position: relative; height: 100%; overflow-y: auto; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+  .col { position: relative; display: flex; flex-direction: column; gap: 20px; min-height: 100%; }
   .top { height: 36px; flex-shrink: 0; }
   .pad { padding: 0 24px; }
   .intro { display: flex; flex-direction: column; gap: 10px; }
@@ -61,11 +65,11 @@
   p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.5; }
   .list { padding: 0 20px; display: flex; flex-direction: column; gap: 12px; }
   .item { display: block; }
-  .item :global(.card) { width: 100%; min-height: 76px; padding: 0 18px; display: flex; align-items: center; text-align: left; font-family: inherit; }
+  .item :global(.card) { width: 100%; min-height: 76px; padding: 8px 18px; display: flex; align-items: center; text-align: left; font-family: inherit; }
   .item :global(.card):focus-visible, .add:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .rowin { display: flex; align-items: center; gap: 14px; width: 100%; }
   .text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-  .name { font-size: 19px; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .name { font-size: 19px; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
   .detail { font-size: 13px; color: var(--muted); }
   .add { min-height: 76px; border-radius: 20px; border: 1.5px dashed rgba(255, 255, 255, 0.4); background: transparent; display: flex; align-items: center; gap: 14px; padding: 0 18px; box-sizing: border-box; cursor: pointer; text-align: left; color: var(--ink); }
   .plus { width: 56px; height: 56px; border-radius: 50%; border: 1.5px dashed rgba(255, 255, 255, 0.4); display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
@@ -78,7 +82,6 @@
   .foot span { font-family: var(--font-ui); font-size: 13px; color: var(--muted); }
   .additem .add { width: 100%; }
   @media (max-width: 300px) {
-    .screen { overflow-y: auto; }
     .col { min-height: 100%; height: auto; }
     .name { white-space: normal; overflow-wrap: anywhere; }
     .rowin { gap: 8px; }

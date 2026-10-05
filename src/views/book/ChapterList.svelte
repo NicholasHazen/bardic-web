@@ -51,7 +51,8 @@
 
 <style>
   .section { display: flex; flex-direction: column; gap: 10px; }
-  .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: var(--label-pad, 0 24px); }
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: var(--label-pad, 0 24px); flex-wrap: wrap; }
+  .head :global(button) { max-width: 100%; height: auto; min-height: 44px; white-space: normal; }
   h2 { margin: 0; font-family: var(--font-ui); font-size: 17px; font-weight: 700; color: var(--ink); line-height: 1.35; }
   .card { margin: var(--card-margin, 0 20px); }
   .rows > :global(.row:last-child) { border-bottom: 0; }

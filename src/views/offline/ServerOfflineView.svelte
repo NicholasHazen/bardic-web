@@ -74,7 +74,7 @@
   .gap { height: 84px; flex-shrink: 0; }
   .hero { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 0 32px; text-align: center; }
   .disc { width: 64px; height: 64px; border-radius: 32px; background: rgba(246, 185, 92, 0.2); display: flex; align-items: center; justify-content: center; }
-  h1 { margin: 0; font-size: 26px; font-weight: 700; color: var(--ink); letter-spacing: -0.02em; line-height: 1.15; }
+  h1 { margin: 0; font-size: 26px; font-weight: 700; color: var(--ink); letter-spacing: -0.02em; line-height: 1.15; overflow-wrap: anywhere; max-width: 100%; }
   p { margin: 0; font-size: 15px; font-weight: 400; color: var(--muted); line-height: 1.5; }
   .section { display: flex; flex-direction: column; gap: 8px; }
   .label { font-size: 12px; font-weight: 700; color: var(--muted); line-height: 1.35; letter-spacing: 0.1em; text-transform: uppercase; padding: 0 24px; }
@@ -82,8 +82,8 @@
   .book { min-height: 68px; display: flex; align-items: center; gap: 12px; padding: 0 10px 0 12px; box-sizing: border-box; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
   .book.last, .step.last { border-bottom: 0; }
   .words { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
-  .name { font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.35; }
-  .sub { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
+  .name { font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.35; overflow-wrap: anywhere; }
+  .sub { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; overflow-wrap: anywhere; }
   .pad { padding: 0 20px; }
   .step { min-height: 46px; display: flex; align-items: center; gap: 12px; padding: 0 14px; box-sizing: border-box; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
   .n { width: 24px; height: 24px; border-radius: 12px; background: rgba(255, 255, 255, 0.12); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--ink); flex-shrink: 0; }

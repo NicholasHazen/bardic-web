@@ -37,4 +37,10 @@
   .text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
   .title { font-size: 14px; font-weight: 700; color: var(--ink); line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sub { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
+  @media (max-width: 300px) {
+    .row { display: grid; grid-template-columns: 40px minmax(0, 1fr); width: 100%; }
+    .text { overflow-wrap: anywhere; }
+    .title { white-space: normal; }
+    .row > :global(.btn) { grid-column: 2; justify-self: start; }
+  }
 </style>

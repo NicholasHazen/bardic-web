@@ -31,9 +31,9 @@
     {/if}
   </div>
   {#if chapter.state === 'failed' && !detail}
-    <Button variant="text" aria-label="Retry {chapter.title}" onclick={() => onretry?.(chapter.chapterId)}>Retry</Button>
+    <span class="action"><Button variant="text" aria-label="Retry {chapter.title}" onclick={() => onretry?.(chapter.chapterId)}>Retry</Button></span>
   {:else if chapter.state === 'out_of_date'}
-    <Button variant="text" aria-label="Update {chapter.title}" onclick={() => onupdate?.(chapter.chapterId)}>Update</Button>
+    <span class="action"><Button variant="text" aria-label="Update {chapter.title}" onclick={() => onupdate?.(chapter.chapterId)}>Update</Button></span>
   {/if}
   {#if word}<Badge tone={word.tone}>{word.text}</Badge>{/if}
 </div>
@@ -43,7 +43,15 @@
   .row.last { border-bottom: 0; }
   .num { font-family: var(--font-ui); font-size: 13px; font-weight: 700; color: var(--muted); line-height: 1.35; width: 22px; }
   @media (min-width: 768px) { .num { color: var(--ink); } }
-  .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+  .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .action { display: contents; }
   .title { font-family: var(--font-book); font-size: 16px; font-weight: 400; color: var(--ink); line-height: 1.35; }
   .detail { font-family: var(--font-ui); font-size: 12px; font-weight: 400; color: #ffbcae; line-height: 1.35; }
+  @media (max-width: 360px) {
+    .row { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 4px 10px; padding-block: 8px; }
+    .num { grid-column: 1; grid-row: 1; align-self: start; }
+    .text { grid-column: 2; grid-row: 1; }
+    .action { display: block; grid-column: 2; grid-row: 2; justify-self: start; margin-left: -8px; }
+    .row > :global(.badge) { grid-column: 2; grid-row: 2; justify-self: end; }
+  }
 </style>

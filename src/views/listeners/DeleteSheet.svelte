@@ -25,7 +25,7 @@
 </script>
 
 <Sheet title="Delete {name}?" eyebrow="Listeners · {name}" {fixed} {onclose}>
-  <Glass radius={16} style="overflow:hidden">
+  <Glass radius={16} style="overflow:hidden;flex-shrink:0">
     <ul class="rows">
       <li>
         <span style="color:#ffbcae"><Glyph name="x" size={18} /></span>
@@ -48,16 +48,16 @@
   {#if error}<span class="para err" role="alert">{error}</span>{/if}
   <div class="actions">
     <Button variant="remove" size={52} style="width:100%" disabled={busy} onclick={() => onconfirm?.()}><Glyph name="trash" size={18} />Delete {name}</Button>
-    <Button variant="glass" style="width:100%;height:48px;border-radius:24px" onclick={() => onclose?.()}>Keep {name}</Button>
+    <Button variant="glass" style="width:100%;min-height:48px;border-radius:24px" onclick={() => onclose?.()}>Keep {name}</Button>
   </div>
 </Sheet>
 
 <style>
   span { line-height: 1.35; }
   .rows { list-style: none; margin: 0; padding: 0; }
-  li { min-height: 58px; display: flex; align-items: center; gap: 12px; padding: 0 14px; box-sizing: border-box; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+  li { min-height: 58px; display: flex; align-items: center; gap: 12px; padding: 8px 14px; box-sizing: border-box; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
   li:last-child { border-bottom: 0; }
-  .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+  .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .t { font-size: 14px; font-weight: 600; color: var(--ink); }
   .d { font-size: 12px; color: var(--muted); }
   .para { font-size: 13px; color: var(--muted); }

@@ -152,6 +152,6 @@
   .box { width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--muted); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-sizing: border-box; }
   .box.on { background: var(--accent); border-color: var(--accent); }
   .num { font-size: 13px; font-weight: 700; color: var(--muted); width: 22px; }
-  .ctitle { font-family: var(--font-book); font-size: 15px; flex: 1; min-width: 0; line-height: 1.35; }
+  .ctitle { font-family: var(--font-book); font-size: 15px; flex: 1; min-width: 0; line-height: 1.35; overflow-wrap: anywhere; }
   .csub { font-size: 12px; color: var(--muted); }
 </style>

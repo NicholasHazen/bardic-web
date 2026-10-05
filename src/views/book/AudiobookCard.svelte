@@ -62,11 +62,11 @@
       </div>
       <div class="actions">
         {#if run.canResume}
-          <Button variant="glass" style="flex: 1" onclick={onresume} disabled={busy}><Glyph name="play" size={18} filled />Resume</Button>
+          <Button variant="glass" style="flex: 1 1 150px" onclick={onresume} disabled={busy}><Glyph name="play" size={18} filled />Resume</Button>
         {:else}
-          <Button variant="glass" style="flex: 1" onclick={onpause} disabled={busy || !run.canPause}><BookGlyph name="pause" />Pause</Button>
+          <Button variant="glass" style="flex: 1 1 150px" onclick={onpause} disabled={busy || !run.canPause}><BookGlyph name="pause" />Pause</Button>
         {/if}
-        <Button variant="glass" style="flex: 1" onclick={onstop} disabled={busy} aria-label="Stop making it ready">Stop</Button>
+        <Button variant="glass" style="flex: 1 1 150px" onclick={onstop} disabled={busy} aria-label="Stop making it ready">Stop</Button>
       </div>
     {:else}
       <div class="progress">
@@ -78,11 +78,11 @@
       </div>
       <div class="actions">
         {#if premium}
-          <Button variant="glass" style="flex: 1" disabled={busy || !onplan} onclick={onplan} aria-describedby="plan-note"><BookGlyph name="sparkle" />Plan the whole book</Button>
+          <Button variant="glass" style="flex: 1 1 150px" disabled={busy || !onplan} onclick={onplan} aria-describedby="plan-note"><BookGlyph name="sparkle" />Plan the whole book</Button>
         {:else}
-          <Button variant="glass" style="flex: 1" onclick={onmakeready} disabled={busy || !model.canMakeReady}><BookGlyph name="sparkle" />Make ready</Button>
+          <Button variant="glass" style="flex: 1 1 150px" onclick={onmakeready} disabled={busy || !model.canMakeReady}><BookGlyph name="sparkle" />Make ready</Button>
         {/if}
-        <Button variant="glass" style="flex: 1" onclick={ondownload} disabled={!ondownload}><Glyph name="download" size={18} />Download</Button>
+        <Button variant="glass" style="flex: 1 1 150px" onclick={ondownload} disabled={!ondownload}><Glyph name="download" size={18} />Download</Button>
       </div>
       {#if premium && onplanfrom}
         <Button variant="glass" style="width: 100%" disabled={busy} onclick={onplanfrom}><BookGlyph name="sparkle" />{planFromLabel}</Button>
@@ -95,13 +95,15 @@
 <style>
   .card { display: flex; flex-direction: column; gap: 14px; }
   .who { display: flex; align-items: center; gap: 12px; }
-  .disc { width: 40px; height: 40px; border-radius: 20px; background: color-mix(in srgb, var(--accent) 18%, transparent); display: flex; align-items: center; justify-content: center; }
+  .disc { width: 40px; height: 40px; border-radius: 20px; background: color-mix(in srgb, var(--accent) 18%, transparent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
-  .name { display: flex; align-items: center; gap: 8px; }
+  .name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .name :global(.badge) { max-width: 100%; height: auto; min-height: 22px; box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; }
   .voice { font-family: var(--font-ui); font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.35; }
   .sub { font-family: var(--font-ui); font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
+  .voice, .sub { overflow-wrap: anywhere; }
   .progress { display: flex; flex-direction: column; gap: 6px; }
-  .line { display: flex; align-items: center; gap: 8px; }
+  .line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .ready { font-family: var(--font-ui); font-size: 13px; font-weight: 600; color: var(--ink); line-height: 1.35; }
   .state { font-family: var(--font-ui); font-size: 13px; font-weight: 700; line-height: 1.35; }
   .count { font-family: var(--font-ui); font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; flex: 1; text-align: right; }
@@ -109,5 +111,6 @@
   .lighter, .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; }
   .lighter { background: rgba(255, 255, 255, 0.28); }
   .fill { background: var(--accent); }
-  .actions { display: flex; align-items: center; gap: 10px; }
+  .actions { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; }
+  .actions :global(button) { padding-block: 8px; box-sizing: border-box; }
 </style>

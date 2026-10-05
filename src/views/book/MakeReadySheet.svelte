@@ -47,10 +47,10 @@
 <style>
   .options { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
   dl { margin: 0; }
-  .r { min-height: 46px; display: flex; align-items: center; gap: 12px; padding: 0 14px; box-sizing: border-box; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+  .r { min-height: 46px; display: flex; align-items: center; gap: 8px 12px; padding: 8px 14px; box-sizing: border-box; border-bottom: 1px solid rgba(255, 255, 255, 0.08); flex-wrap: wrap; }
   .r:last-child { border-bottom: 0; }
   dt { font-family: var(--font-ui); font-size: 14px; font-weight: 400; color: var(--muted); line-height: 1.35; flex: 1; }
-  dd { margin: 0; font-family: var(--font-ui); font-size: 14px; font-weight: 500; color: var(--ink); line-height: 1.35; }
+  dd { margin: 0; max-width: 100%; overflow-wrap: anywhere; font-family: var(--font-ui); font-size: 14px; font-weight: 500; color: var(--ink); line-height: 1.35; }
   dd.free { font-weight: 700; color: #c3f0ba; }
   .note { font-family: var(--font-ui); font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.5; }
   .actions { display: flex; flex-direction: column; gap: 8px; }

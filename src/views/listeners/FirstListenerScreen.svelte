@@ -28,6 +28,7 @@
 
 <main class="screen">
   <Aura />
+  <div class="scroll">
   <form class="col" onsubmit={submit} novalidate>
     <div class="top"></div>
     <div class="pad">
@@ -53,13 +54,16 @@
       <span class="small">You can change this any time in Settings.</span>
     </div>
   </form>
+  </div>
 </main>
 
 <style>
   span { line-height: 1.35; }
   .screen { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--base); font-family: var(--font-ui); color: var(--ink); }
-  .col { position: relative; display: flex; flex-direction: column; gap: 22px; height: 100%; margin: 0; }
-  .top { height: 72px; }
+  .scroll { position: relative; height: 100%; overflow-y: auto; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+  .col { position: relative; display: flex; flex-direction: column; gap: 22px; min-height: 100%; margin: 0; }
+  .top { height: 72px; flex-shrink: 0; }
   .pad { padding: 0 24px; }
   /* The design draws these as inline text in a plain block, so the line box also holds the browser's default text strut; the same here keeps the lines where the board has them. */
   .strut { font-family: serif; line-height: normal; }
@@ -75,7 +79,6 @@
   .foot { display: flex; flex-direction: column; gap: 8px; padding: 0 20px 32px; }
   .small { font-size: 12px; color: var(--muted); text-align: center; }
   @media (max-width: 300px) {
-    .screen { overflow-y: auto; }
     .col { height: auto; min-height: 100%; }
     .top { height: 24px; }
     .who { flex-wrap: wrap; }

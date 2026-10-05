@@ -50,7 +50,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 0 14px;
+    padding: 10px 14px;
     box-sizing: border-box;
     border: 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -65,8 +65,10 @@
   .disc { width: 40px; height: 40px; border-radius: 20px; background: color-mix(in srgb, var(--accent) 18%, transparent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .disc.plain { background: rgba(255, 255, 255, 0.1); }
   .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
-  .name { display: flex; align-items: center; gap: 8px; }
+  .name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .name :global(.badge) { max-width: 100%; height: auto; min-height: 22px; box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; }
   .voice { font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.35; }
   .grow { flex: 1; }
   .sub { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
+  .voice, .sub { overflow-wrap: anywhere; }
 </style>

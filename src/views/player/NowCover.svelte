@@ -34,7 +34,8 @@
   .shrink { aspect-ratio: 2 / 3; min-height: 96px; }
   .img { position: relative; }
   img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-  span { font-family: var(--font-ui); font-weight: 700; line-height: 1; color: #fff; letter-spacing: -0.02em; }
+  /* This cover is decorative; the complete title remains in the adjacent heading. */
+  span { font-family: var(--font-ui); font-weight: 700; line-height: 1; color: #fff; letter-spacing: -0.02em; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; line-clamp: 5; overflow: hidden; }
   @media (max-width: 300px) {
     .cover.shrink { width: min(232px, calc(100vw - 48px)) !important; height: auto !important; aspect-ratio: 2 / 3; flex: none !important; min-height: 0; padding: 16px !important; }
     span { overflow-wrap: anywhere; }

@@ -12,6 +12,22 @@
 
 The W0–W5 notes below are historical implementation checkpoints. The current handoff is recorded under W6; older test counts and “not yet” lists describe those earlier checkpoints.
 
+## UI review, 2026-10-05
+
+Reviewed the live Library, Home, Book, listener/settings/voice/account screens, player, downloads, management sheets and plan states with original synthetic data. Screen widths included 320, 390, 768, 834, 1194 and 1440 px, plus short windows and a 195×422 CSS viewport for 200% phone reflow. Long unbroken titles, chapter names, listener/device/voice names and Unicode text were included; playback stayed muted and no real provider or user library was used.
+
+Fixed portrait-tablet chapter clipping and crowded library columns; expanding cover/progress geometry; long text crossing badges or close buttons; narrow action and player-control collisions; clipped listener lists and short-window sheet information; and missing navigation on Settings › Listeners. Read playback controls now contain keyboard focus, make the reader inert, restore Show controls focus and provide a 44 px handle target. Long voice lists still scroll internally. Full chapter text is unchanged. Responsive differences are recorded in [deviations.json](../design/deviations.json) and the [UI guide](UI-GUIDE.md).
+
+Added 14 live browser regressions in `e2e/ui-layout.spec.ts`, `ui-listeners.spec.ts`, `ui-controls.spec.ts` and `ui-sheets.spec.ts`. They check exact text, cover proportions, thin progress bars, bounded text, chapter/control geometry, scrolling, landmarks, focus and lack of provider work during inspection.
+
+Final validation: `npm run check` reports zero errors/warnings; `npx vitest run` passes 848 tests in 52 files; all 71 implemented boards pass the unchanged 1% tolerance, with a maximum of Home at 0.95% and no render retries. `npm run e2e -- --retries=0` passes all 504 checks (168 scenarios in Chromium, Firefox and WebKit) against the real release server with fake providers. The accessibility report covers all 77 states at three viewports: 231 pairs, 2,538 targets, zero findings, zero unreachable states and no allowances. It retains the full-run records and replaces 12 records after rerunning the running/paused/stopped-plan sequence and deletion banner at every viewport; exact provenance and synthetic evidence are saved in [a11y-report.json](../design/a11y-report.json).
+
+`npm run build` passes and the production output contains no player/offline test hooks or testhost chunk. Existing bundle-size and ineffective dynamic-import warnings remain. The disposable visual-review stack was stopped after verification.
+
+Verification also repaired two test setup races without weakening assertions: the stopped-plan audit drains the prior in-flight fake-provider chapter before starting fresh work, and the long next-volume test measures a connected current button during stream-driven refreshes. The new place-conflict fixture proves a saved local reading place before the competing device writes. An earlier matrix observed the pre-existing intermittent WebKit first-Listen issue twice; the final matrix passed with the original single-tap assertions unchanged. Its native-media cause remains unresolved, and no playback-engine repair is claimed.
+
+The agent inspected representative side-by-side board comparisons and actual before/after screen captures. Human board signoff and native Safari/physical-device testing remain open. This review changes web source only; the currently deployed Spark release is recorded separately below.
+
 ## Spark deployment, 2026-10-05
 
 The tested server `bfb5aa8` and web `38a3f3f` pair is now running on a native ARM64 Spark with Ubuntu 24.04.5, Docker Engine 29.6.2 and Compose 5.2.0. Both services in project `bardic-v2` are healthy. The fresh local ext4/NVMe data directory is owned by UID/GID 10001; the gateway publishes loopback 8080 only. The host override names it **Bardic on Spark**. Paired source snapshots, the `current` symlink and a Compose wrapper live under `~/bardic-v2`, with the persistent data directory outside the release tree. The [Spark operating guide](SPARK-DEPLOYMENT.md) records routine commands and recovery boundaries without private host/account/tailnet details.

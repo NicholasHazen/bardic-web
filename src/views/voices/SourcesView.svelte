@@ -78,10 +78,14 @@
   .card { display: flex; flex-direction: column; gap: 12px; }
   .top { display: flex; align-items: center; gap: 12px; }
   .icon { width: 40px; height: 40px; border-radius: 12px; background: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+  .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .name { font-size: 16px; font-weight: 700; color: var(--ink); }
   .sub { font-size: 12px; font-weight: 400; color: color-mix(in srgb, var(--muted) 65%, var(--ink)); }
   .blurb { font-size: 13px; font-weight: 400; color: color-mix(in srgb, var(--muted) 80%, var(--ink)); line-height: 1.5; }
   .blurb.bad { color: #ffbcae; }
-  .buttons { display: flex; align-items: center; gap: 10px; }
+  .buttons { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  @media (max-width: 300px) {
+    .top { display: grid; grid-template-columns: 40px minmax(0, 1fr); }
+    .top > :global(.badge) { grid-column: 2; justify-self: start; }
+  }
 </style>

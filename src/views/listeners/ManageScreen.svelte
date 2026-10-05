@@ -19,12 +19,15 @@
     onback?: () => void;
     onedit?: (id: string) => void;
     onadd?: () => void;
+    /** The live Settings page already supplies its main landmark through Shell. */
+    embedded?: boolean;
   }
-  let { listeners, currentId, intro = true, badge = true, onback, onedit, onadd }: Props = $props();
+  let { listeners, currentId, intro = true, badge = true, onback, onedit, onadd, embedded = false }: Props = $props();
 </script>
 
-<main class="screen">
+<svelte:element this={embedded ? 'section' : 'main'} class="screen" aria-label={embedded ? 'Listeners' : undefined}>
   <Aura />
+  <div class="scroll">
   <div class="col">
     <div class="head">
       <RoundButton label="Back" icon="back" onclick={() => onback?.()} />
@@ -55,17 +58,20 @@
     </section>
     {#if intro}
       <div class="padb">
-        <Button variant="glass" style="width:100%;height:48px;border-radius:24px" onclick={() => onadd?.()}><Glyph name="plus" size={18} />Add a listener</Button>
+        <Button variant="glass" style="width:100%;min-height:48px;border-radius:24px" onclick={() => onadd?.()}><Glyph name="plus" size={18} />Add a listener</Button>
       </div>
       <div class="pad strut"><span class="desc small">Names and places are visible to anyone who opens Bardic. Books, audio, voices and provider keys are not per listener, and paid plans count against the same Allowance.</span></div>
     {/if}
   </div>
-</main>
+  </div>
+</svelte:element>
 
 <style>
   span { line-height: 1.35; }
   .screen { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--base); font-family: var(--font-ui); color: var(--ink); }
-  .col { position: relative; display: flex; flex-direction: column; gap: 14px; height: 100%; overflow: hidden; }
+  .scroll { position: relative; height: 100%; overflow-y: auto; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+  .col { position: relative; display: flex; flex-direction: column; gap: 14px; min-height: 100%; padding-bottom: 24px; box-sizing: border-box; }
   .head { display: flex; align-items: center; gap: 4px; padding: 8px 12px 0; }
   h1 { line-height: 1.35; margin: 0 0 0 4px; flex: 1; font-size: 20px; font-weight: 700; color: var(--ink); }
   .pad { padding: 0 24px; }
@@ -77,18 +83,17 @@
   .section { display: flex; flex-direction: column; gap: 8px; }
   h2 { line-height: 1.35; margin: 0; padding: 0 24px; font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
   .rows { list-style: none; margin: 0; padding: 0; }
-  li { min-height: 66px; display: flex; align-items: center; gap: 12px; padding: 0 6px 0 14px; box-sizing: border-box; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+  li { min-height: 66px; display: flex; align-items: center; gap: 12px; padding: 8px 6px 8px 14px; box-sizing: border-box; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
   li:last-child { border-bottom: 0; }
   .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
-  .line { display: flex; align-items: center; gap: 8px; }
-  .name { font-size: 15px; font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .name { font-size: 15px; font-weight: 500; color: var(--ink); max-width: 100%; overflow-wrap: anywhere; }
   .name.cur { font-weight: 700; }
   .detail { font-size: 12px; color: color-mix(in srgb, var(--muted) 94%, var(--ink)); }
   @media (min-width: 768px) {
     .detail { color: var(--ink); }
   }
   @media (max-width: 300px) {
-    .screen { overflow-y: auto; }
     .col { height: auto; min-height: 100%; overflow: visible; }
     .line { flex-wrap: wrap; }
     .name { white-space: normal; overflow-wrap: anywhere; }

@@ -74,14 +74,14 @@
     <Button size={52} disabled={busy || loading || totals.count === 0} onclick={onfree}>
       <ManageGlyph name="trash" />{busy ? 'Deleting audio…' : freeButtonLabel(rows, chosen)}
     </Button>
-    <Button variant="glass" style="width: 100%; height: 48px; border-radius: 24px" onclick={onclose}>Cancel</Button>
+    <Button variant="glass" style="width: 100%; min-height: 48px; border-radius: 24px" onclick={onclose}>Cancel</Button>
   </div>
 </Sheet>
 
 <style>
   .intro { margin: 0; font-family: var(--font-ui); font-size: 14px; font-weight: 400; color: var(--muted); line-height: 1.5; }
   .note { margin: 0; font-family: var(--font-ui); font-size: 14px; color: var(--muted); line-height: 1.5; }
-  .row { width: 100%; min-height: 68px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); background: transparent; color: var(--ink); font-family: var(--font-ui); text-align: left; cursor: pointer; box-sizing: border-box; }
+  .row { width: 100%; min-height: 68px; display: flex; align-items: center; gap: 12px; padding: 8px 14px; border: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); background: transparent; color: var(--ink); font-family: var(--font-ui); text-align: left; cursor: pointer; box-sizing: border-box; }
   .row:last-child { border-bottom: 0; }
   .row:disabled { cursor: default; opacity: 0.6; }
   .row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -89,9 +89,14 @@
   .box.on { background: var(--accent); border: 0; }
   .tick { display: flex; }
   .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
-  .line { display: flex; align-items: center; gap: 8px; }
-  .name { font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.35; }
+  .line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .name { font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.35; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
   .sub { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
-  .size { font-size: 14px; font-weight: 700; color: var(--ink); line-height: 1.35; }
+  .size { font-size: 14px; font-weight: 700; color: var(--ink); line-height: 1.35; flex-shrink: 0; white-space: nowrap; }
   .actions { display: flex; flex-direction: column; gap: 8px; }
+  @media (max-width: 300px) {
+    .row { display: grid; grid-template-columns: 27px minmax(0, 1fr); }
+    .size { grid-column: 2; }
+    .sub { overflow-wrap: anywhere; }
+  }
 </style>

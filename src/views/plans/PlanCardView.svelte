@@ -105,7 +105,7 @@
       {#if model.tone === 'waiting'}
         <div class="status" role="status">{model.continues}</div>
         <div class="gap10"></div>
-        {#if model.canMakeRestFree}<Button variant="glass" style="width: 100%; height: 48px; border-radius: 24px" disabled={busy} onclick={() => onfree?.()}>{free}</Button>{/if}
+        {#if model.canMakeRestFree}<Button variant="glass" style="width: 100%; min-height: 48px; border-radius: 24px" disabled={busy} onclick={() => onfree?.()}>{free}</Button>{/if}
         <div class="gap6"></div>
         <Button variant="text" style="width: 100%; color: var(--ink)" disabled={busy} onclick={() => onstop?.()}>Stop here</Button>
       {:else if model.tone === 'making'}
@@ -115,20 +115,20 @@
         </div>
       {:else}
         {#if model.canResume}
-          <Button style="width: 100%; height: 48px; border-radius: 24px" disabled={busy} onclick={() => onresume?.()}><PlanGlyph name="play" />Resume</Button>
+          <Button style="width: 100%; min-height: 48px; border-radius: 24px" disabled={busy} onclick={() => onresume?.()}><PlanGlyph name="play" />Resume</Button>
           <div class="gap10"></div>
         {/if}
         {#if model.fix}
-          <Button style="width: 100%; height: 48px; border-radius: 24px" disabled={busy} onclick={() => onfix?.(model.fix!)}>
+          <Button style="width: 100%; min-height: 48px; border-radius: 24px" disabled={busy} onclick={() => onfix?.(model.fix!)}>
             <PlanGlyph name={model.fix === 'key' ? 'key' : 'wallet'} />{model.fix === 'key' ? 'Fix Google key' : 'Open Allowance'}
           </Button>
           <div class="gap10"></div>
         {/if}
         {#if model.canResume && !showRaise && model.tone === 'paused'}
-          <Button variant="glass" style="width: 100%; height: 48px; border-radius: 24px" disabled={busy} onclick={() => (raiseOpen = true)}>Raise the limit</Button>
+          <Button variant="glass" style="width: 100%; min-height: 48px; border-radius: 24px" disabled={busy} onclick={() => (raiseOpen = true)}>Raise the limit</Button>
           <div class="gap10"></div>
         {/if}
-        {#if model.canMakeRestFree}<Button variant="glass" style="width: 100%; height: 48px; border-radius: 24px" disabled={busy} onclick={() => onfree?.()}>{free}</Button>{/if}
+        {#if model.canMakeRestFree}<Button variant="glass" style="width: 100%; min-height: 48px; border-radius: 24px" disabled={busy} onclick={() => onfree?.()}>{free}</Button>{/if}
         <div class="gap6"></div>
         <Button variant="text" style="width: 100%; color: var(--ink)" disabled={busy} onclick={() => onstop?.()}>Stop here</Button>
       {/if}
@@ -148,6 +148,7 @@
   .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: var(--accent); }
   .body { font-size: 13px; font-weight: 400; color: var(--muted); }
   .actions { display: flex; flex-direction: column; gap: 0; }
+  .actions :global(button) { padding-block: 8px; box-sizing: border-box; }
   .gap10 { height: 10px; }
   .gap6 { height: 6px; }
   .pair { display: flex; align-items: center; gap: 10px; }
@@ -156,7 +157,10 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    height: 48px;
+    min-height: 48px;
+    padding: 8px 14px;
+    text-align: center;
+    overflow-wrap: anywhere;
     border-radius: 24px;
     box-sizing: border-box;
     background: var(--accent);

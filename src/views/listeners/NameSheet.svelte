@@ -110,4 +110,8 @@
   .actions { display: flex; flex-direction: column; gap: 8px; }
   .del { display: flex; align-items: center; justify-content: center; }
   .only { font-size: 12px; color: var(--muted); text-align: center; }
+  @media (max-width: 300px) {
+    .who { flex-wrap: wrap; }
+    .who .grow { flex-basis: 100%; }
+  }
 </style>

@@ -97,7 +97,10 @@
     {:else if $route === '/library/manage'}
       <ManageScreen />
     {:else if $route === '/settings/listeners'}
-      <ListenerManager onback={() => go('#/settings')} />
+      <Shell {active} onswitchlistener={open}>
+        {#snippet player()}<MiniPlayerHost />{/snippet}
+        <ListenerManager onback={() => go('#/settings')} />
+      </Shell>
     {:else}
       <Shell {active} onswitchlistener={open}>
         {#snippet player()}<MiniPlayerHost />{/snippet}

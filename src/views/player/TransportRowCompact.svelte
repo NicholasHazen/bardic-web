@@ -22,4 +22,7 @@
 
 <style>
   .row { display: flex; align-items: center; justify-content: space-between; }
+  @media (max-width: 360px) {
+    .row :global(button.ib:not(.accent)) { width: 44px !important; height: 44px !important; border-radius: 22px !important; }
+  }
 </style>

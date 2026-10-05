@@ -70,7 +70,7 @@
   </div>
   {#if toMake > 0}
     <div class="make">
-      <Button style="width:100%;height:48px;border-radius:24px" onclick={() => onmakeready?.()}>Make the rest ready</Button>
+      <Button style="width:100%;min-height:48px;border-radius:24px" onclick={() => onmakeready?.()}>Make the rest ready</Button>
       <span class="note">Ready chapters play without waiting.</span>
     </div>
   {/if}
@@ -78,7 +78,7 @@
 
 <style>
   span { line-height: 1.35; }
-  .scroller { height: 551px; max-height: calc(100dvh - 293px); position: relative; flex-shrink: 0; }
+  .scroller { height: 551px; max-height: max(120px, calc(100dvh - 293px)); position: relative; flex-shrink: 0; }
   .scrolling { height: 100%; overflow-y: auto; scrollbar-width: none; }
   .scrolling::-webkit-scrollbar { display: none; }
   .fade { position: absolute; left: 0; right: 0; bottom: 0; height: 40px; pointer-events: none; background: linear-gradient(to bottom, rgba(22, 18, 32, 0), rgba(22, 18, 32, 0.9)); }
@@ -101,13 +101,18 @@
   }
   .row.current { background: rgba(255, 255, 255, 0.1); }
   .row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-  .num { font-size: 13px; font-weight: 700; color: var(--muted); width: 22px; }
+  .num { font-size: 13px; font-weight: 700; color: var(--muted); width: 22px; flex-shrink: 0; }
   .current .num { color: var(--accent); }
-  .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+  .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; overflow-wrap: anywhere; padding-block: 8px; }
   .title { font-family: var(--font-book); font-size: 15px; font-weight: 400; color: var(--ink); }
   .current .title { font-weight: 600; }
   .detail { font-size: 12px; font-weight: 400; color: var(--muted); }
   .word { width: 104px; display: flex; justify-content: flex-end; }
   .make { display: flex; flex-direction: column; gap: 8px; }
   .note { font-size: 13px; font-weight: 400; color: var(--muted); text-align: center; }
+  @media (max-width: 300px) {
+    .row { flex-wrap: wrap; gap: 4px 12px; padding-block: 8px; }
+    .text { flex-basis: calc(100% - 34px); padding-block: 0; }
+    .word { width: auto; margin-left: 34px; }
+  }
 </style>

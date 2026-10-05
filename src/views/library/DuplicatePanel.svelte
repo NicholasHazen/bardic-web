@@ -46,6 +46,7 @@
   .text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
   .name { font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.35; }
   .detail { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
+  .name, .detail { overflow-wrap: anywhere; }
   .actions { display: flex; flex-direction: column; gap: 8px; }
   .foot { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; text-align: center; }
 </style>

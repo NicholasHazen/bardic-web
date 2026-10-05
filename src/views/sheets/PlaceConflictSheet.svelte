@@ -60,7 +60,7 @@
   </ul>
   <div class="choices">
     <Button size={52} icon="play" style="width:100%" disabled={busy} onclick={() => onresolve?.(primary.who, { alwaysNewest })}>{choiceLabel(primary, secondary)}</Button>
-    <Button variant="glass" style="width:100%;height:48px;border-radius:24px" disabled={busy} onclick={() => onresolve?.(secondary.who, { alwaysNewest })}>{choiceLabel(secondary, primary)}</Button>
+    <Button variant="glass" style="width:100%;min-height:48px;border-radius:24px" disabled={busy} onclick={() => onresolve?.(secondary.who, { alwaysNewest })}>{choiceLabel(secondary, primary)}</Button>
   </div>
   <Glass radius={16} style="padding:10px 14px;flex-shrink:0">
     <SwitchRow label="Always use the newest place" detail="Stops asking. You can change this in Settings › Listening." checked={alwaysNewest} onchange={(c) => (alwaysNewest = c)} />
@@ -75,13 +75,14 @@
   .card { border-radius: 16px; padding: 14px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); display: flex; flex-direction: column; gap: 10px; }
   .card.suggested { background: rgba(255, 255, 255, 0.14); border: 1.5px solid var(--accent); }
   .top { display: flex; align-items: center; gap: 10px; }
-  .icon { display: inline-flex; color: var(--muted); }
+  .icon { display: inline-flex; color: var(--muted); flex-shrink: 0; }
   .suggested .icon { color: var(--accent); }
-  .device { font-size: 14px; font-weight: 700; color: var(--ink); flex: 1; }
+  .device { font-size: 14px; font-weight: 700; color: var(--ink); flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .when { font-size: 12px; font-weight: 400; color: var(--muted); }
-  .chapter { font-family: var(--font-book); font-size: 16px; font-weight: 500; color: var(--ink); }
+  .chapter { font-family: var(--font-book); font-size: 16px; font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
   .bar { display: flex; align-items: center; gap: 10px; }
   .pct { font-size: 12px; font-weight: 700; color: var(--muted); }
   .choices { display: flex; flex-direction: column; gap: 8px; }
+  .choices :global(button) { padding-block: 8px; box-sizing: border-box; }
   .kept { font-size: 12px; font-weight: 400; color: var(--muted); text-align: center; }
 </style>

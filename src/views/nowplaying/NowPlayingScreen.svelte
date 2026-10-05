@@ -293,6 +293,6 @@
   .screen { position: fixed; inset: 0; }
   .underlay { height: 100%; }
   .overlay { position: fixed; inset: 0; z-index: 30; background: var(--base); overflow: auto; }
-  .unavailable { position: fixed; left: 16px; right: 16px; bottom: 24px; z-index: 20; }
+  .unavailable { position: fixed; left: 16px; right: 16px; bottom: 24px; z-index: 20; max-height: calc(100% - 48px); overflow-y: auto; }
   .loading { position: fixed; inset: 0; display: grid; place-items: center; color: var(--muted); }
 </style>

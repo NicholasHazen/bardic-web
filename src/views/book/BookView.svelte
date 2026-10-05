@@ -221,18 +221,20 @@
   .grow { flex: 1; }
   .hero { display: flex; flex-direction: column; gap: 14px; }
   .head { display: flex; align-items: flex-start; gap: 16px; padding: 0 20px; }
-  .titles { display: flex; flex-direction: column; gap: 6px; }
+  .titles { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .flow { min-width: 0; flex: 1; }
-  .series { align-self: flex-start; font-family: serif; line-height: normal; }
+  .series { align-self: flex-start; max-width: 100%; font-family: serif; line-height: normal; }
+  .series :global(.badge) { height: auto; min-height: 22px; max-width: 100%; box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; }
   .title { margin: 0; font-size: 27px; font-weight: 700; color: var(--ink); letter-spacing: -0.02em; line-height: 1.1; }
   .title.big { font-size: 34px; line-height: 1.05; }
   .author { font-size: 14px; font-weight: 400; color: var(--muted); line-height: 1.35; }
   .meta { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
   .meta.wide { font-size: 13px; }
+  .title, .author, .meta { overflow-wrap: anywhere; }
   .cta { padding: 0 20px; }
   .block { display: flex; flex-direction: column; gap: var(--section-gap, 10px); }
-  .none { display: flex; align-items: center; gap: 12px; }
-  .nonetext { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+  .none { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .nonetext { display: flex; flex-direction: column; gap: 1px; flex: 1 1 140px; min-width: 0; }
   .voice { font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.35; }
   .sub { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
   .problem { padding: 0 20px; }
@@ -243,4 +245,14 @@
   .left { display: flex; flex-direction: column; gap: 18px; width: 320px; flex-shrink: 0; }
   .center { display: flex; flex-direction: column; gap: 10px; flex: 1; min-width: 0; }
   .right { display: flex; flex-direction: column; gap: 14px; width: 340px; flex-shrink: 0; }
+  @media (max-width: 1100px) {
+    .body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: 'book audio' 'chapters chapters'; align-content: start; }
+    .left { grid-area: book; width: auto; min-width: 0; }
+    .right { grid-area: audio; width: auto; min-width: 0; }
+    .center { grid-area: chapters; }
+  }
+  @media (max-width: 360px) {
+    .head { flex-wrap: wrap; }
+    .flow { flex-basis: 100%; }
+  }
 </style>

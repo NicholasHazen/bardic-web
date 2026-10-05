@@ -32,6 +32,19 @@
     if (e.key === 'Escape') {
       e.stopPropagation();
       onclose?.();
+    } else if (e.key === 'Tab' && sheet) {
+      const buttons = Array.from(sheet.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+        .filter((el) => el.getClientRects().length > 0);
+      const first = buttons[0];
+      const last = buttons[buttons.length - 1];
+      if (!first || !last) return void e.preventDefault();
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === sheet)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (document.activeElement === last || document.activeElement === sheet)) {
+        e.preventDefault();
+        first.focus();
+      }
     }
   }
 </script>
@@ -72,6 +85,8 @@
     right: 0;
     bottom: 0;
     max-width: 560px;
+    max-height: calc(100% - 24px);
+    overflow-y: auto;
     margin: 0 auto;
     box-sizing: border-box;
     padding: 12px 20px calc(32px + env(safe-area-inset-bottom, 0px));
@@ -89,12 +104,13 @@
     outline: none;
   }
   .col { display: flex; flex-direction: column; gap: 16px; }
-  .grab { align-self: center; padding: 14px 40px; margin: -14px 0; background: none; border: 0; cursor: pointer; }
+  /* Keep the drawn handle in place while its button reaches 44 px inside the sheet. */
+  .grab { align-self: center; padding: 12px 40px 28px; margin: -12px 0 -28px; background: none; border: 0; cursor: pointer; }
   .grab span { display: block; width: 36px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.35); }
   .eyebrow { font-family: var(--font-ui); font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
-  .status { display: flex; align-items: center; gap: 8px; }
+  .status { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; overflow-wrap: anywhere; }
   .word { font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--ink); }
   .detail { font-family: var(--font-ui); font-size: 12px; color: var(--muted); flex: 1; }
   .left { font-family: var(--font-ui); font-size: 12px; color: var(--muted); }
-  .choose { align-self: center; height: 44px; padding: 0 20px; border-radius: 22px; background: var(--glass-control); color: var(--ink); border: 1px solid var(--edge); font-family: var(--font-ui); font-size: 14px; font-weight: 600; cursor: pointer; }
+  .choose { align-self: center; min-height: 44px; max-width: 100%; box-sizing: border-box; padding: 8px 20px; border-radius: 22px; background: var(--glass-control); color: var(--ink); border: 1px solid var(--edge); font-family: var(--font-ui); font-size: 14px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; cursor: pointer; }
 </style>

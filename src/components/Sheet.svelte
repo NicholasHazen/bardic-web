@@ -124,6 +124,8 @@
     padding: 10px 20px 28px;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 -20px 60px rgba(0, 0, 0, 0.6);
   }
+  /* Short viewports scroll the sheet rather than compressing its information cards. */
+  .sheet > :global(*) { flex-shrink: 0; }
   .sheet.popover {
     left: 108px;
     bottom: 20px;
@@ -134,7 +136,7 @@
   }
   .grab { width: 40px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.3); align-self: center; flex-shrink: 0; }
   .head { display: flex; align-items: flex-start; gap: 8px; }
-  .titles { display: flex; flex-direction: column; gap: 2px; }
+  .titles { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
   .eyebrow { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 0.14em; text-transform: uppercase; }
   .title { font-size: 24px; font-weight: 700; color: var(--ink); letter-spacing: -0.02em; }
   .popover .title { font-size: 20px; }

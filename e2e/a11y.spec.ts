@@ -303,8 +303,28 @@ const phases: Phase[] = [
       {
         name: 'Book (plan stopped, audio kept)',
         setup: async (c) => {
-          const plans = (await api(c, 'GET', '/api/plans')).json.items as { id: string; state: string }[];
-          for (const p of plans) if (['running', 'paused'].includes(p.state)) await api(c, 'POST', `/api/plans/${p.id}/stop`, {});
+          // The running scan holds a paid request for 60 s. Changing the fake's delay
+          // affects future requests only, and Pause keeps the current chapter working.
+          // Drain that chapter before freeing audio: Stop can leave only a partial
+          // chapter, and its state alone does not mean the single worker is idle.
+          c.gemini.setDelay(0);
+          const plans = (await api(c, 'GET', `/api/plans?audiobook_id=${c.w.tideAb}`)).json.items as { id: string; state: string; job_id: string }[];
+          for (const p of plans) {
+            if (!['running', 'paused'].includes(p.state)) continue;
+            if (p.state === 'running') expect((await api(c, 'POST', `/api/plans/${p.id}/pause`, {})).status).toBe(200);
+            const job = await api(c, 'GET', `/api/jobs/${p.job_id}`);
+            expect(job.status).toBe(200);
+            const finishing = job.json.current_chapter_id as string | null;
+            if (finishing) {
+              await expect.poll(async () => {
+                const chapters = await api(c, 'GET', `/api/audiobooks/${c.w.tideAb}/chapters`);
+                expect(chapters.status).toBe(200);
+                const chapter = (chapters.json.items as { chapter_id: string; state: string; audio: unknown }[]).find((ch) => ch.chapter_id === finishing);
+                return chapter?.state === 'ready' && !!chapter.audio;
+              }, { timeout: 90000 }).toBe(true);
+            }
+            expect((await api(c, 'POST', `/api/plans/${p.id}/stop`, {})).status).toBe(200);
+          }
           expect((await api(c, 'DELETE', `/api/audiobooks/${c.w.tideAb}/space`)).status).toBe(200);
           c.gemini.setDelay(2000); // allow one chapter to finish, then stop before the next does
           await go(c.page, `/book/${c.w.tide}`);

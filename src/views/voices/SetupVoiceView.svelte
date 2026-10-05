@@ -52,8 +52,12 @@
   .card { display: flex; flex-direction: column; gap: 10px; }
   .top { display: flex; align-items: center; gap: 12px; }
   .icon { width: 40px; height: 40px; border-radius: 12px; background: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+  .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .name { font-family: var(--font-ui); font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.35; }
   .blurb { font-family: var(--font-ui); font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.4; }
   .problem { margin: 0; font-family: var(--font-ui); font-size: 13px; color: #ffbcae; line-height: 1.35; }
+  @media (max-width: 300px) {
+    .top { display: grid; grid-template-columns: 40px minmax(0, 1fr); }
+    .top > :global(.badge) { grid-column: 2; justify-self: start; }
+  }
 </style>

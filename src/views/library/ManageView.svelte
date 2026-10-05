@@ -190,6 +190,7 @@
   .name { font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.35; }
   .name.strong { font-weight: 700; }
   .by { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
+  .name, .by, .sname, .vtitle { overflow-wrap: anywhere; }
   .editor { display: flex; flex-direction: column; gap: 14px; }
   .pair { display: flex; align-items: center; gap: 10px; }
   .order { width: 84px; }
@@ -197,14 +198,14 @@
   input { min-height: 44px; padding: 0; line-height: 1.35; border: 0; outline: 0; background: transparent; flex: 1; min-width: 0; width: 100%; font-family: var(--font-ui); font-size: 14px; color: var(--ink); }
   .col:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 12px; }
   input::placeholder { color: var(--muted); opacity: 0.8; }
-  .btns { display: flex; align-items: center; gap: 10px; }
+  .btns { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .danger { display: flex; flex-direction: column; gap: 4px; }
   .note { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
   .series { display: flex; flex-direction: column; gap: 10px; }
   .sname { font-size: 16px; font-weight: 700; color: var(--ink); line-height: 1.35; }
   .vol { display: flex; align-items: center; gap: 10px; }
-  .order-n { font-size: 12px; font-weight: 700; color: var(--muted); line-height: 1.35; width: 16px; }
-  .vtitle { font-size: 14px; font-weight: 500; color: var(--ink); line-height: 1.35; flex: 1; }
+  .order-n { font-size: 12px; font-weight: 700; color: var(--muted); line-height: 1.35; min-width: 16px; flex-shrink: 0; }
+  .vtitle { font-size: 14px; font-weight: 500; color: var(--ink); line-height: 1.35; flex: 1; min-width: 0; }
   .empty { margin: 0; padding: 0 24px; font-size: 14px; color: var(--muted); line-height: 1.5; }
   @media (max-width: 300px) {
     .pair, .btns, .line, .vol { flex-wrap: wrap; }

@@ -74,7 +74,7 @@
       </button>
     {/each}
   </Glass>
-  <Button variant="glass" style="width: 100%; height: 48px; border-radius: 24px" onclick={onclose}>Close</Button>
+  <Button variant="glass" style="width: 100%; min-height: 48px; border-radius: 24px" onclick={onclose}>Close</Button>
 </Sheet>
 
 <style>
@@ -83,7 +83,7 @@
   .row:disabled { cursor: default; opacity: 0.55; }
   .row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .icon { width: 34px; height: 34px; border-radius: 10px; background: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+  .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .name { font-size: 15px; font-weight: 500; color: var(--ink); line-height: 1.35; }
   .danger .name { color: #ffbcae; }
   .sub { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }

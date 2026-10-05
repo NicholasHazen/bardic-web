@@ -30,7 +30,7 @@
 
   const typing = $derived(draft.trim().length > 0);
   const placeholder = $derived(status === 'connected' ? '••••••••••••••••••••' : 'Paste your Google API key');
-  const btn = 'height:48px;border-radius:24px';
+  const btn = 'min-height:48px;border-radius:24px';
 </script>
 
 <div class="col">

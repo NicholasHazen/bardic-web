@@ -151,8 +151,8 @@
         <ReadPanel {state} {appearance} {layout} {markedLineIds} {followNarration} {pageWidth} bind:following {ongotoline} {onopenAppearance} />
       </div>
     {:else}
-      <div class="column">
-        <div class="bar" style:padding={topPad}>
+      <div class="column" inert={controlsOpen}>
+        <div class="bar" class:downloading={state.mode === 'read' && !!download} style:padding={topPad}>
           <IconButton label="Minimise" icon="chevron-down" onclick={oncollapse} />
           <div class="mid"><ModeSwitch value={state.mode} onchange={onsetmode} /></div>
           {#if state.mode === 'read'}
@@ -161,7 +161,7 @@
             <IconButton label="More" icon="more" onclick={onmore} />
           {/if}
           {#if state.mode === 'read' && download}
-            <DownloadRing fraction={download.fraction} label={download.label} onclick={onopendownloads} style="position: absolute; left: calc(50% + 89px); top: 14px" />
+            <span class="download"><DownloadRing fraction={download.fraction} label={download.label} onclick={onopendownloads} /></span>
           {/if}
         </div>
         {#if state.mode === 'listen'}
@@ -187,11 +187,19 @@
   .layer { position: relative; height: 100%; }
   .column { display: flex; flex-direction: column; height: 100%; }
   .bar { position: relative; display: flex; align-items: center; }
+  .download { position: absolute; left: calc(50% + 89px); top: 14px; }
   .bar.one { padding: 14px 20px 0; }
   .mid { flex: 1; display: flex; justify-content: center; }
   .landscape { display: flex; align-items: stretch; height: 100%; }
   .left { width: 480px; flex-shrink: 0; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
   .sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+  @media (max-width: 360px) {
+    .bar.downloading { flex-wrap: wrap; row-gap: 8px; }
+    .bar.downloading > .mid { order: 3; flex-basis: 100%; }
+    .bar.downloading > :global(button) { margin-left: auto; }
+    .bar.downloading > :global(button:first-child) { margin-left: 0; }
+    .download { left: auto; right: 64px; top: 8px; }
+  }
   @media (max-width: 300px) {
     .np { overflow-y: auto; }
     .layer, .column { height: auto; min-height: 100%; }

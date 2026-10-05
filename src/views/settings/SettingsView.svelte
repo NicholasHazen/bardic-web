@@ -156,12 +156,18 @@
   .row:last-child { border-bottom: 0; }
   .row.who { min-height: 66px; }
   .icon { width: 34px; height: 34px; border-radius: 10px; background: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+  .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .name { font-size: 15px; font-weight: 500; color: var(--ink); }
   .name.strong { font-weight: 600; }
   .sub { font-size: 12px; font-weight: 400; color: var(--muted); }
   a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   @media (min-width: 768px) {
     .sub { color: var(--ink); }
+  }
+  @media (max-width: 300px) {
+    .row { display: grid; grid-template-columns: 34px minmax(0, 1fr) 16px; gap: 8px; padding: 8px; }
+    .row.who { grid-template-columns: 40px minmax(0, 1fr) 16px; }
+    .row > :global(.badge) { grid-column: 2; grid-row: 2; justify-self: start; }
+    .row > :global(svg) { grid-column: 3; grid-row: 1; }
   }
 </style>

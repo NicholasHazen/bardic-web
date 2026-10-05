@@ -27,7 +27,7 @@
       <div class="bar"><div class="fill" style:width="{Math.min(1, Math.max(0, state.bookProgress)) * 100}%"></div></div>
     </div>
     <button type="button" class="speed" aria-label="Playback speed {speedLabel(state.speed)}" onclick={onopenSpeed}>{speedLabel(state.speed)}</button>
-    <IconButton label="Back 15 seconds" icon="back-15" tone="ghost" class="plain" onclick={() => onskip?.(-15)} />
+    <span class="skip"><IconButton label="Back 15 seconds" icon="back-15" tone="ghost" class="plain" onclick={() => onskip?.(-15)} /></span>
     <IconButton label="Show controls" icon="chevron-down" tone="ghost" class="plain" iconSize={20} aria-expanded={controlsOpen} data-show-controls="" onclick={onshowcontrols} />
   </div>
 </div>
@@ -52,11 +52,18 @@
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32), 0 16px 40px rgba(0, 0, 0, 0.5);
   }
   .capsule.centered { left: 50%; right: auto; margin-left: -210px; width: 420px; }
-  .inner { display: flex; align-items: center; gap: 12px; }
+  .inner { display: flex; align-items: center; gap: 12px; max-width: 100%; min-width: 0; }
+  .skip { display: contents; }
   .txt { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
   .label { font-family: var(--font-ui); font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
   .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
   .bar { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.2); position: relative; }
   .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: var(--accent); }
   .speed { height: 44px; min-width: 52px; padding: 0 9px; border-radius: 22px; background: rgba(255, 255, 255, 0.1); border: 1px solid var(--edge); color: var(--ink); font-family: var(--font-ui); font-size: 13px; font-weight: 700; flex-shrink: 0; cursor: pointer; }
+  @media (max-width: 360px) {
+    .inner { gap: 8px; width: 100%; }
+    /* The full transport remains one tap away; keep this capsule at 68 px. */
+    .skip { display: none; }
+    .label { font-size: 12px; }
+  }
 </style>

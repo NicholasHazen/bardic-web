@@ -70,7 +70,7 @@
   .pop.fixed { position: fixed; }
   .col { display: flex; flex-direction: column; gap: 16px; }
   .head { display: flex; align-items: flex-start; gap: 8px; }
-  .titles { display: flex; flex-direction: column; gap: 2px; }
+  .titles { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
   .eyebrow { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 0.14em; text-transform: uppercase; }
   .title { font-size: 22px; font-weight: 700; color: var(--ink); letter-spacing: -0.02em; }
   .spacer { flex: 1; }

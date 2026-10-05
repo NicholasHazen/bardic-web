@@ -189,8 +189,8 @@
   .book.last, .removed.last { border-bottom: 0; }
   .open { display: flex; flex-direction: column; justify-content: center; gap: 1px; flex: 1; min-width: 0; min-height: 44px; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; font-family: var(--font-ui); color: var(--ink); }
   .open:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
-  .name { font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.35; }
-  .sub { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
+  .name { font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.35; overflow-wrap: anywhere; }
+  .sub { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; overflow-wrap: anywhere; }
   @media (min-width: 768px) { .sub { color: var(--ink); } }
   .trash { width: 44px; height: 44px; border-radius: 22px; background: transparent; border: 1px solid transparent; color: var(--ink); display: inline-flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; cursor: pointer; }
   .trash:disabled { opacity: 0.5; cursor: default; }

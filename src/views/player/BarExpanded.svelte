@@ -89,6 +89,8 @@
   .card {
     box-sizing: border-box;
     padding: 14px 16px 16px;
+    max-height: calc(100vh - 120px - env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
     background: rgba(20, 16, 28, 0.82);
     -webkit-backdrop-filter: blur(40px) saturate(1.7);
     backdrop-filter: blur(40px) saturate(1.7);
@@ -102,7 +104,7 @@
   .head { display: flex; align-items: center; gap: 12px; }
   .cover { position: relative; box-sizing: border-box; width: 56px; height: 84px; border-radius: 11px; padding: 7px; box-shadow: 0 7px 14px rgba(0, 0, 0, 0.5); flex-shrink: 0; border: 1px solid rgba(255, 255, 255, 0.18); display: flex; flex-direction: column; justify-content: flex-end; }
   .cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
-  .text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  .text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .title { font-family: var(--font-ui); font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.35; }
   .sub { font-family: var(--font-ui); font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
   .state { display: flex; align-items: center; gap: 6px; min-height: 22px; }
@@ -129,4 +131,8 @@
   .sleep { padding: 0 14px; gap: 6px; }
   .sleep span { font-family: var(--font-ui); font-size: 13px; font-weight: 600; color: var(--ink); line-height: 1.35; }
   .chapters { width: 44px; padding: 0; justify-content: center; }
+  @media (max-width: 360px) {
+    .tools { flex-wrap: wrap; }
+    .state { flex-wrap: wrap; }
+  }
 </style>

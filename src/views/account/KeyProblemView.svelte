@@ -24,7 +24,7 @@
   }
   let { words, draft = $bindable(''), busy = null, attempt = null, hint = '', onback, onreplace, ontest }: Props = $props();
 
-  const btn = 'height:48px;border-radius:24px';
+  const btn = 'min-height:48px;border-radius:24px';
 </script>
 
 <div class="col">

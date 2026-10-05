@@ -136,9 +136,9 @@
   .intro { margin: 0; padding: 0 24px; font-family: var(--font-ui); font-size: 14px; font-weight: 400; color: var(--muted); line-height: 1.5; }
   .card { display: flex; flex-direction: column; gap: 10px; }
   .card.tight { gap: 6px; }
-  .line { display: flex; align-items: center; gap: 8px; }
+  .line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .k { flex: 1; font-family: var(--font-ui); font-size: 13px; font-weight: 600; color: var(--ink); line-height: 1.35; }
-  .v { font-family: var(--font-ui); font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.35; }
+  .v { font-family: var(--font-ui); font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.35; min-width: 0; overflow-wrap: anywhere; }
   .small { font-family: var(--font-ui); font-size: 12px; font-weight: 400; color: color-mix(in srgb, var(--muted) 80%, var(--ink)); line-height: 1.35; }
   .row { width: 100%; min-height: 66px; display: flex; align-items: center; gap: 12px; padding: 0 14px; box-sizing: border-box; border: 0; background: none; text-align: left; cursor: pointer; color: inherit; font: inherit; }
   .row.ruled { border-bottom: 1px solid rgba(255, 255, 255, 0.08); }

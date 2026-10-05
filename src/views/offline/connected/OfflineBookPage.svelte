@@ -73,7 +73,7 @@
 {/snippet}
 
 <style>
-  .card { display: flex; flex-direction: column; gap: 6px; font-family: var(--font-ui); }
+  .card { display: flex; flex-direction: column; gap: 6px; font-family: var(--font-ui); overflow-wrap: anywhere; }
   .voice { font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.35; }
   .sub { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
 </style>

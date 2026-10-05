@@ -22,7 +22,7 @@
   let { rows, selectedId = null, choosable = true, playingId = null, label, style = '', scroll = false, onhear, onpick }: Props = $props();
 </script>
 
-<Glass radius={16} style="overflow:hidden;{scroll ? 'overflow-y:auto;min-height:124px;' : ''}{style}" role={choosable ? 'radiogroup' : 'group'} aria-label={label}>
+<Glass radius={16} style="overflow:hidden;{scroll ? 'overflow-y:auto;min-height:124px;flex-shrink:1;' : ''}{style}" role={choosable ? 'radiogroup' : 'group'} aria-label={label}>
     {#each rows as r (r.id)}
       {@const on = r.id === selectedId}
       <div class="row" class:dim={r.unavailable}>
@@ -77,7 +77,7 @@
   .pick.static { cursor: default; }
   .pick:disabled { cursor: default; }
   .dim .text { opacity: 0.6; }
-  .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+  .text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .name { font-size: 15px; font-weight: 500; color: var(--ink); }
   .name.on { font-weight: 700; }
   .detail { font-size: 12px; font-weight: 400; color: var(--muted); }
@@ -86,4 +86,11 @@
   }
   .mark { width: 22px; flex-shrink: 0; display: flex; justify-content: center; }
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  @media (max-width: 300px) {
+    .pick { display: grid; grid-template-columns: minmax(0, 1fr) 22px; gap: 8px; padding-block: 8px; }
+    .pick.static { grid-template-columns: minmax(0, 1fr); }
+    .text { grid-column: 1; }
+    .mark { grid-column: 2; grid-row: 1; }
+    .pick > :global(.badge) { grid-column: 1; justify-self: start; }
+  }
 </style>

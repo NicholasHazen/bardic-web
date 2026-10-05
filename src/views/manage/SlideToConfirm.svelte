@@ -96,4 +96,8 @@
   @media (prefers-reduced-motion: reduce) {
     .handle { transition: none; }
   }
+  @media (max-width: 300px) {
+    .track { height: auto; min-height: 56px; padding-block: 8px; box-sizing: border-box; }
+    .label { padding: 0 16px 0 60px; text-align: center; overflow-wrap: anywhere; }
+  }
 </style>

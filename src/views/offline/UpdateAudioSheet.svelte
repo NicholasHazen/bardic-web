@@ -66,7 +66,7 @@
 
 <Sheet title="Newer audio is available" eyebrow={updateEyebrow(voiceName, range)} {onclose} {placement} {fixed} {scrim}>
   <span class="why">{updateReason(offers, range)}</span>
-  <Glass radius={16} style="overflow: hidden; display: flex">
+  <Glass radius={16} style="overflow: hidden; display: flex; flex-shrink: 0">
     <div class="side" role="group" aria-label="On this device">
       <div class="col">
         <span class="cap">On this device</span>
@@ -127,7 +127,7 @@
 
 <style>
   .why { font-family: var(--font-ui); font-size: 14px; font-weight: 400; color: var(--muted); line-height: 1.5; }
-  .side { display: flex; align-items: center; gap: 14px; padding: 14px; }
+  .side { display: flex; align-items: center; gap: 14px; padding: 14px; min-width: 0; overflow-wrap: anywhere; }
   .col { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
   .rule { width: 1px; background: rgba(255, 255, 255, 0.12); }
   .cap { font-family: var(--font-ui); font-size: 12px; font-weight: 700; color: var(--muted); line-height: 1.35; letter-spacing: 0.1em; text-transform: uppercase; }
@@ -146,6 +146,6 @@
   .pick:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .box { width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--muted); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-sizing: border-box; }
   .box.on { background: var(--accent); border-color: var(--accent); }
-  .ctitle { font-family: var(--font-book); font-size: 15px; flex: 1; min-width: 0; line-height: 1.35; }
+  .ctitle { font-family: var(--font-book); font-size: 15px; flex: 1; min-width: 0; line-height: 1.35; overflow-wrap: anywhere; }
   .csub { font-size: 12px; color: var(--muted); }
 </style>

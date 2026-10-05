@@ -128,22 +128,24 @@
 </div>
 
 <style>
-  .lp { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-  .mid { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; overflow: hidden; }
+  .lp { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; overflow-y: auto; scrollbar-width: none; }
+  .lp::-webkit-scrollbar { display: none; }
+  .mid { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: min-content; }
   .mid.portrait { flex-direction: row; align-items: center; justify-content: flex-start; }
-  .bottom { display: flex; flex-direction: column; }
+  .bottom { display: flex; flex-direction: column; flex-shrink: 0; }
   .portrait-bottom { gap: 20px; width: 100%; max-width: 560px; align-self: center; padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); box-sizing: content-box; }
-  .titles { display: flex; flex-direction: column; gap: 6px; }
+  .titles { display: flex; flex-direction: column; gap: 6px; min-width: 0; max-width: 100%; flex-shrink: 0; overflow-wrap: anywhere; }
+  .titles.center { max-width: calc(100% - 32px); }
   .titles.center { align-items: center; text-align: center; }
   .t { margin: 0; font-family: var(--font-ui); font-weight: 700; letter-spacing: -0.02em; color: var(--ink); }
   .ch { font-family: var(--font-book); color: var(--muted); }
   .by { font-family: var(--font-ui); font-size: 15px; color: var(--muted); }
   .state { display: flex; flex-direction: column; gap: 10px; }
-  .pillrow { display: flex; align-items: center; gap: 8px; min-height: 24px; }
+  .pillrow { display: flex; align-items: center; gap: 8px; min-height: 24px; flex-wrap: wrap; }
   .detail { font-family: var(--font-ui); font-size: 12px; color: var(--muted); }
   .kept { margin: 0; font-family: var(--font-ui); font-size: 13px; line-height: 1.45; color: var(--muted); }
-  .choose { height: 44px; padding: 0 20px; border-radius: 22px; background: var(--glass-control); color: var(--ink); border: 1px solid var(--edge); font-family: var(--font-ui); font-size: 14px; font-weight: 600; cursor: pointer; }
-  .head { display: flex; align-items: flex-end; gap: 24px; padding: 12px 56px 0; }
+  .choose { min-height: 44px; max-width: calc(100% - 32px); box-sizing: border-box; padding: 8px 20px; border-radius: 22px; background: var(--glass-control); color: var(--ink); border: 1px solid var(--edge); font-family: var(--font-ui); font-size: 14px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; cursor: pointer; }
+  .head { display: flex; align-items: flex-end; gap: 24px; padding: 12px 56px 0; min-width: 0; max-width: 100%; box-sizing: border-box; }
   .info { display: flex; flex-direction: column; gap: 14px; flex: 1; min-width: 0; justify-content: flex-end; }
   .eyebrow { font-family: var(--font-ui); font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--label-accent, var(--accent)); }
   .upnext { display: flex; flex-direction: column; gap: 8px; }
@@ -151,7 +153,7 @@
   .list { list-style: none; margin: 0; padding: 0; box-sizing: border-box; overflow: hidden; width: 100%; background: rgba(14, 12, 22, 0.45); -webkit-backdrop-filter: blur(30px) saturate(1.7); backdrop-filter: blur(30px) saturate(1.7); border: 1px solid var(--edge); border-radius: 16px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 10px 30px rgba(0, 0, 0, 0.28); }
   .item { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
   .num { font-family: var(--font-ui); font-size: 13px; font-weight: 700; color: var(--muted); width: 22px; }
-  .name { font-family: var(--font-book); font-size: 16px; color: var(--ink); flex: 1; }
+  .name { font-family: var(--font-book); font-size: 16px; color: var(--ink); flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .word { font-family: var(--font-ui); font-size: 12px; color: var(--muted); }
   @media (max-width: 300px) {
     .lp { flex: none; }

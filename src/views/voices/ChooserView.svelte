@@ -86,7 +86,7 @@
       <Callout title={freeNote.title}>{freeNote.body}</Callout>
       <div class="actions">
         <Button size={52} style="width:100%" disabled={!freeChosen || busy} onclick={() => onstart?.()} icon="play">Start listening</Button>
-        <Button variant="glass" style="width:100%;height:48px;border-radius:24px" disabled={!freeChosen || busy} onclick={() => onmakeready?.()}>
+        <Button variant="glass" style="width:100%;min-height:48px;border-radius:24px" disabled={!freeChosen || busy} onclick={() => onmakeready?.()}>
           <Glyph name="sparkle" size={18} />Make the whole book ready
         </Button>
       </div>
@@ -109,7 +109,7 @@
       <div class="actions">
         <Button size={52} style="width:100%" disabled={!premiumChosen} onclick={() => onplanwhole?.()}><Glyph name="sparkle" size={18} />Plan the whole book</Button>
         {#if fromChapter}
-          <Button variant="glass" style="width:100%;height:48px;border-radius:24px" disabled={!premiumChosen} onclick={() => onplanfrom?.()}>
+          <Button variant="glass" style="width:100%;min-height:48px;border-radius:24px" disabled={!premiumChosen} onclick={() => onplanfrom?.()}>
             <Glyph name="sparkle" size={18} />Plan from chapter {fromChapter}
           </Button>
         {/if}

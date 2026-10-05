@@ -44,10 +44,10 @@
 </svelte:element>
 
 <style>
-  .tile { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; font-family: var(--font-ui); color: inherit; text-decoration: none; cursor: pointer; }
+  .tile { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; align-self: start; min-width: 0; font-family: var(--font-ui); color: inherit; text-decoration: none; cursor: pointer; }
   .art { position: relative; }
   .mark { position: absolute; right: 6px; top: 6px; width: 26px; height: 26px; border-radius: 13px; background: rgba(14, 12, 22, 0.78); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.3); }
-  .meta { display: flex; flex-direction: column; gap: 1px; }
+  .meta { display: flex; flex-direction: column; gap: 1px; overflow-wrap: anywhere; }
   .name { font-size: 13px; font-weight: 600; color: var(--ink); line-height: 1.35; }
   .sub { font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
 </style>

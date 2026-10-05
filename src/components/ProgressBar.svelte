@@ -9,7 +9,7 @@
   let { value, height = 3, track = 'rgba(255,255,255,.18)', style = '' }: Props = $props();
 </script>
 
-<div class="bar" style:height="{height}px" style:border-radius="{height === 4 ? 2 : height}px" style:background={track} {style}>
+<div class="bar" style:height="{height}px" style:max-height="{height}px" style:border-radius="{height === 4 ? 2 : height}px" style:background={track} {style}>
   <div class="fill" style:width="{value * 100}%" style:border-radius="{height === 4 ? 2 : height}px"></div>
 </div>
 
