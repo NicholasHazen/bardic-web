@@ -42,6 +42,7 @@
     voiceName: f.voiceName,
     options,
     selected: f.selected,
+    includeMatter: f.matterAvailable ? f.includeMatter : undefined,
     estimate: f.estimate,
     previewing: f.phase === 'loading' || f.phase === 'previewing',
     limitText: f.limitText,
@@ -73,6 +74,7 @@
       {placement}
       {fixed}
       onselect={(id) => planStore.select(id)}
+      onmatter={(include) => planStore.setIncludeMatter(include)}
       onlimit={(t) => planStore.setLimit(t)}
       onapprove={() => planStore.approve()}
       onallowance={() => leave('#/settings/allowance')}
@@ -85,6 +87,7 @@
       {placement}
       {fixed}
       onselect={(id) => planStore.select(id)}
+      onmatter={(include) => planStore.setIncludeMatter(include)}
       onlimit={(t) => planStore.setLimit(t)}
       onwhy={() => planStore.explain(true)}
       onapprove={() => planStore.approve()}

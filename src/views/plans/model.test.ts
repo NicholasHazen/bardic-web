@@ -5,6 +5,11 @@ import { blockedModel, explainedModel, sheetModel, whyNot } from './model';
 const base = { voiceName: 'Kore', options: fx.optionsWhole, selected: 'whole', estimate: fx.estimateWhole, limitText: '$2.60', nowMs: fx.AT };
 
 describe('the plan sheet model', () => {
+  it('offers the optional matter choice for connected flows while reference boards omit it', () => {
+    expect(sheetModel(base).includeMatter).toBeUndefined();
+    expect(sheetModel({ ...base, includeMatter: false }).includeMatter).toBe(false);
+    expect(sheetModel({ ...base, includeMatter: true }).includeMatter).toBe(true);
+  });
   it('shows every figure of [PlanPremium] and a button that names the cost', () => {
     const m = sheetModel(base);
     expect(m.eyebrow).toBe('Kore · premium');
@@ -83,6 +88,12 @@ describe('the plan sheet model', () => {
 describe('the blocked sheet model', () => {
   const options = [fx.optionsWhole[0]!, { id: 'smaller', title: 'First 12 chapters', detail: 'About $1.15' }];
   const input = { voiceName: 'Kore', options, selected: 'smaller', estimate: fx.estimateSmaller, blockedFrom: fx.estimateBlocked, whole: true, limitText: '$1.20', nowMs: fx.AT };
+
+  it('retains the matter choice while a plan is blocked', () => {
+    expect(blockedModel(input).includeMatter).toBeUndefined();
+    expect(blockedModel({ ...input, includeMatter: false }).includeMatter).toBe(false);
+    expect(blockedModel({ ...input, includeMatter: true }).includeMatter).toBe(true);
+  });
 
   it('says first what would pass the Allowance, as [PlanBlocked] does', () => {
     const m = blockedModel(input);

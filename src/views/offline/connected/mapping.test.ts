@@ -101,6 +101,33 @@ describe('a held book with no server', () => {
     expect(p.chapters.rows.some((r) => r.current)).toBe(true);
     expect(offlinePage(many, null, true).chapters.rows).toHaveLength(10);
   });
+  it('hides cached matter with stable chapter IDs, story numbers and device totals', () => {
+    const cached = book({ chapters: [
+      ch(1, 'on_device', { kind: 'front_matter', title: 'Copyright' }),
+      ch(2, 'on_device', { kind: 'story', title: 'The Lantern River' }),
+      ch(3, 'on_device', { kind: 'back_matter', title: 'Notes' }),
+      ch(4, 'on_device', { kind: 'story', title: 'The Far Shore' }),
+      ch(5, 'out_of_date', { kind: 'back_matter', title: 'Acknowledgements' }),
+    ] });
+    const before = structuredClone(cached);
+    const place = { chapterId: 'c4', updatedAt: 5 };
+    const all = offlinePage(cached, place, true);
+    expect(all.chapters.rows.map((row) => [row.id, row.number])).toEqual([['c1', '–'], ['c2', '1'], ['c3', '–'], ['c4', '2'], ['c5', '–']]);
+    const hidden = offlinePage(cached, place, true, true);
+    expect(hidden.chapters).toMatchObject({ hasMatter: true, storyOnly: true, total: 2 });
+    expect(hidden.chapters.rows.map((row) => [row.id, row.number])).toEqual([['c2', '1'], ['c4', '2']]);
+    expect(hidden.chapters.rows[1]?.current).toBe(true);
+    expect(hidden.deviceLine).toBe(all.deviceLine);
+    expect(hidden.header).toEqual(all.header);
+    expect(cached).toEqual(before);
+    expect(offlinePage(cached, place, true, false)).toEqual(all);
+  });
+  it('keeps legacy cached chapters visible when their kind is unknown', () => {
+    const legacy = book();
+    const hidden = offlinePage(legacy, null, true, true);
+    expect(hidden.chapters.hasMatter).toBe(false);
+    expect(hidden.chapters.rows.map((row) => row.id)).toEqual(['c1', 'c2', 'c3']);
+  });
 });
 
 describe('local places', () => {

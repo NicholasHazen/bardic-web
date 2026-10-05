@@ -2,6 +2,7 @@
   import Button from '../../components/Button.svelte';
   import Callout from '../../components/Callout.svelte';
   import Glass from '../../components/Glass.svelte';
+  import MatterChoice from '../../components/MatterChoice.svelte';
   import OptionCard from '../../components/OptionCard.svelte';
   import Sheet from '../../components/Sheet.svelte';
   import type { MakeSheetModel } from './types';
@@ -12,11 +13,14 @@
     onselect?: (id: string) => void;
     onstart?: () => void;
     onclose?: () => void;
+    /** Live audio selection; independent of the chapter list's visibility. */
+    includeMatter?: boolean;
+    onmatter?: (include: boolean) => void;
     placement?: 'bottom' | 'popover';
     /** Position against the viewport (the app) instead of the nearest positioned parent (design boards). */
     fixed?: boolean;
   }
-  let { model, onselect, onstart, onclose, placement = 'bottom', fixed = false }: Props = $props();
+  let { model, onselect, onstart, onclose, includeMatter, onmatter, placement = 'bottom', fixed = false }: Props = $props();
 </script>
 
 <Sheet title="Make ready" eyebrow={model.eyebrow} {onclose} {placement} {fixed}>
@@ -25,6 +29,9 @@
       <OptionCard title={o.title} detail={o.detail} selected={o.id === model.selected} onselect={() => onselect?.(o.id)} />
     {/each}
   </div>
+  {#if includeMatter !== undefined}
+    <MatterChoice checked={includeMatter} disabled={model.busy} onchange={onmatter} />
+  {/if}
   <Glass radius={16} style="overflow: hidden">
     <dl>
       <div class="r"><dt>To make</dt><dd>{model.toMake}</dd></div>

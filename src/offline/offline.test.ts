@@ -4,7 +4,9 @@ import { FakeClock } from '../lib/fakeClock';
 import { createOffline, type OfflineDeps, type OfflineEngine } from './offline';
 import { AUDIOBOOK as AB, BOOK, FakeConnection, FakeEvents, FakeServer, fakeStorage, fakeUrls } from './testing';
 import { memoryStore, withQuota, type ChapterContent, type ChapterRecord, type OfflineStore } from './store';
-import type { OfflineBook, OfflineStateX } from './types';
+import type { ChapterMetadata, OfflineBook, OfflineStateX } from './types';
+import { bookKey, type BookMeta } from './downloader';
+import { offlinePage } from '../views/offline/connected/mapping';
 
 const DAY = 86_400_000;
 
@@ -650,7 +652,219 @@ describe('remove finished books after N days', () => {
   });
 });
 
+describe('refreshed chapter metadata', () => {
+  const refreshed: ChapterMetadata[] = [
+    { id: 'ch1', title: 'Dedication', kind: 'front_matter' },
+    { id: 'ch2', title: 'The Lantern', kind: 'story' },
+    { id: 'ch3', title: 'Acknowledgments', kind: 'back_matter' },
+  ];
+
+  it('updates every matching audiobook cache, persists the labels, and preserves held data and download settings without contact', async () => {
+    const inner = memoryStore();
+    const writes: string[] = [];
+    const store: OfflineStore = { ...inner, setValue: async (key, value) => { writes.push(key); await inner.setValue(key, value); } };
+    const server = new FakeServer(3, 20_000);
+    for (const c of server.chapters) c.title = `Section ${c.index + 1}`;
+    server.makeAll();
+    const api = {
+      ...server.api,
+      audiobook: async (id: string) => {
+        const r = await server.api.audiobook(id);
+        return r.ok && id === 'ab-other' ? { ...r, value: { ...r.value, book_id: 'other-book' } } : r;
+      },
+    };
+    const w = world({ server, store, api });
+    for (const id of [AB, 'ab2', 'ab-other']) {
+      await w.o.start(id, { kind: 'ready_now' }, READY);
+      await until(() => get(w.o).books.find((b) => b.audiobookId === id)?.chapters.every((c) => c.state === 'on_device') === true);
+    }
+    w.o.setOptions(AB, { wifiOnly: true, keepNew: true });
+    w.o.pause(AB);
+    await w.settle();
+    const metadata = await Promise.all([AB, 'ab2', 'ab-other'].map((id) => store.getValue<BookMeta>(bookKey(id))));
+    const records = await store.chapters();
+    const contents = new Map(inner.raw.contents);
+    const audio = await Promise.all((await store.audioIds()).map(async (id) => [id, new Uint8Array(await (await store.readAudio(id))!.arrayBuffer())] as const));
+    const held = new Map(w.o.heldAudiobookIds().map((id) => [id, new Set(w.o.heldChapters(id))]));
+    const heldChapter = await w.o.heldChapter(AB, 'ch1');
+    server.reachable = false;
+    const calls = [...server.log];
+    writes.length = 0;
+
+    await w.o.updateChapterMetadata(BOOK, refreshed);
+
+    expect(server.log).toEqual(calls);
+    expect(writes.sort()).toEqual([bookKey(AB), bookKey('ab2')].sort());
+    for (let i = 0; i < 2; i++) {
+      const before = metadata[i]!;
+      expect(await store.getValue<BookMeta>(bookKey(before.audiobookId))).toEqual({
+        ...before,
+        chapters: before.chapters.map((c, index) => ({ ...c, title: refreshed[index]!.title, kind: refreshed[index]!.kind })),
+      });
+      const book = get(w.o).books.find((b) => b.audiobookId === before.audiobookId)!;
+      expect(book.chapters.map((c) => [c.chapterId, c.index, c.title, c.kind])).toEqual(refreshed.map((c, index) => [c.id, index, c.title, c.kind]));
+      expect(offlinePage(book, null, true, true).chapters.rows.map((c) => c.id)).toEqual(['ch2']);
+    }
+    expect(await store.getValue<BookMeta>(bookKey('ab-other'))).toEqual(metadata[2]);
+    expect(get(w.o).books.find((b) => b.audiobookId === 'ab-other')!.chapters.map((c) => [c.title, c.kind])).toEqual([['Section 1', 'story'], ['Section 2', 'story'], ['Section 3', 'story']]);
+    expect(await store.chapters()).toEqual(records);
+    expect(inner.raw.contents).toEqual(contents);
+    for (const [id, bytes] of audio) expect(new Uint8Array(await (await store.readAudio(id))!.arrayBuffer())).toEqual(bytes);
+    expect(new Map(w.o.heldAudiobookIds().map((id) => [id, new Set(w.o.heldChapters(id))]))).toEqual(held);
+    expect(await w.o.heldChapter(AB, 'ch1')).toEqual(heldChapter);
+    expect(w.o.heldBook(BOOK, AB)!.chapters.map((c) => [c.id, c.index, c.title, c.kind])).toEqual(refreshed.map((c, index) => [c.id, index, c.title, c.kind]));
+
+    writes.length = 0;
+    await w.o.updateChapterMetadata(BOOK, refreshed);
+    expect(writes).toEqual([]);
+    expect(server.log).toEqual(calls);
+
+    w.o.destroy();
+    const reopened = createOffline({ api: server.api, store, clock: w.clock, connection: w.connection, events: null, storage: w.storage, urls: w.urls, listener: () => 'L1' });
+    await reopened.ready;
+    expect(reopened.heldBook(BOOK, AB)!.chapters.map((c) => [c.title, c.kind])).toEqual(refreshed.map((c) => [c.title, c.kind]));
+    expect(await reopened.heldChapter(AB, 'ch1')).toMatchObject({ text: heldChapter!.text, lines: heldChapter!.lines, timings: heldChapter!.timings });
+    expect(get(reopened).books.find((b) => b.audiobookId === AB)).toMatchObject({ wifiOnly: true, keepNew: true, status: 'paused' });
+    reopened.destroy();
+  });
+
+  it('keeps successful cache writes visible and rolls back failed labels so a retry saves them with concurrent settings', async () => {
+    const inner = memoryStore();
+    let failNext = false;
+    let rejectWrite: (() => void) | undefined;
+    const store: OfflineStore = {
+      ...inner,
+      setValue: async (key, value) => {
+        if (failNext && key === bookKey(AB)) {
+          failNext = false;
+          return new Promise<void>((_resolve, reject) => { rejectWrite = () => reject(new Error('cache write failed')); });
+        }
+        await inner.setValue(key, value);
+      },
+    };
+    const w = world({ store });
+    for (const id of [AB, 'ab2']) {
+      await w.o.start(id, { kind: 'ready_now' }, READY);
+      await until(() => get(w.o).books.find((b) => b.audiobookId === id)?.chapters.every((c) => c.state === 'on_device') === true);
+    }
+    await w.settle();
+    const before = w.book()!.chapters.map((c) => [c.title, c.kind]);
+    const records = await store.chapters();
+    failNext = true;
+    const update = w.o.updateChapterMetadata(BOOK, refreshed);
+    await until(() => rejectWrite !== undefined);
+    w.o.setOptions(AB, { wifiOnly: true });
+    w.o.pause(AB);
+    rejectWrite!();
+
+    await expect(update).rejects.toThrow('cache write failed');
+
+    expect(w.book()!.chapters.map((c) => [c.title, c.kind])).toEqual(before);
+    expect(w.book()).toMatchObject({ wifiOnly: true, status: 'paused' });
+    expect(get(w.o).books.find((b) => b.audiobookId === 'ab2')!.chapters.map((c) => [c.title, c.kind])).toEqual(refreshed.map((c) => [c.title, c.kind]));
+    expect((await store.getValue<BookMeta>(bookKey('ab2')))!.chapters.map((c) => [c.title, c.kind])).toEqual(refreshed.map((c) => [c.title, c.kind]));
+    expect(await store.chapters()).toEqual(records);
+
+    await w.o.updateChapterMetadata(BOOK, refreshed);
+
+    expect(w.book()!.chapters.map((c) => [c.title, c.kind])).toEqual(refreshed.map((c) => [c.title, c.kind]));
+    expect(await store.getValue<BookMeta>(bookKey(AB))).toMatchObject({ options: { wifiOnly: true, keepNew: false }, paused: true, chapters: refreshed });
+    expect(await store.chapters()).toEqual(records);
+    w.o.destroy();
+  });
+
+  it('updates a matching audiobook while leaving another copy with mismatched cached ordering intact', async () => {
+    const w = world();
+    for (const id of [AB, 'ab2']) {
+      await w.o.start(id, { kind: 'ready_now' }, READY);
+      await until(() => get(w.o).books.find((b) => b.audiobookId === id)?.chapters.every((c) => c.state === 'on_device') === true);
+    }
+    w.o.destroy();
+    const mismatched = (await w.store.getValue<BookMeta>(bookKey('ab2')))!;
+    mismatched.chapters.reverse();
+    await w.store.setValue(bookKey('ab2'), mismatched);
+    w.server.reachable = false;
+    const reopened = createOffline({ api: w.server.api, store: w.store, clock: w.clock, connection: w.connection, events: null, storage: w.storage, urls: w.urls, listener: () => 'L1' });
+    await reopened.ready;
+
+    await reopened.updateChapterMetadata(BOOK, refreshed);
+
+    expect((await w.store.getValue<BookMeta>(bookKey(AB)))!.chapters.map((c) => [c.title, c.kind])).toEqual(refreshed.map((c) => [c.title, c.kind]));
+    expect(await w.store.getValue<BookMeta>(bookKey('ab2'))).toEqual(mismatched);
+    expect(reopened.heldChapters(AB)).toEqual(new Set(['ch1', 'ch2', 'ch3']));
+    expect(reopened.heldChapters('ab2')).toEqual(new Set(['ch1', 'ch2', 'ch3']));
+    reopened.destroy();
+  });
+
+  it.each(['missing', 'different', 'reordered', 'duplicate'] as const)('leaves the entire cached audiobook unchanged when chapter IDs are %s', async (caseName) => {
+    const w = world();
+    await w.o.start(AB, { kind: 'ready_now' }, READY);
+    await until(() => allOnDevice(w));
+    await w.settle();
+    const beforeMeta = await w.store.getValue<BookMeta>(bookKey(AB));
+    const beforeBook = structuredClone(w.book());
+    const records = await w.store.chapters(AB);
+    const calls = [...w.server.log];
+    let chapters = refreshed.map((c) => ({ ...c }));
+    if (caseName === 'missing') chapters = chapters.slice(1);
+    if (caseName === 'different') chapters[2]!.id = 'new-id';
+    if (caseName === 'reordered') chapters.reverse();
+    if (caseName === 'duplicate') chapters[2]!.id = chapters[1]!.id;
+
+    await w.o.updateChapterMetadata(BOOK, chapters);
+
+    expect(await w.store.getValue<BookMeta>(bookKey(AB))).toEqual(beforeMeta);
+    expect(w.book()).toEqual(beforeBook);
+    expect(await w.store.chapters(AB)).toEqual(records);
+    expect(w.server.log).toEqual(calls);
+    w.o.destroy();
+  });
+});
+
 describe('held chapters for the player', () => {
+  it('retains cached matter metadata and all text/audio after offline hiding and reopening', async () => {
+    const server = new FakeServer(4, 20_000);
+    server.chapters[0]!.kind = 'front_matter';
+    server.chapters[3]!.kind = 'back_matter';
+    server.makeAll();
+    const w = world({ server });
+    await w.o.start(AB, { kind: 'ready_now' }, READY);
+    await until(() => allOnDevice(w));
+    const before = await w.store.chapters(AB);
+    const content = await w.store.content(AB, 'ch1');
+    const bytes = new Uint8Array(await (await w.store.readAudio(before[0]!.audioId))!.arrayBuffer());
+    w.o.destroy();
+    server.reachable = false;
+    const reopened = createOffline({ api: server.api, store: w.store, clock: w.clock, connection: w.connection, events: null, storage: w.storage, urls: w.urls, listener: () => 'L1' });
+    await reopened.ready;
+    const cached = get(reopened).books[0]!;
+    expect(cached.chapters.map((c) => [c.chapterId, c.index, c.kind])).toEqual([
+      ['ch1', 0, 'front_matter'], ['ch2', 1, 'story'], ['ch3', 2, 'story'], ['ch4', 3, 'back_matter'],
+    ]);
+    expect(offlinePage(cached, null, true, true).chapters.rows.map((row) => row.id)).toEqual(['ch2', 'ch3']);
+    expect([...reopened.heldChapters(AB)]).toEqual(['ch1', 'ch2', 'ch3', 'ch4']);
+    expect(await w.store.content(AB, 'ch1')).toEqual(content);
+    expect(new Uint8Array(await (await w.store.readAudio(before[0]!.audioId))!.arrayBuffer())).toEqual(bytes);
+    expect((await w.store.chapters(AB)).map((record) => [record.chapterId, record.audioId, record.textSha256])).toEqual(before.map((record) => [record.chapterId, record.audioId, record.textSha256]));
+    expect((await reopened.heldChapter(AB, 'ch1'))?.text).toBe(content?.text);
+    reopened.destroy();
+  });
+  it('treats missing legacy kind metadata as story without dropping cached chapters', async () => {
+    const w = world();
+    await w.o.start(AB, { kind: 'ready_now' }, READY);
+    await until(() => allOnDevice(w));
+    w.o.destroy();
+    const meta = (await w.store.getValue<BookMeta>(bookKey(AB)))!;
+    delete (meta.chapters[0] as { kind?: string }).kind;
+    meta.chapters[1]!.kind = 'unknown-old-kind';
+    await w.store.setValue(bookKey(AB), meta);
+    w.server.reachable = false;
+    const reopened = createOffline({ api: w.server.api, store: w.store, clock: w.clock, connection: w.connection, events: null, storage: w.storage, urls: w.urls, listener: () => 'L1' });
+    await reopened.ready;
+    expect(get(reopened).books[0]!.chapters.map((chapter) => chapter.kind)).toEqual(['story', 'story', 'story']);
+    expect([...reopened.heldChapters(AB)]).toEqual(['ch1', 'ch2', 'ch3']);
+    reopened.destroy();
+  });
   it('gives a URL that works without the server, the exact text, lines and timings', async () => {
     const w = world();
     await w.o.start(AB, { kind: 'ready_now' }, READY);
