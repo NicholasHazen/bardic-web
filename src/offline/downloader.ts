@@ -36,7 +36,7 @@ export interface BookMeta {
   coverUrl: string | null;
   voiceName: string;
   voiceRevision: string;
-  chapters: { id: string; index: number; title: string; kind: string }[];
+  chapters: { id: string; index: number; title: string; kind: string; wordCount?: number; textLength?: number; pageCount?: number | null }[];
   /** the last manifest read: chapter id to its entry */
   manifest: Record<string, ManifestChapter>;
   /** epoch ms of the last manifest read */
@@ -496,7 +496,7 @@ export class Downloader {
       coverUrl: info ? (realCoverUrl(info.cover) ?? null) : null,
       voiceName: ab.voice_name,
       voiceRevision: ab.voice_revision,
-      chapters: [...chapters.value].sort((a: BookChapter, b: BookChapter) => a.index - b.index).map((c) => ({ id: c.id, index: c.index, title: c.title, kind: c.kind })),
+      chapters: [...chapters.value].sort((a: BookChapter, b: BookChapter) => a.index - b.index).map((c) => ({ id: c.id, index: c.index, title: c.title, kind: c.kind, wordCount: c.word_count, textLength: c.text_length, pageCount: c.page_count })),
       manifest: {},
       checkedAt: null,
       options: { wifiOnly: false, keepNew: false },
@@ -707,4 +707,3 @@ export class Downloader {
     }
   }
 }
-

@@ -146,11 +146,11 @@ export const book: Book = {
 };
 
 export const chapters: Chapter[] = [
-  { id: 'c0', index: 0, title: 'Title page', kind: 'front_matter', word_count: 10, text_sha256: 'x' },
-  { id: 'c1', index: 1, title: 'Ash on the Water', kind: 'story', word_count: 1500, text_sha256: 'x' },
-  { id: 'c2', index: 2, title: 'What the Ledger Owes', kind: 'story', word_count: 1500, text_sha256: 'x' },
-  { id: 'c3', index: 3, title: 'A Debt in Salt', kind: 'story', word_count: 1500, text_sha256: 'x' },
-  { id: 'c4', index: 4, title: 'Afterword', kind: 'back_matter', word_count: 100, text_sha256: 'x' },
+  { id: 'c0', index: 0, title: 'Title page', kind: 'front_matter', word_count: 10, text_length: 31, page_count: null, text_sha256: 'x' },
+  { id: 'c1', index: 1, title: 'Ash on the Water', kind: 'story', word_count: 1500, text_length: 31, page_count: null, text_sha256: 'x' },
+  { id: 'c2', index: 2, title: 'What the Ledger Owes', kind: 'story', word_count: 1500, text_length: 31, page_count: null, text_sha256: 'x' },
+  { id: 'c3', index: 3, title: 'A Debt in Salt', kind: 'story', word_count: 1500, text_length: 31, page_count: null, text_sha256: 'x' },
+  { id: 'c4', index: 4, title: 'Afterword', kind: 'back_matter', word_count: 100, text_length: 31, page_count: null, text_sha256: 'x' },
 ];
 
 /** three lines per chapter, one per sentence */

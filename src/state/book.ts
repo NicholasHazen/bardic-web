@@ -123,6 +123,8 @@ export const apiGateway: BookGateway = {
  * fills it; until then the device holds nothing and every chapter shows the server's word.
  */
 export const deviceChapters = writable<ReadonlyMap<string, ReadonlyMap<string, DeviceCopy>>>(new Map());
+/** Runtime of held copies, including an old copy that the listener chose to keep. */
+export const deviceChapterDurations = writable<ReadonlyMap<string, ReadonlyMap<string, number>>>(new Map());
 
 // --------------------------------------------------------------------------- the current audiobook (B3)
 
@@ -249,7 +251,7 @@ export function toAudio(items: readonly AudiobookChapter[]): Map<string, Chapter
   return m;
 }
 
-const info = (c: Chapter): ChapterInfo => ({ id: c.id, title: c.title, kind: c.kind });
+const info = (c: Chapter): ChapterInfo => ({ id: c.id, title: c.title, kind: c.kind, wordCount: c.word_count, textLength: c.text_length, pageCount: c.page_count });
 
 export interface PageUi {
   expanded: boolean;
@@ -270,7 +272,7 @@ const heldOf = (s: Pick<BookState, 'currentId'>, device: ReadonlyMap<string, Rea
 /** The count of chapters of an audiobook that this device holds. */
 const heldCount = (id: string, device: ReadonlyMap<string, ReadonlyMap<string, DeviceCopy>>) => [...(device.get(id)?.values() ?? [])].filter((d) => d === 'held').length;
 
-export function pageModel(s: BookState, ui: PageUi, device: ReadonlyMap<string, ReadonlyMap<string, DeviceCopy>> = new Map(), nowMs = s.at): PageModel | null {
+export function pageModel(s: BookState, ui: PageUi, device: ReadonlyMap<string, ReadonlyMap<string, DeviceCopy>> = new Map(), nowMs = s.at, durations: ReadonlyMap<string, ReadonlyMap<string, number>> = new Map()): PageModel | null {
   const book = s.book;
   if (!book) return null;
   const current = currentAudiobook(s);
@@ -308,7 +310,8 @@ export function pageModel(s: BookState, ui: PageUi, device: ReadonlyMap<string, 
     held,
     deviceState: new Map([...copies].filter(([, d]) => d !== 'held')),
     currentId: s.place?.chapter_id,
-    progress: s.place?.progress,
+    currentOffset: s.place?.offset,
+    heldDurations: durations.get(s.currentId ?? ''),
     filter: ui.storyOnly ? 'story' : 'all',
   });
   const list = shortList(rows, ui.expanded);

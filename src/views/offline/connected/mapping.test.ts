@@ -128,12 +128,21 @@ describe('a held book with no server', () => {
     expect(hidden.chapters.hasMatter).toBe(false);
     expect(hidden.chapters.rows.map((row) => row.id)).toEqual(['c1', 'c2', 'c3']);
   });
+  it('shows cached source length, retained audio runtime and exact chapter-local progress without the server', () => {
+    const cached = book({ chapters: [ch(1, 'out_of_date', { wordCount: 1200, textLength: 10000, pageCount: 4, durationSeconds: 240 })] });
+    const row = offlinePage(cached, { chapterId: 'c1', offset: 2500, updatedAt: 5 }, true).chapters.rows[0]!;
+    expect(row).toMatchObject({ wordText: 'Out of date', metadata: '1,200 words · 4 pages · 4 min audio', progressText: '25% through chapter' });
+    expect(row.progress).toBeUndefined();
+    const legacy = offlinePage(book(), { chapterId: 'c1', offset: 5, updatedAt: 5 }, true).chapters.rows[0]!;
+    expect(legacy.metadata).toBeUndefined();
+    expect(legacy.progressText).toBeUndefined();
+  });
 });
 
 describe('local places', () => {
   it('reads the copy the device keeps and ignores damage', () => {
     const s = memoryStorage({ 'bardic.place.l1.b1': JSON.stringify({ chapterId: 'c2', offset: 4, mode: 'listening', updatedAt: 9 }), 'bardic.place.l1.b2': '{oops' });
-    expect(readLocalPlace(s, 'l1', 'b1')).toEqual({ chapterId: 'c2', updatedAt: 9 });
+    expect(readLocalPlace(s, 'l1', 'b1')).toEqual({ chapterId: 'c2', offset: 4, updatedAt: 9 });
     expect(readLocalPlace(s, 'l1', 'b2')).toBeNull();
     expect(readLocalPlace(s, 'l1', 'none')).toBeNull();
     expect(placeNumber(book(), { chapterId: 'c2', updatedAt: 9 })).toBe(2);

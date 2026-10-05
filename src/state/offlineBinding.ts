@@ -30,9 +30,24 @@ export function onDeviceBookIds(state: Pick<OfflineStateX, 'books'>): Set<string
   return out;
 }
 
+/** Runtime of audio retained on this device, so an Out of date copy keeps its own duration. */
+export function heldChapterDurations(state: Pick<OfflineStateX, 'books'>): Map<string, Map<string, number>> {
+  const out = new Map<string, Map<string, number>>();
+  for (const b of state.books) {
+    const durations = new Map<string, number>();
+    for (const c of b.chapters) {
+      if (typeof c.durationSeconds === 'number' && Number.isFinite(c.durationSeconds) && c.durationSeconds > 0 &&
+          (c.state === 'on_device' || c.state === 'out_of_date' || c.hasHeldCopy)) durations.set(c.chapterId, c.durationSeconds);
+    }
+    if (durations.size) out.set(b.audiobookId, durations);
+  }
+  return out;
+}
+
 export interface OfflineStoresTarget {
   deviceChapters: Writable<ReadonlyMap<string, ReadonlyMap<string, DeviceCopy>>>;
   onDeviceIds: Writable<ReadonlySet<string>>;
+  deviceChapterDurations?: Writable<ReadonlyMap<string, ReadonlyMap<string, number>>>;
 }
 
 /** Keep both stores in step with the engine. Returns the function that stops. */
@@ -40,5 +55,6 @@ export function bindOfflineStores(engine: Readable<OfflineStateX>, target: Offli
   return engine.subscribe((s) => {
     target.deviceChapters.set(deviceCopies(s));
     target.onDeviceIds.set(onDeviceBookIds(s));
+    target.deviceChapterDurations?.set(heldChapterDurations(s));
   });
 }

@@ -64,6 +64,8 @@ export function pickChapters(chapters: readonly ServerChapter[], audio: Readonly
 export interface LocalPlaceRef {
   chapterId: string;
   updatedAt: number;
+  /** Unicode code points inside the chapter; older places may omit it. */
+  offset?: number;
 }
 
 export function readLocalPlace(storage: Pick<Storage, 'getItem'>, listenerId: string, bookId: string): LocalPlaceRef | null {
@@ -71,7 +73,7 @@ export function readLocalPlace(storage: Pick<Storage, 'getItem'>, listenerId: st
     const raw = storage.getItem(`bardic.place.${listenerId}.${bookId}`);
     const p = raw ? (JSON.parse(raw) as Partial<LocalPlaceRef>) : null;
     if (!p || typeof p.chapterId !== 'string') return null;
-    return { chapterId: p.chapterId, updatedAt: typeof p.updatedAt === 'number' ? p.updatedAt : 0 };
+    return { chapterId: p.chapterId, updatedAt: typeof p.updatedAt === 'number' ? p.updatedAt : 0, ...(typeof p.offset === 'number' && Number.isFinite(p.offset) ? { offset: p.offset } : {}) };
   } catch {
     return null;
   }
@@ -101,21 +103,26 @@ export function offlinePage(book: OfflineBook | DownloadedBook, place: LocalPlac
   const held = heldCount(book);
   const total = book.chapters.length;
   const copies = new Map<string, DeviceCopy>();
-  const audio = new Map<string, { state: 'ready' | 'not_yet' }>();
+  const audio = new Map<string, { state: 'ready' | 'not_yet'; durationSeconds?: number }>();
+  const heldDurations = new Map<string, number>();
   for (const c of book.chapters) {
     if (c.state === 'on_device') copies.set(c.chapterId, 'held');
     else if (c.state === 'downloading' || c.state === 'queued') copies.set(c.chapterId, 'downloading');
     else if (c.state === 'failed') copies.set(c.chapterId, 'failed');
     else if (c.state === 'out_of_date') copies.set(c.chapterId, 'out_of_date');
-    audio.set(c.chapterId, { state: c.bytes !== null ? 'ready' : 'not_yet' });
+    const durationSeconds = c.durationSeconds ?? undefined;
+    if ((isHeld(c) || c.hasHeldCopy) && durationSeconds !== undefined) heldDurations.set(c.chapterId, durationSeconds);
+    audio.set(c.chapterId, { state: c.bytes !== null ? 'ready' : 'not_yet', durationSeconds });
   }
-  const chapters = book.chapters.map((c) => ({ id: c.chapterId, title: c.title, kind: c.kind ?? 'story' }));
+  const chapters = book.chapters.map((c) => ({ id: c.chapterId, title: c.title, kind: c.kind ?? 'story', wordCount: c.wordCount, textLength: c.textLength, pageCount: c.pageCount }));
   const rows: ChapterRowModel[] = chapterRows({
     chapters,
     audio: audio as never,
     held: new Set([...copies].filter(([, d]) => d === 'held').map(([id]) => id)),
     deviceState: new Map([...copies].filter(([, d]) => d !== 'held')),
     currentId: place?.chapterId,
+    currentOffset: place?.offset,
+    heldDurations,
     filter: storyOnly ? 'story' : 'all',
   });
   const shown = expanded || rows.length <= 4 ? rows : rows.slice(Math.min(Math.max(0, rows.findIndex((r) => r.current)), rows.length - 4), Math.min(Math.max(0, rows.findIndex((r) => r.current)), rows.length - 4) + 4);

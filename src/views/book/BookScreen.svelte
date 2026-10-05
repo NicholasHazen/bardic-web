@@ -3,7 +3,7 @@
   import Button from '../../components/Button.svelte';
   import Callout from '../../components/Callout.svelte';
   import { avatarHue } from '../../lib/listenerText';
-  import { bookStore, currentAudiobook, deviceChapters, followBookEvents, makeSheet, pageModel, type Audiobook } from '../../state/book';
+  import { bookStore, currentAudiobook, deviceChapters, deviceChapterDurations, followBookEvents, makeSheet, pageModel, type Audiobook } from '../../state/book';
   import { makeOptions } from '../../lib/bookAudio';
   import { currentListener, listenerStore } from '../../state/listener';
   import { isPlanNotice, planStore } from '../../state/plans';
@@ -85,12 +85,16 @@
   let downloadOpen = $state(false);
   let updateOpen = $state(false);
   let menuOpen = $state(false);
+  let chapterRefreshNotice = $state<string | undefined>();
+  let updatingChapters = $state(false);
+  let chapterRefreshRun = 0;
 
   // A different book or listener starts with the short list and nothing open.
   $effect(() => {
     void bookId;
     void listenerId;
     actionRun++;
+    chapterRefreshRun++;
     busy = false;
     expanded = false;
     storyOnly = false;
@@ -102,9 +106,11 @@
     downloadOpen = false;
     updateOpen = false;
     menuOpen = false;
+    chapterRefreshNotice = undefined;
+    updatingChapters = false;
   });
 
-  const page = $derived(pageModel(s, { expanded, storyOnly }, $deviceChapters));
+  const page = $derived(pageModel(s, { expanded, storyOnly }, $deviceChapters, s.at, $deviceChapterDurations));
   const palette = $derived(derivePalette(s.book?.cover?.sample));
   const sheet = $derived(makeOpen ? makeSheet(s, selected, includeMatter) : undefined);
   const hasMatter = $derived(s.chapters.some((c) => c.kind !== 'story'));
@@ -185,22 +191,31 @@
   }
 
   async function refreshChapterNames() {
-    if (busy || s.refreshingChapters) return;
+    if (busy || updatingChapters || s.refreshingChapters) return;
     const book = bookId;
     const listener = listenerId;
-    await act(async () => {
-      const r = await bookStore.refreshChapters();
-      if (!r.ok) return r;
-      const refreshed = $bookStore;
-      if (bookId !== book || listenerId !== listener || refreshed.book?.id !== book) return { ok: true };
-      player.updateChapterMetadata(book, refreshed.chapters);
-      try {
-        await offline.updateChapterMetadata(book, refreshed.chapters);
-      } catch {
-        return { ok: false, detail: 'Chapter names were refreshed on your Bardic computer. Downloaded text and audio are kept, but the updated names could not be saved on this device. Try refreshing again.' };
-      }
-      return { ok: true };
-    }, 'Couldn’t refresh chapter names');
+    const before = JSON.stringify(s.chapters);
+    const refreshRun = ++chapterRefreshRun;
+    chapterRefreshNotice = undefined;
+    updatingChapters = true;
+    try {
+      await act(async () => {
+        const r = await bookStore.refreshChapters();
+        if (!r.ok) return r;
+        const refreshed = $bookStore;
+        if (chapterRefreshRun !== refreshRun || bookId !== book || listenerId !== listener || refreshed.book?.id !== book) return { ok: true };
+        player.updateChapterMetadata(book, refreshed.chapters);
+        try {
+          await offline.updateChapterMetadata(book, refreshed.chapters);
+        } catch {
+          return { ok: false, detail: 'Chapter details were updated on your Bardic computer. Downloaded text and audio are kept, but the updated details could not be saved on this device. Try updating again.' };
+        }
+        if (chapterRefreshRun === refreshRun && bookId === book && listenerId === listener) chapterRefreshNotice = before === JSON.stringify(refreshed.chapters) ? 'Chapter details are up to date.' : 'Chapter details updated.';
+        return { ok: true };
+      }, 'Couldn’t update chapter details');
+    } finally {
+      if (chapterRefreshRun === refreshRun && bookId === book && listenerId === listener) updatingChapters = false;
+    }
   }
 
   function closeChooser() {
@@ -283,7 +298,8 @@
       onshowall={() => (expanded = true)}
       onfilter={(v) => (storyOnly = v)}
       onrefreshchapters={s.book?.source_sha256 ? refreshChapterNames : undefined}
-      refreshingChapters={s.refreshingChapters}
+      refreshingChapters={updatingChapters || s.refreshingChapters}
+      {chapterRefreshNotice}
       ondismissproblem={() => (problem = undefined)}
     />
   {:else if s.status === 'error'}

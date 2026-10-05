@@ -131,16 +131,16 @@ Requirement IDs are stable references for tests and tasks. "Must" is required fo
 - **A8.** Home (`[Home]`, `[HomeTablet]`, `[HomeEmpty]`, `[HomeOffline]`): the current listener's Continue item, On this device, Recently added. A finished book leaves Continue.
 - **A9.** Edit details (`[Manage]`): title, author, series and order, cover refresh. Never changes text.
 - **A10.** Book menu (`[BookMenu]`): mark finished, mark not started, edit details, free up space, remove from library.
-- **A11.** Adding a book recovers chapter names from its table of contents, with headings as a fallback, and identifies front and back matter. Matter is kept readable and can be voiced by choice. Existing books can refresh chapter names and matter labels from the saved original; a refresh preserves text, chapter and line identities, places and audio, and refuses changed text or chapter boundaries.
+- **A11.** Adding a book recovers chapter names from its table of contents, with meaningful headings as a fallback, and identifies front and back matter. Matter is kept readable and can be voiced by choice. Chapter metadata includes exact Unicode text length and page counts only when source pagination is known. Existing books can Update chapter details from the saved original; this preserves text, chapter and line identities, places and audio, and refuses changed text or chapter boundaries. The action lives in Chapter options and acknowledges completion or unchanged details.
 
 ### 5.3 Book page and audiobooks
 
 - **B1.** The book page (`[BookTop]`, `[BookChapters]`, `[BookTablet]`) shows the book, a primary *Continue listening* (or *Listen*), the current **Audiobook** card and the chapter list.
 - **B2.** The Audiobook card shows the voice, its tier, how many chapters are ready, how many are on this device, and two actions: **Make ready** and **Download**. It has a *Change* action that opens the voice chooser.
 - **B3.** Other audiobooks for the book are listed below with their own readiness. Choosing one makes it this listener's current audiobook; the place is kept (D1).
-- **B4.** Chapter rows carry exactly one audio word: *On this device*, *Ready*, *Making*, *Not yet* (section 6), plus *Downloading*, *Couldn't download* or *Out of date* on a device where applicable.
+- **B4.** Chapter rows carry exactly one audio word: *On this device*, *Ready*, *Making*, *Not yet* (section 6), plus *Downloading*, *Couldn't download* or *Out of date* on a device where applicable. They show word counts, source page counts when known and recorded audio duration for the selected audiobook. The current chapter shows text progress separately from its audio word; unknown figures are omitted.
 - **B5.** Pressing play on a chapter that is *Not yet* makes it on demand (section 7.2); it does not require a plan if the voice is free.
-- **B6.** The book page and player chapter list offer **Hide front and back matter**. This changes the visible list only; matter stays available when shown again. Matter is skipped by "next chapter" and automatic generation ahead by default but can be played explicitly. The choice to include matter when making audio is separate from list visibility.
+- **B6.** The book page's collapsed **Chapter options** panel and player chapter list offer a **Show front and back matter** switch with visible Shown/Hidden feedback. This changes the visible list only; matter stays available when shown again and the current chapter stays visible. Matter is skipped by "next chapter" and automatic generation ahead by default but can be played explicitly. The choice to include matter when making audio is separate from list visibility.
 
 ### 5.4 Voices
 

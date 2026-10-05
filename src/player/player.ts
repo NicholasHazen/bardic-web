@@ -54,6 +54,8 @@ export interface PlayerDeps {
   lifecycle?: Lifecycle | null;
   /** chapter ids this device holds (offline, W5); none until then */
   heldChapters?: (audiobookId: string) => ReadonlySet<string>;
+  /** Runtime of the held copy without loading its content; may differ from newer server audio. */
+  heldDuration?: (audiobookId: string, chapterId: string) => number | null;
   /** a downloaded chapter's audio, text and timings, usable with no server; null when this device does not hold it */
   held?: (audiobookId: string, chapterId: string) => Promise<HeldChapter | null>;
   /** a downloaded book as the device remembers it, for opening it with no server; null when nothing of it is held */
@@ -71,7 +73,7 @@ export interface PlayerDeps {
 export type RestoreResult = 'restored' | 'conflict_before' | 'conflict_after' | 'failed';
 
 export interface Player extends Readable<PlayerState>, PlayerCommands {
-  /** Update display names and matter kinds only when the complete chapter order is unchanged. */
+  /** Update display metadata only when the complete chapter order is unchanged. */
   updateChapterMetadata(bookId: string, chapters: readonly Chapter[]): boolean;
   /** Restore a recent text place, paused, through the same revision/conflict flow as ordinary places. */
   restorePlace(bookId: string, place: Place): Promise<RestoreResult>;
@@ -129,6 +131,7 @@ export function initialState(speed = 1): PlayerState {
     lines: [],
     timings: [],
     currentLineId: null,
+    chapterOffset: 0,
     chapters: [],
     conflict: null,
     finishedBook: false,
@@ -173,6 +176,8 @@ class PlayerImpl {
   private bookId: string | null = null;
   private book: Book | null = null;
   private chapters: Chapter[] = [];
+  /** Legacy caches used equal weights for whole-book progress; do not display those weights as word counts. */
+  private unknownWordCounts = new Set<string>();
   private audiobooks: Audiobook[] = [];
   private audiobook: Audiobook | null = null;
   private audio = new Map<string, AudiobookChapter>();
@@ -316,7 +321,16 @@ class PlayerImpl {
       const matter = c.kind !== 'story';
       const word: AudioWord = chapterWord(this.audio.get(c.id)?.state, held.has(c.id) ? 'held' : undefined);
       const audio = word === 'on_device' || word === 'ready' || word === 'making' ? word : 'not_yet';
-      return { id: c.id, title: c.title, index: c.index, storyNumber: matter ? null : ++story, matter, audio };
+      const ready = this.audio.get(c.id);
+      const seconds = held.has(c.id)
+        ? this.d.heldDuration?.(this.audiobook!.id, c.id) ?? (c.id === this.audioChapterId && this.st.duration > 0 ? this.st.duration : undefined)
+        : ready?.state === 'ready' ? ready.audio?.duration_seconds : undefined;
+      return {
+        id: c.id, title: c.title, index: c.index, storyNumber: matter ? null : ++story, matter, audio,
+        ...(this.unknownWordCounts.has(c.id) ? {} : { wordCount: c.word_count }),
+        textLength: c.text_length, pageCount: c.page_count,
+        ...(seconds === undefined || seconds === null ? {} : { durationSeconds: seconds }),
+      };
     });
   }
 
@@ -325,7 +339,13 @@ class PlayerImpl {
     if (!this.st.loaded || this.bookId !== bookId || chapters.length !== this.chapters.length || chapters.some((c, i) => c.id !== this.chapters[i]?.id)) return false;
     // An explicit refresh also supersedes an older event read still in flight.
     this.metadataRun++;
-    this.chapters = this.chapters.map((c, i) => ({ ...c, title: chapters[i]!.title, kind: chapters[i]!.kind }));
+    this.chapters = this.chapters.map((c, i) => ({
+      ...c, title: chapters[i]!.title, kind: chapters[i]!.kind,
+      text_length: chapters[i]!.text_length, page_count: chapters[i]!.page_count,
+      // Existing immutable text facts are retained; a legacy cache can gain a real count.
+      ...(this.unknownWordCounts.has(c.id) ? { word_count: chapters[i]!.word_count } : {}),
+    }));
+    this.unknownWordCounts.clear();
     const current = this.chapters.find((c) => c.id === this.curChapterId);
     if (this.offer) {
       const offered = this.chapters.find((c) => c.id === this.offer?.chapterId);
@@ -391,6 +411,7 @@ class PlayerImpl {
       aheadSeconds: known ? left + ahead : null,
       remainingSeconds: remaining,
       bookProgress: progressEstimate(this.chapters, cur, frac),
+      chapterOffset: this.currentPosition()?.offset ?? this.cursorOffset,
     });
   }
 
@@ -522,6 +543,7 @@ class PlayerImpl {
     }
     if (chapters.ok) {
       this.chapters = [...chapters.value].sort((a, c) => a.index - c.index);
+      this.unknownWordCounts.clear();
       const cur = this.chapters.find((c) => c.id === this.curChapterId);
       if (cur) this.push({ chapter: this.chapterInfo(cur) });
     }
@@ -608,7 +630,8 @@ class PlayerImpl {
       this.serverDown = true;
       this.tierKnown = false;
       this.book = bookFromHeld(held);
-      this.chapters = held.chapters.map((c) => ({ id: c.id, index: c.index, title: c.title, kind: c.kind, word_count: 1, text_sha256: '' }));
+      this.unknownWordCounts = new Set(held.chapters.filter((c) => c.wordCount === undefined).map((c) => c.id));
+      this.chapters = held.chapters.map((c) => ({ id: c.id, index: c.index, title: c.title, kind: c.kind, word_count: c.wordCount ?? 1, text_length: c.textLength ?? 0, page_count: c.pageCount ?? null, text_sha256: '' }));
       this.audiobooks = [audiobookFromHeld(held)];
     } else {
       this.book = book.value;
@@ -741,6 +764,7 @@ class PlayerImpl {
     this.book = null;
     this.audiobook = null;
     this.chapters = [];
+    this.unknownWordCounts.clear();
     this.audiobooks = [];
     this.st = { ...initialState(this.speed), placeSync: this.st.placeSync };
     this.store.set(this.st);
@@ -777,13 +801,16 @@ class PlayerImpl {
     this.text = t?.text ?? '';
     this.lines = t?.lines ?? [];
     this.timings = [];
-    this.cursorOffset = clamp(target.offset ?? 0, 0, cpLength(this.text));
+    if (t) this.chapters = this.chapters.map((c) => c.id === chapterId ? { ...c, text_length: cpLength(t.text) } : c);
+    this.cursorOffset = clamp(target.offset ?? 0, 0, t ? cpLength(this.text) : ch.text_length ?? 0);
     this.push({
       chapter: this.chapterInfo(this.chapters.find((c) => c.id === chapterId) ?? ch),
       text: this.text,
       lines: this.lines,
       timings: [],
       currentLineId: lineAtOffset(this.lines, this.cursorOffset)?.id ?? null,
+      chapterOffset: this.cursorOffset,
+      chapters: this.chapterList(),
       position: target.time ?? 0,
       duration: this.audio.get(chapterId)?.audio?.duration_seconds ?? 0,
       finishedBook: false,
@@ -830,6 +857,7 @@ class PlayerImpl {
     this.job = null;
     this.audioChapterId = a.chapter_id;
     this.push({ timings, duration: ref.duration_seconds, position: time, currentLineId: lineAtTime(timings, time * 1000) ?? this.st.currentLineId });
+    this.push({ chapters: this.chapterList() });
     this.engine.load(ref.url ?? `/api/audio/${ref.id}`, { startAt: time, rate: this.speed, timings });
     this.recompute();
     if (this.wantPlay) await this.startPlayback(my);
@@ -1262,7 +1290,7 @@ class PlayerImpl {
     if (!cur) return;
     this.wantPlay = false;
     this.engine.pause();
-    this.push({ playing: false, finishedBook: true, listening: null, detail: null, bookProgress: 1 });
+    this.push({ playing: false, finishedBook: true, listening: null, detail: null, bookProgress: 1, chapterOffset: cpLength(this.text) });
     // the place is the end of the last chapter; the server decides when that makes the book finished (C6)
     this.sync.record({ chapterId: cur, offset: cpLength(this.text), time: this.st.duration || null, mode: toPlaceMode(this.st.mode), audiobookId: this.audiobook?.id ?? null }, false);
     void this.sync.flush();
@@ -1561,7 +1589,7 @@ class PlayerImpl {
     }
     const off = clamp(offset, 0, cpLength(this.text));
     this.cursorOffset = off;
-    this.push({ currentLineId: lineAtOffset(this.lines, off)?.id ?? null, finishedBook: false });
+    this.push({ currentLineId: lineAtOffset(this.lines, off)?.id ?? null, finishedBook: false, chapterOffset: off });
     if (this.engine.loaded && this.audioChapterId === chapterId) {
       const t = (timeForOffset(this.timings, this.lines, off, this.st.duration * 1000) ?? 0) / 1000;
       this.anchor = { chapterId, offset: off, time: t };
@@ -1745,6 +1773,7 @@ export function browserDeps(): PlayerDeps {
     mediaSession: browserMediaSession(),
     listener: () => get(listenerStore).currentId,
     heldChapters: (audiobookId) => offline.heldChapters(audiobookId),
+    heldDuration: (audiobookId, chapterId) => offline.heldDuration(audiobookId, chapterId),
     held: (audiobookId, chapterId) => offline.heldChapter(audiobookId, chapterId),
     heldBook: (bookId, prefer) => offline.heldBook(bookId, prefer),
     online: derived(offline, (o) => o.online),

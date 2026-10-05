@@ -5,19 +5,22 @@
     title: string;
     /** Line under the title. */
     detail?: string;
+    metadata?: string;
+    progressText?: string;
     /** The chapter the listener is in. */
     current?: boolean;
     /** Right side: usually a Badge. */
     trailing?: Snippet;
   }
-  let { number, title, detail, current = false, trailing }: Props = $props();
+  let { number, title, detail, metadata, progressText, current = false, trailing }: Props = $props();
 </script>
 
 <div class="row" class:current>
   <span class="num">{number}</span>
   <div class="text">
     <span class="title">{title}</span>
-    {#if detail}<span class="detail">{detail}</span>{/if}
+    {#if metadata}<span class="detail">{metadata}</span>{/if}
+    {#if detail || progressText}<span class="detail">{[detail, progressText].filter(Boolean).join(' · ')}</span>{/if}
   </div>
   {@render trailing?.()}
 </div>

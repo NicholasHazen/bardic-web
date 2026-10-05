@@ -40,6 +40,9 @@
     "reason": "The Read playback-controls modal now traps keyboard focus and makes its covered reader inert. Its Hide controls handle has a 44 px target while the drawn handle stays in place. Dismissal returns focus to Show controls. Board tolerance remains unchanged."
   },
   "live:ChapterMatter": {
-    "reason": "Live free and premium audio sheets add Include front and back matter, off initially, separately from the chapter visibility filter. Imported book pages add Refresh chapter names to repair metadata without replacing text or audio. Downloaded book pages expose the existing matter filter using cached chapter kinds. These controls extend the supplied boards to meet PRODUCT-SPEC.md A11, B6 and PL12; static fixtures retain the original layout and default 1% tolerance."
+    "reason": "Live free and premium audio sheets add Include front and back matter, off initially, separately from chapter visibility. The book page keeps a Show front and back matter switch and Update chapter details in a collapsed Chapter options panel, with Shown/Hidden, Updating and completion feedback, per the user's chapter-parsing follow-up. Player and downloaded lists use the same visibility semantics. Updates preserve text and audio. These controls extend the supplied boards to meet PRODUCT-SPEC.md A11, B6 and PL12; static fixtures retain the original layout and default 1% tolerance."
+  },
+  "live:ChapterMetrics": {
+    "reason": "Per the user's request, live book/player chapter rows add word counts, source page counts when known and the existing selected audio's runtime. Current-chapter Unicode text progress appears alongside You are here while its audio word remains visible. Downloaded rows use cached metadata and their held audio duration. Unknown pages/runtime are omitted; static fixtures retain the supplied board layout and default 1% tolerance."
   }
 }

@@ -3,6 +3,7 @@
 // the free Make ready sheet shows. Plain functions with plain inputs so they can be tested; the store in
 // src/state/book.ts joins them to the API.
 import { formatBytes } from './bytes';
+import { chapterMetricsText, chapterProgressText } from './chapterMetrics';
 
 /** What the server says about a chapter of an audiobook (AudioWord in the contract). */
 export type ServerAudioWord = 'not_yet' | 'making' | 'ready';
@@ -92,6 +93,9 @@ export interface ChapterInfo {
   id: string;
   title: string;
   kind: 'story' | 'front_matter' | 'back_matter';
+  wordCount?: number;
+  textLength?: number;
+  pageCount?: number | null;
 }
 
 export interface ChapterRowModel {
@@ -101,12 +105,16 @@ export interface ChapterRowModel {
   title: string;
   /** "You are here" under the current chapter. */
   detail?: string;
+  /** Measured source length and audio runtime, when known. */
+  metadata?: string;
+  /** Progress within this chapter by text offset; separate from the audio word. */
+  progressText?: string;
   current: boolean;
   matter: boolean;
   word: AudioWord;
   wordText: string;
   tone: BadgeTone;
-  /** The listener's progress, shown in place of the word on the current chapter while its audio is ready (the word stays for screen readers). */
+  /** Legacy board presentation: percentage in the audio badge. Live rows use progressText and retain the audio word. */
   progress?: string;
 }
 
@@ -130,18 +138,22 @@ export interface RowsInput {
   /** Device copies that are not simply held (W5). */
   deviceState?: ReadonlyMap<string, DeviceCopy>;
   currentId?: string | null;
-  /** The listener's progress in the book, 0 to 1. */
+  /** Legacy board presentation only: the listener's progress in the book, 0 to 1. */
   progress?: number;
+  /** Unicode code point place inside the current chapter. */
+  currentOffset?: number;
+  /** Measured runtime of the copy this device actually holds; preferred to newer server audio. */
+  heldDurations?: ReadonlyMap<string, number>;
   filter?: 'all' | 'story';
 }
 
 /** One row per chapter, each with exactly one audio word (B4). Numbers count story chapters of the whole book, whatever the filter. */
 export function chapterRows(input: RowsInput): ChapterRowModel[] {
-  const { chapters, audio, held = new Set(), deviceState = new Map(), currentId, progress, filter = 'all' } = input;
+  const { chapters, audio, held = new Set(), deviceState = new Map(), currentId, progress, currentOffset, heldDurations = new Map(), filter = 'all' } = input;
   let story = 0;
   const numbered = chapters.map((c) => ({ c, number: isMatter(c) ? '–' : String(++story) }));
   return numbered
-    .filter(({ c }) => filter === 'all' || !isMatter(c))
+    .filter(({ c }) => filter === 'all' || !isMatter(c) || c.id === currentId)
     .map(({ c, number }) => {
       const device = deviceState.get(c.id) ?? (held.has(c.id) ? 'held' : undefined);
       const word = chapterWord(audio.get(c.id)?.state, device);
@@ -156,8 +168,16 @@ export function chapterRows(input: RowsInput): ChapterRowModel[] {
         wordText: AUDIO_WORD_TEXT[word],
         tone: AUDIO_WORD_TONE[word],
       };
+      const serverAudio = audio.get(c.id);
+      const durationSeconds = heldDurations.get(c.id) ?? (device === 'held' || device === 'out_of_date'
+        ? undefined
+        : serverAudio?.state === 'ready' ? serverAudio.durationSeconds : undefined);
+      const metadata = chapterMetricsText({ wordCount: c.wordCount, pageCount: c.pageCount, durationSeconds });
+      if (metadata) row.metadata = metadata;
       if (current) {
         row.detail = 'You are here';
+        const withinChapter = chapterProgressText(currentOffset, c.textLength);
+        if (withinChapter) row.progressText = withinChapter;
         if ((word === 'ready' || word === 'on_device') && progress !== undefined) row.progress = percentText(progress);
       }
       return row;

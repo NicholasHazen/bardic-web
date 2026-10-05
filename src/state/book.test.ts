@@ -38,11 +38,11 @@ const book: Book = {
   place: null,
 };
 const chapters: Chapter[] = [
-  { id: 'c0', index: 0, title: 'Title page', kind: 'front_matter', word_count: 10, text_sha256: 'x' },
-  { id: 'c1', index: 1, title: 'Ash on the Water', kind: 'story', word_count: 1500, text_sha256: 'x' },
-  { id: 'c2', index: 2, title: 'What the Ledger Owes', kind: 'story', word_count: 1500, text_sha256: 'x' },
-  { id: 'c3', index: 3, title: 'A Debt in Salt', kind: 'story', word_count: 1500, text_sha256: 'x' },
-  { id: 'c4', index: 4, title: 'Afterword', kind: 'back_matter', word_count: 100, text_sha256: 'x' },
+  { id: 'c0', index: 0, title: 'Title page', kind: 'front_matter', word_count: 10, text_length: 1000, page_count: null, text_sha256: 'x' },
+  { id: 'c1', index: 1, title: 'Ash on the Water', kind: 'story', word_count: 1500, text_length: 1000, page_count: null, text_sha256: 'x' },
+  { id: 'c2', index: 2, title: 'What the Ledger Owes', kind: 'story', word_count: 1500, text_length: 1000, page_count: null, text_sha256: 'x' },
+  { id: 'c3', index: 3, title: 'A Debt in Salt', kind: 'story', word_count: 1500, text_length: 1000, page_count: null, text_sha256: 'x' },
+  { id: 'c4', index: 4, title: 'Afterword', kind: 'back_matter', word_count: 100, text_length: 1000, page_count: null, text_sha256: 'x' },
 ];
 const ab = (id: string, tier: 'free' | 'premium', ready: number, voice = id, extra: Partial<Audiobook> = {}): Audiobook => ({
   id,
@@ -164,7 +164,8 @@ describe('shaping the page', () => {
     expect(m.audiobook).toMatchObject({ voice: 'Mara', tier: 'free', readyText: '3 of 5 chapters ready', deviceText: '0 on this device', canMakeReady: true, sourceLine: 'Breeze voice · from your Breeze server' });
     expect(m.others).toEqual([{ id: 'prem1', voice: 'Kore', tier: 'premium', line: '2 of 5 ready' }]);
     expect(m.chapters.rows.map((r) => r.wordText)).toEqual(['Ready', 'Ready', 'Ready', 'Making', 'Not yet']);
-    expect(m.chapters.rows[2]).toMatchObject({ current: true, progress: '34%' });
+    expect(m.chapters.rows[2]).toMatchObject({ current: true, metadata: '1,500 words · 2 min audio', progressText: '12% through chapter' });
+    expect(m.chapters.rows[2]?.progress).toBeUndefined();
     expect(m.chapters.hasMatter).toBe(true);
   });
 
@@ -173,6 +174,19 @@ describe('shaping the page', () => {
     const m = pageModel(get(store), { expanded: true, storyOnly: true })!;
     expect(m.chapters.rows.map((r) => r.number)).toEqual(['1', '2', '3']);
     expect(m.primaryLabel).toBe('Listen');
+  });
+  it('shows chapter-local progress before audio exists, independent of whole-book progress', async () => {
+    const store = await loaded(fakeGateway({ audiobooks: [ab('free1', 'free', 0)], place: place('free1', { offset: 500, progress: 0.91 }) }));
+    const row = pageModel(get(store), { expanded: true, storyOnly: false })!.chapters.rows[2]!;
+    expect(row).toMatchObject({ wordText: 'Not yet', metadata: '1,500 words', progressText: '50% through chapter' });
+    expect(row.progress).toBeUndefined();
+  });
+  it('uses the selected audiobook’s held runtime rather than a newer server copy', async () => {
+    const store = await loaded(fakeGateway({ audiobooks: [ab('free1', 'free', 1)], states: { c2: 'ready' } }));
+    const s = get(store);
+    const row = pageModel(s, { expanded: true, storyOnly: false }, new Map([['free1', new Map([['c2', 'out_of_date' as const]])]]), s.at,
+      new Map([['free1', new Map([['c2', 3900]])]]))!.chapters.rows[2]!;
+    expect(row).toMatchObject({ wordText: 'Out of date', metadata: '1,500 words · 1 h 5 min audio' });
   });
 
   it('a finished book offers Listen, not Continue', async () => {
