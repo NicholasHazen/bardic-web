@@ -18,7 +18,7 @@ const estimate = (id: string, over: Partial<PlanEstimate> = {}): PlanEstimate =>
   estimate_id: id,
   expires_at: later(15 * 60_000),
   audiobook_id: 'ab',
-  scope: { kind: 'whole_book' },
+  scope: { kind: 'whole_book', include_matter: false },
   text_characters: 100_000,
   chapters_to_make: 10,
   chapters_reused: 0,
@@ -34,7 +34,7 @@ const plan = (over: Partial<Plan> = {}): Plan => ({
   id: 'p1',
   audiobook_id: 'ab',
   book_id: 'b1',
-  scope: { kind: 'whole_book' },
+  scope: { kind: 'whole_book', include_matter: false },
   state: 'running',
   estimate: estimate('e').cost,
   limit: usd(260),
@@ -51,7 +51,7 @@ const plan = (over: Partial<Plan> = {}): Plan => ({
 });
 
 /** A gateway that records every call. `create` and `resume` are the ones that may charge. */
-function fakes() {
+function fakes(bookChapters: Chapter[] = chapters) {
   const calls: string[] = [];
   const created: { input: { estimate_id: string; limit: Money }; key: string }[] = [];
   const resumed: { id: string; newLimit?: Money }[] = [];
@@ -71,7 +71,7 @@ function fakes() {
     async preview(_l, _ab, scope) {
       calls.push('preview');
       previews.push(scope);
-      return state.previewResults.shift() ?? ok(estimate(`e${++n}`));
+      return state.previewResults.shift() ?? ok(estimate(`e${++n}`, { scope }));
     },
     async create(_l, input, key) {
       calls.push('create');
@@ -103,7 +103,7 @@ function fakes() {
   };
   const audio: AudiobookChapter[] = [];
   const books: Pick<BookGateway, 'chapters' | 'audioChapters' | 'place'> = {
-    chapters: async () => ok(chapters),
+    chapters: async () => ok(bookChapters),
     audioChapters: async () => ok(audio),
     place: async () => ok({ chapter_id: 'c4' } as never),
   };
@@ -150,14 +150,14 @@ describe('opening the sheet spends nothing (PL1)', () => {
     expect(s.choices[1]!.title).toBe('From chapter 4');
     expect(s.estimate?.estimate_id).toBe('e1');
     expect(s.limitText).toBe('$2.60');
-    expect(f.previews[0]).toEqual({ kind: 'whole_book' });
+    expect(f.previews[0]).toEqual({ kind: 'whole_book', include_matter: false });
   });
 
   it('opens on "from chapter" when asked, and falls back to the whole book when there is no such option', async () => {
     const f = fakes();
     await f.store.open({ ...params, initial: 'from' });
     expect(flow(f.store).selected).toBe('from');
-    expect(f.previews[0]).toEqual({ kind: 'from_chapter', from_chapter_id: 'c4' });
+    expect(f.previews[0]).toEqual({ kind: 'from_chapter', from_chapter_id: 'c4', include_matter: false });
     const g = fakes();
     const noPlace = new PlanStore(g.gw, { chapters: async () => ok(chapters), audioChapters: async () => ok([]), place: async () => ok(null) }, () => NOW);
     await noPlace.open({ ...params, initial: 'from' });
@@ -184,7 +184,7 @@ describe('opening the sheet spends nothing (PL1)', () => {
     const f = fakes();
     await f.store.open(params);
     f.store.setLimit('9.99');
-    f.state.previewResults.push(ok(estimate('e-from', { suggested_limit: usd(300), scope: { kind: 'from_chapter', from_chapter_id: 'c4' } })));
+    f.state.previewResults.push(ok(estimate('e-from', { suggested_limit: usd(300), scope: { kind: 'from_chapter', from_chapter_id: 'c4', include_matter: false } })));
     await f.store.select('from');
     expect(flow(f.store).estimate?.estimate_id).toBe('e-from');
     expect(flow(f.store).limitText).toBe('$3.00');
@@ -219,6 +219,91 @@ describe('opening the sheet spends nothing (PL1)', () => {
     await f.store.open(params);
     expect(flow(f.store).error?.text).toContain('Nothing was started');
     expect(flow(f.store).error?.text).toContain('could not be reached');
+  });
+});
+
+describe('choosing what matter to voice', () => {
+  const withMatter: Chapter[] = chapters.map((c, i) => ({ ...c, kind: i === 0 ? 'front_matter' : i === 9 ? 'back_matter' : 'story' }));
+
+  it('defaults to story chapters and recalculates eligible scope counts independently of chapter visibility', async () => {
+    const f = fakes(withMatter);
+    await f.store.open(params);
+    const s = flow(f.store);
+    expect(s.includeMatter).toBe(false);
+    expect(s.matterAvailable).toBe(true);
+    expect(s.choices[0]!.chapters.map((c) => c.id)).toEqual(['c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9']);
+    expect(s.choices[0]!.detail).toBe('8 chapters · none ready yet');
+    expect(s.choices[1]!.detail).toBe('6 chapters · none ready yet');
+    await f.store.setIncludeMatter(true);
+    expect(flow(f.store).choices[0]!.detail).toBe('10 chapters · none ready yet');
+    expect(f.previews[1]).toEqual({ kind: 'whole_book', include_matter: true });
+    await f.store.select('from');
+    expect(f.previews[2]).toEqual({ kind: 'from_chapter', from_chapter_id: 'c4', include_matter: true });
+    await f.store.setIncludeMatter(false);
+    expect(flow(f.store).selected).toBe('from');
+    expect(f.previews[3]).toEqual({ kind: 'from_chapter', from_chapter_id: 'c4', include_matter: false });
+    expect(f.count('create')).toBe(0);
+    expect(f.count('resume')).toBe(0);
+  });
+
+  it('invalidates the displayed quote immediately and ignores a late preview after another toggle', async () => {
+    const f = fakes(withMatter);
+    await f.store.open(params);
+    f.store.setLimit('9.99');
+    let release!: (value: R<PlanEstimate>) => void;
+    const delayed = new Promise<R<PlanEstimate>>((resolve) => (release = resolve));
+    const preview = f.gw.preview;
+    f.gw.preview = async (l, ab, scope) => scope.include_matter ? delayed : preview(l, ab, scope);
+    const including = f.store.setIncludeMatter(true);
+    expect(flow(f.store).estimate).toBeNull();
+    expect(flow(f.store).phase).toBe('previewing');
+    expect(flow(f.store).limitText).toBe('');
+    expect((await f.store.approve()).ok).toBe(false);
+    await f.store.setIncludeMatter(false);
+    const currentId = flow(f.store).estimate?.estimate_id;
+    release(ok(estimate('late-including', { scope: { kind: 'whole_book', include_matter: true } })));
+    await including;
+    expect(flow(f.store).includeMatter).toBe(false);
+    expect(flow(f.store).estimate?.estimate_id).toBe(currentId);
+    expect(flow(f.store).estimate?.scope.include_matter).toBe(false);
+    expect(flow(f.store).limitText).toBe('$2.60');
+    expect(f.count('create')).toBe(0);
+  });
+
+  it('discards smaller-plan quotes and the old blocked headline when matter changes', async () => {
+    const f = fakes(withMatter);
+    const blocked = estimate('blocked', { allowance: { monthly_limit: usd(2000), remaining: usd(120) }, blocked: { code: 'allowance_exceeded', text: 'No room.' } });
+    const smaller = estimate('smaller', { chapters_to_make: 2, cost: { ...blocked.cost, low: usd(45), likely: usd(55), high: usd(70) }, suggested_limit: usd(70), allowance: blocked.allowance });
+    f.state.previewResults.push(ok(blocked), ok(smaller));
+    await f.store.open(params);
+    expect(f.previews[1]?.include_matter).toBe(false);
+    expect(f.previews[1]?.chapter_ids).not.toContain('c1');
+    expect(f.previews[1]?.chapter_ids).not.toContain('c10');
+    await f.store.select('smaller');
+    expect(flow(f.store).estimate?.estimate_id).toBe('smaller');
+    await f.store.setIncludeMatter(true);
+    const s = flow(f.store);
+    expect(s.selected).toBe('whole');
+    expect(s.smaller).toBeNull();
+    expect(s.blockedFrom).toBeNull();
+    expect(s.choices.map((c) => c.id)).toEqual(['whole', 'from']);
+    expect(s.estimate?.scope.include_matter).toBe(true);
+    expect(f.previews.at(-1)).toEqual({ kind: 'whole_book', include_matter: true });
+    expect(f.count('create')).toBe(0);
+  });
+
+  it('keeps the approved selection fixed while approval is in flight', async () => {
+    const f = fakes(withMatter);
+    let release!: () => void;
+    f.state.delay = new Promise((resolve) => (release = resolve));
+    await f.store.open(params);
+    const approval = f.store.approve();
+    await f.store.setIncludeMatter(true);
+    expect(flow(f.store).includeMatter).toBe(false);
+    expect(f.count('preview')).toBe(1);
+    release();
+    expect((await approval).ok).toBe(true);
+    expect(f.count('create')).toBe(1);
   });
 });
 
@@ -452,13 +537,13 @@ describe('a plan that would pass the Allowance (PL3)', () => {
   it('offers a smaller plan that fits, prices it, and can approve that but never the blocked one', async () => {
     const f = fakes();
     // 10 equal chapters, high $2.60, $1.20 left: the first 4 chapters fit by the top of the range
-    const smaller = estimate('smaller', { chapters_to_make: 4, scope: { kind: 'chapters' }, cost: { ...blocked.cost, low: usd(72), likely: usd(84), high: usd(104) }, suggested_limit: usd(110), allowance: blocked.allowance });
+    const smaller = estimate('smaller', { chapters_to_make: 4, scope: { kind: 'chapters', include_matter: false }, cost: { ...blocked.cost, low: usd(72), likely: usd(84), high: usd(104) }, suggested_limit: usd(110), allowance: blocked.allowance });
     f.state.previewResults.push(ok(blocked), ok(smaller));
     await f.store.open(params);
     const s = flow(f.store);
     expect(s.blockedFrom?.estimate_id).toBe('whole-blocked');
     expect(s.blockedWhole).toBe(true);
-    expect(f.previews[1]).toEqual({ kind: 'chapters', chapter_ids: ['c1', 'c2', 'c3', 'c4'] });
+    expect(f.previews[1]).toEqual({ kind: 'chapters', chapter_ids: ['c1', 'c2', 'c3', 'c4'], include_matter: false });
     expect(s.choices.map((c) => c.id)).toEqual(['whole', 'from', 'smaller']);
     expect(s.choices[2]).toMatchObject({ title: 'First 4 chapters', detail: 'About $0.84' });
     // the blocked plan cannot be approved
@@ -479,7 +564,7 @@ describe('a plan that would pass the Allowance (PL3)', () => {
     const fits = estimate('s2', { chapters_to_make: 2, allowance: blocked.allowance });
     f.state.previewResults.push(ok(blocked), ok(stillBlocked), ok(fits));
     await f.store.open(params);
-    expect(f.previews[2]).toEqual({ kind: 'chapters', chapter_ids: ['c1', 'c2'] });
+    expect(f.previews[2]).toEqual({ kind: 'chapters', chapter_ids: ['c1', 'c2'], include_matter: false });
     expect(flow(f.store).choices.find((c) => c.id === 'smaller')?.title).toBe('First 2 chapters');
   });
 

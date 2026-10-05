@@ -59,6 +59,8 @@
     onchoose?: (audiobookId: string) => void;
     onshowall?: () => void;
     onfilter?: (storyOnly: boolean) => void;
+    onrefreshchapters?: () => void;
+    refreshingChapters?: boolean;
     ondismissproblem?: () => void;
   }
   let {
@@ -92,6 +94,8 @@
     onchoose,
     onshowall,
     onfilter,
+    onrefreshchapters,
+    refreshingChapters = false,
     ondismissproblem,
   }: Props = $props();
 
@@ -181,7 +185,7 @@
         {@render play()}
       </div>
       <div class="center">
-        <ChapterList model={chapters} {onshowall} {onfilter} />
+        <ChapterList model={chapters} {onshowall} {onfilter} onrefresh={onrefreshchapters} refreshing={refreshingChapters} {busy} />
       </div>
       <div class="right">
         {@render problemBox()}
@@ -208,7 +212,7 @@
     {@render problemBox()}
     {@render audiobookSection()}
     {@render othersSection()}
-    <ChapterList model={chapters} {onshowall} {onfilter} />
+    <ChapterList model={chapters} {onshowall} {onfilter} onrefresh={onrefreshchapters} refreshing={refreshingChapters} {busy} />
   </div>
 {/if}
 

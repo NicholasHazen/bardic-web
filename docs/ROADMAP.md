@@ -4,13 +4,21 @@
 |---|---|---|---|
 | W0 | Scaffold | Vite, TypeScript, generated API types, tokens and glass components, theme from cover sample, router, device id, health check. | The kitchen-sink page matches the `Components` and `B1Palette` boards. |
 | W1 | Listeners, Home, Library, Add | First listener, chooser, switcher, manage; Home; Library and search; add book with duplicate check and progress; sample book. | `[FirstListener]` to `[Import]` and `[LibraryDuplicate]` match; L1 to L7, A1 to A10 flows pass. |
-| W2 | Book page and voices | Book page, audiobook card, chapters; voice chooser (free, premium, no account); voice sources and set-up; default voice. | `[BookTop]` to `[VoiceNoAccount]`, `[SetupVoice]`, `[BreezeServer]`, `[VoiceSources]` match. |
+| W2 | Book page and voices | Book page, audiobook card, named chapters and hide-matter control; safe chapter metadata refresh; voice chooser (free, premium, no account); voice sources and set-up; default voice. | `[BookTop]` to `[VoiceNoAccount]`, `[SetupVoice]`, `[BreezeServer]`, `[VoiceSources]` match; B6 and A11 flows pass. |
 | W3 | Player and places | Now Playing (listen, read, tablet layouts), bar, speed, sleep, chapters, search, appearance; place sync and conflicts; end of book. | S1 to S9 and C1 to C7 flows pass; `[PlaceConflict]`, `[EndOfBook]`, `[ReadAway]` match. |
-| W4 | Plans and Allowance | Plan preview and approval, running, paused, blocked, estimate explained, key problem, Allowance. | P2 flow tests (no paid action without a plan); `[PlanPremium]` to `[KeyProblem]` match. |
+| W4 | Plans and Allowance | Plan preview and approval, independent include-matter choice for free/premium audio, running, paused, blocked, estimate explained, key problem, Allowance. | P2 flow tests (no paid action without a plan) and PL12 selection tests; `[PlanPremium]` to `[KeyProblem]` match. |
 | W5 | Offline | Download sheet and progress, manager, update check, offline home, away-from-home screen, storage handling. | O1 to O8 flows pass in airplane mode; `[DownloadProgress]`, `[UpdateAudio]`, `[ServerOffline]` match. |
 | W6 | Polish and edge states | Book menu, free up space, delete with undo, server name, tablet portrait polish, accessibility review, performance. | Spec section 10 accessibility and performance targets met. |
 
 The W0–W5 notes below are historical implementation checkpoints. The current handoff is recorded under W6; older test counts and “not yet” lists describe those earlier checkpoints.
+
+## Chapter names and matter, 2026-10-05
+
+Contract 0.5.1 keeps chapter naming and matter classification in the server importer. The live book/player lists can hide matter; free Make ready and premium plans separately start with Include front and back matter off. Counts, estimates and queued work follow that selection. Playback ahead skips matter, while an explicit chapter choice still works. Approved plans keep their selected IDs and existing audio is reused.
+
+Refresh chapter names repairs existing book metadata without replacing text, audio, lines or places. The client also reconciles names/kinds in a loaded player and matching downloaded audiobooks; cache persistence failures remain retryable and do not discard held content. Mixed source units remain eligible so a matter heading cannot hide story text. Older TXT imports that dropped heading paragraphs need a new import because refreshing them would change stored text.
+
+Verification: type check has zero errors/warnings; all 882 logic tests and 71 design comparisons pass at the unchanged 1% tolerance. The agent inspected the BookChapters, PlanFree and PlanPremium comparison images. The full three-browser suite passed 516 checks without retries; after the final refresh-button guard, all 15 matter checks passed against the rebuilt bundle, including durable cache labels with independently hashed unchanged audio. The complete server suite and all-target Clippy pass. All provider work in these checks uses local fakes and original synthetic books; live paid-provider tests remain ignored.
 
 ## UI review, 2026-10-05
 

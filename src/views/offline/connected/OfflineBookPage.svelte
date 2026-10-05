@@ -31,9 +31,17 @@
   });
   const place = $derived(listenerId ? readLocalPlace(browserStorage(), listenerId, bookId) : null);
   let expanded = $state(false);
-  const page = $derived(book ? offlinePage(book, place, expanded) : null);
+  let storyOnly = $state(false);
+  const page = $derived(book ? offlinePage(book, place, expanded, storyOnly) : null);
   const palette = $derived(book ? paletteFromHex(book.coverColor) : undefined);
   let updateOpen = $state(false);
+  $effect(() => {
+    void bookId;
+    void listenerId;
+    expanded = false;
+    storyOnly = false;
+    updateOpen = false;
+  });
 </script>
 
 <Shell active="library" {onswitchlistener} {palette}>
@@ -49,6 +57,7 @@
       onback={() => (location.hash = '#/')}
       onplay={() => void startListening(bookId)}
       onshowall={() => (expanded = true)}
+      onfilter={(value) => (storyOnly = value)}
     />
   {/if}
   {#snippet overlay()}

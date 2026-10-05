@@ -27,7 +27,7 @@ import {
   type Problem,
   type Scope,
 } from '../lib/planRules';
-import { makeOptions, type ChapterAudio, type ChapterInfo } from '../lib/bookAudio';
+import { hasMatter, makeOptions, type ChapterAudio, type ChapterInfo, type MakeInput } from '../lib/bookAudio';
 import { moneyText, type Money } from '../lib/money';
 import { apiGateway as bookGateway, call, hdr, UNREACHABLE, type BookGateway, type R } from './book';
 
@@ -83,6 +83,9 @@ export interface FlowState {
   voiceName: string;
   choices: ScopeChoice[];
   selected: string;
+  /** Independent of the book page's chapter visibility: what this plan will voice. */
+  includeMatter: boolean;
+  matterAvailable: boolean;
   estimate: PlanEstimate | null;
   /** The limit field as typed. */
   limitText: string;
@@ -127,6 +130,8 @@ export const closedFlow = (): FlowState => ({
   voiceName: '',
   choices: [],
   selected: 'whole',
+  includeMatter: false,
+  matterAvailable: false,
   estimate: null,
   limitText: '',
   limitEdited: false,
@@ -176,6 +181,7 @@ export class PlanStore {
   private poll: unknown;
   private soon: unknown;
   private listenerId: string | null = null;
+  private makeInput: MakeInput | null = null;
 
   constructor(
     private readonly gw: PlanGateway = planGateway,
@@ -200,6 +206,7 @@ export class PlanStore {
   async open(p: OpenParams): Promise<void> {
     const mine = ++this.run;
     this.clearExpiry();
+    this.makeInput = null;
     this.store.update((s) => ({ ...s, flow: { ...closedFlow(), phase: 'loading', listenerId: p.listenerId, bookId: p.bookId, audiobookId: p.audiobookId, voiceName: p.voiceName, selected: p.initial ?? 'whole' } }));
     const [chapters, audio, place] = await Promise.all([this.books.chapters(p.bookId), this.books.audioChapters(p.audiobookId), this.books.place(p.listenerId, p.bookId)]);
     if (mine !== this.run) return;
@@ -210,17 +217,39 @@ export class PlanStore {
     const audioMap = new Map<string, ChapterAudio>();
     if (audio.ok) for (const c of audio.value) audioMap.set(c.chapter_id, { state: c.state });
     const infos: (ChapterInfo & { word_count: number })[] = chapters.value.map((c) => ({ id: c.id, title: c.title, kind: c.kind, word_count: c.word_count }));
-    const words = new Map(infos.map((c) => [c.id, c.word_count]));
-    const options = makeOptions({ chapters: infos, audio: audioMap, currentId: place.ok ? place.value?.chapter_id : null });
-    const choices: ScopeChoice[] = options.map((o) => ({
+    this.makeInput = { chapters: infos, audio: audioMap, currentId: place.ok ? place.value?.chapter_id : null };
+    const choices = this.scopeChoices(false);
+    const selected = choices.some((c) => c.id === p.initial) ? p.initial! : 'whole';
+    this.setFlow({ choices, selected, matterAvailable: hasMatter(infos) });
+    await this.price(mine);
+  }
+
+  private scopeChoices(includeMatter: boolean): ScopeChoice[] {
+    if (!this.makeInput) return [];
+    const { chapters, audio } = this.makeInput;
+    const words = new Map(chapters.map((c) => [c.id, c.word_count]));
+    return makeOptions({ ...this.makeInput, includeMatter }).map((o) => ({
       id: o.id,
       title: o.title,
       detail: o.detail,
       scope: o.scope as Scope,
-      chapters: o.chapterIds.map((id) => ({ id, words: words.get(id) ?? 0, ready: audioMap.get(id)?.state === 'ready' })),
+      chapters: o.chapterIds.map((id) => ({ id, words: words.get(id) ?? 0, ready: audio.get(id)?.state === 'ready' })),
     }));
-    const selected = choices.some((c) => c.id === p.initial) ? p.initial! : 'whole';
-    this.setFlow({ choices, selected });
+  }
+
+  /** Changing what is voiced invalidates every estimate, including a cached smaller plan. Repricing is free. */
+  async setIncludeMatter(includeMatter: boolean): Promise<void> {
+    const f = this.flow();
+    if (f.phase === 'closed' || f.phase === 'approving' || !this.makeInput || f.includeMatter === includeMatter) return;
+    const mine = ++this.run;
+    this.clearExpiry();
+    const choices = this.scopeChoices(includeMatter);
+    const requested = f.selected === 'smaller' ? (f.blockedWhole ? 'whole' : 'from') : f.selected;
+    const selected = choices.some((c) => c.id === requested) ? requested : 'whole';
+    this.setFlow({
+      includeMatter, choices, selected, phase: 'previewing', estimate: null, limitText: '', limitEdited: false,
+      smaller: null, blockedFrom: null, blockedWhole: false, notice: null, error: null, explain: false,
+    });
     await this.price(mine);
   }
 
@@ -228,6 +257,7 @@ export class PlanStore {
   close(): void {
     this.run++;
     this.clearExpiry();
+    this.makeInput = null;
     const f = this.flow();
     if (f.phase === 'approving') {
       // The approval is already on its way and cannot be taken back; its answer is handled when it arrives.
@@ -335,7 +365,8 @@ export class PlanStore {
     const toMake = from.chapters.filter((c) => !c.ready);
     let ids = smallerScope(toMake, blocked.cost, left);
     for (let tries = 0; ids && tries < PREVIEW_SMALLER_TRIES; tries++) {
-      const r = await this.gw.preview(f.listenerId, f.audiobookId, { kind: 'chapters', chapter_ids: ids });
+      const scope: Scope = { kind: 'chapters', chapter_ids: ids, include_matter: f.includeMatter };
+      const r = await this.gw.preview(f.listenerId, f.audiobookId, scope);
       if (mine !== this.run) return;
       if (!r.ok) return;
       if (!r.value.blocked && r.value.chapters_to_make > 0) {
@@ -343,7 +374,7 @@ export class PlanStore {
           id: 'smaller',
           title: smallerTitle(r.value.chapters_to_make, from.chapters.some((c) => c.ready)),
           detail: `About ${moneyText(r.value.cost.likely)}`,
-          scope: { kind: 'chapters', chapter_ids: ids },
+          scope,
           chapters: from.chapters.filter((c) => ids!.includes(c.id)),
         };
         this.store.update((s) => ({

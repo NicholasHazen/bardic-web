@@ -252,7 +252,8 @@ export function createOffline(deps: OfflineDeps): OfflineEngine {
           st = updates.isOutOfDate(meta.audiobookId, c.id) ? 'out_of_date' : 'on_device';
           error = updates.error(meta.audiobookId, c.id);
         }
-        return { chapterId: c.id, index: c.index, title: c.title, state: st, bytes, progress, error };
+        const chapterKind = c.kind === 'front_matter' || c.kind === 'back_matter' ? c.kind : 'story';
+        return { chapterId: c.id, index: c.index, title: c.title, kind: chapterKind, state: st, bytes, progress, error };
       });
       const book: OfflineBook = {
         bookId: meta.bookId,
@@ -501,6 +502,28 @@ export function createOffline(deps: OfflineDeps): OfflineEngine {
     keepOld: (audiobookId, chapterIds) => {
       updates.keepOld(audiobookId, chapterIds);
       flush();
+    },
+    async updateChapterMetadata(bookId, chapters) {
+      await engine.ready;
+      if (destroyed) return;
+      const writes: Promise<void>[] = [];
+      for (const meta of downloads.metas.values()) {
+        if (meta.bookId !== bookId || meta.chapters.length !== chapters.length || meta.chapters.some((c, i) => c.id !== chapters[i]!.id)) continue;
+        if (meta.chapters.every((c, i) => c.title === chapters[i]!.title && c.kind === chapters[i]!.kind)) continue;
+        // Keep the shared meta object: a running download may be holding it while updating its queue/settings.
+        const before = meta.chapters;
+        const updated = before.map((c, i) => ({ ...c, title: chapters[i]!.title, kind: chapters[i]!.kind }));
+        meta.chapters = updated;
+        writes.push(store.setValue(bookKey(meta.audiobookId), meta).catch((error) => {
+          // A retry must still see the old names. Do not undo a newer refresh or concurrent queue/settings changes.
+          if (downloads.metas.get(meta.audiobookId) === meta && meta.chapters === updated) meta.chapters = before;
+          throw error;
+        }));
+      }
+      const results = await Promise.allSettled(writes);
+      if (writes.length) flush();
+      const failed = results.find((result) => result.status === 'rejected');
+      if (failed?.status === 'rejected') throw failed.reason;
     },
     setRemoveFinishedAfterDays(days) {
       removeFinishedAfterDays = days !== null && Number.isFinite(days) && days > 0 ? Math.floor(days) : null;

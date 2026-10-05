@@ -5,7 +5,7 @@ import { memoryStorage } from '../lib/clock';
 import { cpLength } from '../lib/codepoints';
 import type { MediaSessionPort } from './engine';
 import { SPEED_KEY, createPlayer, type PlayerDeps } from './player';
-import { BOOK_ID, DEVICE, FakeApi, FakeAudioFactory, FakeEvents, FakePlaces, LISTENER, audioUrl, audiobook, job, linesOf, making, notYet, place, readyChapter, textOf } from './testing';
+import { BOOK_ID, DEVICE, FakeApi, FakeAudioFactory, FakeEvents, FakePlaces, LISTENER, audioUrl, audiobook, chapters, job, linesOf, making, notYet, place, readyChapter, textOf } from './testing';
 
 function make(o: { tier?: 'free' | 'premium'; mediaSession?: MediaSessionPort | null } = {}) {
   const clock = new FakeClock();
@@ -854,6 +854,177 @@ describe('places across devices', () => {
     await h.clock.advance(16_000);
     expect(h.st().placeSync).toBe('saved');
     expect(h.places.server!.offset).toBe(10);
+  });
+});
+
+describe('chapter display metadata', () => {
+  const refreshed = () => chapters.map((c) => ({ ...c, title: `Named ${c.id}`, kind: c.id === 'c2' ? 'back_matter' as const : c.kind }));
+
+  it('changes names, story numbers and next-chapter order while preserving playback, text, audio and places', async () => {
+    const metadata = vi.fn();
+    const session: MediaSessionPort = { setMetadata: metadata, setPlaybackState: vi.fn(), setActionHandler: vi.fn(), setPositionState: vi.fn() };
+    const h = make({ mediaSession: session });
+    await open(h, { autoplay: true });
+    h.el().tick(31);
+    const before = h.st();
+    const source = h.el().src;
+    const loads = h.el().loads;
+    const saved = h.player.sync.readLocal(LISTENER, BOOK_ID);
+    const writes = h.places.puts.length;
+    h.api.requestChapter.mockClear();
+    expect(h.player.updateChapterMetadata(BOOK_ID, refreshed().map((c) => ({ ...c, word_count: 1, text_sha256: 'ignored' })))).toBe(true);
+    const after = h.st();
+    expect(after.chapter).toMatchObject({ id: 'c1', title: 'Named c1', storyNumber: 1, storyTotal: 2 });
+    expect(after.chapters.map((c) => [c.id, c.title, c.storyNumber, c.matter])).toEqual([
+      ['c0', 'Named c0', null, true], ['c1', 'Named c1', 1, false], ['c2', 'Named c2', null, true], ['c3', 'Named c3', 2, false], ['c4', 'Named c4', null, true],
+    ]);
+    expect(after).toMatchObject({ playing: true, position: 31, duration: 100, text: before.text, lines: before.lines, timings: before.timings, currentLineId: before.currentLineId });
+    expect(after.chapters.map((c) => c.audio)).toEqual(before.chapters.map((c) => c.audio));
+    expect(after.aheadSeconds).toBe(169);
+    expect(after.bookProgress).toBeCloseTo(before.bookProgress * 1.5);
+    expect(h.el().src).toBe(source);
+    expect(h.el().loads).toBe(loads);
+    expect(h.places.puts).toHaveLength(writes);
+    expect(h.player.sync.readLocal(LISTENER, BOOK_ID)).toEqual(saved);
+    expect(h.api.requestChapter).not.toHaveBeenCalled();
+    expect(metadata).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Named c1' }));
+    h.player.nextChapter();
+    await h.clock.flush();
+    expect(h.st().chapter).toMatchObject({ id: 'c3', title: 'Named c3', storyNumber: 2 });
+    h.player.destroy();
+  });
+
+  it('rejects another book or incomplete, reordered and substituted IDs without patching anything', async () => {
+    const h = make();
+    await open(h);
+    const before = h.st();
+    expect(h.player.updateChapterMetadata('other-book', refreshed())).toBe(false);
+    expect(h.player.updateChapterMetadata(BOOK_ID, refreshed().slice(1))).toBe(false);
+    expect(h.player.updateChapterMetadata(BOOK_ID, refreshed().reverse())).toBe(false);
+    expect(h.player.updateChapterMetadata(BOOK_ID, refreshed().map((c, i) => i === 1 ? { ...c, id: 'replacement' } : c))).toBe(false);
+    expect(h.st()).toBe(before);
+    h.player.destroy();
+  });
+
+  it('keeps explicitly playing matter at the same text/audio place when its classification changes', async () => {
+    const h = make();
+    h.places.server = place({ chapter_id: 'c2', offset: 10, device_id: DEVICE, revision: 4 });
+    await open(h, { autoplay: true });
+    const before = h.st();
+    expect(h.player.updateChapterMetadata(BOOK_ID, refreshed())).toBe(true);
+    expect(h.st().chapter).toMatchObject({ id: 'c2', title: 'Named c2', matter: true, storyNumber: null, storyTotal: 2 });
+    expect(h.st()).toMatchObject({ playing: true, position: before.position, text: before.text, currentLineId: before.currentLineId });
+    expect(h.el().src).toBe(audioUrl('c2'));
+    expect(h.places.puts).toHaveLength(0);
+    h.player.destroy();
+  });
+
+  it('a chapter entry awaiting text uses refreshed metadata when it finishes loading', async () => {
+    const h = make();
+    await open(h);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const loadText = h.api.chapterText.getMockImplementation()!;
+    h.api.chapterText.mockImplementationOnce(async (bookId, id) => { await held; return loadText(bookId, id); });
+    h.player.gotoChapter('c2');
+    await h.clock.flush();
+    expect(h.player.updateChapterMetadata(BOOK_ID, refreshed())).toBe(true);
+    release();
+    await h.clock.flush();
+    expect(h.st().chapter).toMatchObject({ id: 'c2', title: 'Named c2', matter: true });
+    expect(h.st().text).toBe(textOf('c2'));
+    h.player.destroy();
+  });
+
+  it('book.updated reads only metadata, ignores other books/listeners, and failure keeps the loaded state', async () => {
+    const h = make();
+    await open(h, { autoplay: true });
+    h.el().tick(31);
+    const loads = h.el().loads;
+    h.api.chapters.mockClear();
+    h.api.chapterText.mockClear();
+    h.api.audioChapters.mockClear();
+    h.api.requestChapter.mockClear();
+    h.events.emit({ type: 'book.updated', book_id: 'other-book' });
+    h.events.emit({ type: 'book.updated', listener_id: 'other-listener' });
+    await h.clock.flush();
+    expect(h.api.chapters).not.toHaveBeenCalled();
+    h.api.chapters.mockResolvedValueOnce({ ok: true, value: refreshed() });
+    h.events.emit({ type: 'book.updated' });
+    await h.clock.flush();
+    expect(h.st().chapter?.title).toBe('Named c1');
+    expect(h.st()).toMatchObject({ playing: true, position: 31 });
+    expect(h.api.chapters).toHaveBeenCalledOnce();
+    expect(h.api.chapterText).not.toHaveBeenCalled();
+    expect(h.api.audioChapters).not.toHaveBeenCalled();
+    expect(h.api.requestChapter).not.toHaveBeenCalled();
+    expect(h.el().loads).toBe(loads);
+    h.api.chapters.mockResolvedValueOnce({ ok: false, status: 0, detail: 'unreachable' });
+    const before = h.st();
+    h.events.emit({ type: 'book.updated' });
+    await h.clock.flush();
+    expect(h.st()).toBe(before);
+    h.player.destroy();
+  });
+
+  it('an explicit update supersedes an older event read and a newer event supersedes an older one', async () => {
+    const h = make();
+    await open(h);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    h.api.chapters.mockImplementationOnce(async () => { await held; return { ok: true, value: chapters }; });
+    h.events.emit({ type: 'book.updated' });
+    expect(h.player.updateChapterMetadata(BOOK_ID, refreshed())).toBe(true);
+    release();
+    await h.clock.flush();
+    expect(h.st().chapter?.title).toBe('Named c1');
+    let releaseOld!: () => void;
+    const old = new Promise<void>((resolve) => (releaseOld = resolve));
+    h.api.chapters.mockImplementationOnce(async () => { await old; return { ok: true, value: chapters }; });
+    h.events.emit({ type: 'book.updated' });
+    const latest = refreshed().map((c) => ({ ...c, title: `Latest ${c.id}` }));
+    h.api.chapters.mockResolvedValueOnce({ ok: true, value: latest });
+    h.events.emit({ type: 'book.updated' });
+    await h.clock.flush();
+    releaseOld();
+    await h.clock.flush();
+    expect(h.st().chapter?.title).toBe('Latest c1');
+    h.player.destroy();
+  });
+
+  it.each(['close', 'listenerChanged', 'destroy'] as const)('%s discards a late chapter metadata reply', async (action) => {
+    const h = make();
+    await open(h);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    h.api.chapters.mockImplementationOnce(async () => { await held; return { ok: true, value: refreshed() }; });
+    h.events.emit({ type: 'book.updated' });
+    if (action === 'listenerChanged') h.listener.id = 'listener-2';
+    h.player[action]();
+    release();
+    await h.clock.flush();
+    expect(h.st()).toMatchObject({ loaded: false, book: null, chapter: null, chapters: [] });
+    expect(h.el().src).toBe('');
+    if (action !== 'destroy') h.player.destroy();
+  });
+
+  it('discards metadata when the listener changes before teardown and updates on resync', async () => {
+    const h = make();
+    await open(h);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    h.api.chapters.mockImplementationOnce(async () => { await held; return { ok: true, value: refreshed() }; });
+    h.events.emit({ type: 'book.updated' });
+    h.listener.id = 'listener-2';
+    release();
+    await h.clock.flush();
+    expect(h.st().chapter?.title).toBe('Ash on the Water');
+    h.listener.id = LISTENER;
+    h.api.chapters.mockResolvedValueOnce({ ok: true, value: refreshed() });
+    h.events.emit({ type: 'resync' });
+    await h.clock.flush();
+    expect(h.st().chapter?.title).toBe('Named c1');
+    h.player.destroy();
   });
 });
 
