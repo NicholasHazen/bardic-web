@@ -1,0 +1,12 @@
+[Unit]
+Description=Validate and update the paired Bardic deployment
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 "%h/bardic-v2/updater/spark-update.py" --config "%h/bardic-v2/updater/config.json"
+# Native ARM builds and a graceful provider shutdown can take several minutes.
+TimeoutStartSec=90min
+UMask=0077
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

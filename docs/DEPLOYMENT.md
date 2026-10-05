@@ -54,7 +54,7 @@ docker compose up -d --wait --wait-timeout 120
 
 Docker sends SIGTERM; the server uses its graceful shutdown path for both SIGTERM and SIGINT. The five-minute Compose grace period lets an admitted premium sample settle before releasing the lock (provider timeout: 240 seconds). Keep this timeout in a NAS UI. A forced kill or power loss remains an interrupted operation; finished audio is retained, and startup recovers interrupted work. Wait for exports to reach `ready` and backups to reach `done` before stopping: graceful shutdown does not promise those tasks finish.
 
-Run exactly one server per data folder. Do not scale it, overlap old/new instances, or use an automatic image updater. Update web and server together:
+Run exactly one server per data folder. Do not scale it, overlap old/new instances, or use an updater that independently replaces either image. Update web and server together:
 
 1. Wait for active work to settle, create a completed backup and copy it off the host.
 2. Record both current commits/image tags; stop the stack.
@@ -62,6 +62,14 @@ Run exactly one server per data folder. Do not scale it, overlap old/new instanc
 4. Confirm library, places and existing audio before new generation.
 
 Migrations run at startup. Reverting images cannot undo a database migration; an incompatible rollback needs the pre-upgrade backup restored to a fresh data directory with the old image pair. Base-image digests are pinned: update them deliberately and rerun deployment verification for base/security updates. Debian packages installed during builds still follow that distribution's repositories.
+
+### Paired updates on a Linux host
+
+The [Spark updater operating guide](SPARK-DEPLOYMENT.md#install-the-paired-updater) describes an optional systemd user timer for the existing `current`/`releases` layout. It pulls both public `main` branches, requires a fast-forward of both installed commits and matching contracts, builds verification stages and production images, and checks a disposable stack with synthetic data before considering live promotion. Publication still goes through reviewed pull requests; the timer neither pushes nor merges, and refuses remote commits behind the installed pair.
+
+The controller defers while server work is active. Promotion closes the gateway, gracefully stops the server, takes a full stopped snapshot and validates the candidate behind the closed gateway. Snapshot rollback is gated before reopening: it never automatically discards writes that may have reached an opened gateway. Failed pairs are latched for investigation. Use the documented status/check/retry commands and pause the timer before manual maintenance. This does not replace independent API backups; full stopped snapshots include live keys and share the host disk. Its installer preserves the existing data, `.env` and host override, and initializes the installed baseline only once.
+
+The candidate gateway retains the previous gateway's hashed `/srv/assets` files for already-open browsers, requiring byte-identical contents for any filename collision. Its own `index.html` and `sw.js` remain current. Atomic release environments and transaction records let the controller resume interrupted promotion/restoration stages without blindly overwriting a data directory; the [recovery phase table](SPARK-DEPLOYMENT.md#what-an-update-does) explains when operator review is required.
 
 ## Back up and restore
 
