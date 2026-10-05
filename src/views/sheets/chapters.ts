@@ -1,6 +1,7 @@
 // The chapter list of the Chapters sheet: which rows show and the one audio word of each.
 import { AUDIO_WORD_TEXT, AUDIO_WORD_TONE, type AudioWord, type BadgeTone } from '../../lib/bookAudio';
 import type { PlayerState } from '../../player/types';
+import { chapterMetricsText, chapterProgressText } from '../../lib/chapterMetrics';
 
 /** A row of `PlayerState.chapters`, plus the word count the board shows when the engine knows it. */
 export type SheetChapter = PlayerState['chapters'][number] & { words?: number | null };
@@ -12,6 +13,7 @@ export interface ChapterRowView {
   title: string;
   /** "4,310 words"; null when not known (never shown as 0) */
   detail: string | null;
+  progressText?: string;
   current: boolean;
   matter: boolean;
   word: AudioWord;
@@ -38,7 +40,7 @@ export function chaptersToMake(rows: readonly { audio: string }[]): number {
   return rows.filter((r) => r.audio === 'not_yet').length;
 }
 
-export function chapterRows(rows: readonly SheetChapter[], currentId: string | null, storyOnly: boolean): ChapterRowView[] {
+export function chapterRows(rows: readonly SheetChapter[], currentId: string | null, storyOnly: boolean, chapterOffset?: number): ChapterRowView[] {
   return visibleChapters(rows, storyOnly, currentId).map((r) => {
     const word: AudioWord = r.audio;
     const current = r.id === currentId;
@@ -46,7 +48,8 @@ export function chapterRows(rows: readonly SheetChapter[], currentId: string | n
       id: r.id,
       number: r.storyNumber != null ? String(r.storyNumber) : '–',
       title: r.title,
-      detail: wordsText(r.words),
+      detail: chapterMetricsText({ wordCount: r.wordCount ?? r.words, pageCount: r.pageCount, durationSeconds: r.durationSeconds }) ?? null,
+      progressText: current ? chapterProgressText(chapterOffset, r.textLength) : undefined,
       current,
       matter: r.matter,
       word,

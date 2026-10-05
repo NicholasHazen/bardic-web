@@ -12,7 +12,7 @@ const usd = (cents: number): Money => ({ micros: cents * 10_000, currency: 'USD'
 let NOW = Date.parse('2026-10-01T10:00:00Z');
 const later = (ms: number) => new Date(NOW + ms).toISOString();
 
-const chapters: Chapter[] = Array.from({ length: 10 }, (_, i) => ({ id: `c${i + 1}`, index: i, title: `Chapter ${i + 1}`, kind: 'story' as const, word_count: 1000, text_sha256: 'x' }));
+const chapters: Chapter[] = Array.from({ length: 10 }, (_, i) => ({ id: `c${i + 1}`, index: i, title: `Chapter ${i + 1}`, kind: 'story' as const, word_count: 1000, text_length: 5000, page_count: null, text_sha256: 'x' }));
 
 const estimate = (id: string, over: Partial<PlanEstimate> = {}): PlanEstimate => ({
   estimate_id: id,

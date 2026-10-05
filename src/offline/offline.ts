@@ -61,6 +61,8 @@ export interface OfflineEngine extends Readable<OfflineStateX>, OfflineCommands 
   heldChapter(audiobookId: string, chapterId: string): Promise<HeldChapter | null>;
   /** chapter ids of an audiobook with a copy that plays (on this device, including out of date); for the player's `heldChapters` */
   heldChapters(audiobookId: string): ReadonlySet<string>;
+  /** Measured runtime of a held copy, without reading its audio or text. */
+  heldDuration(audiobookId: string, chapterId: string): number | null;
   /**
    * The downloaded book with this book id (the audiobook preferred if it is held, else the one holding the most
    * chapters), for opening it with no server. Read-only; null when nothing of the book is held.
@@ -253,7 +255,12 @@ export function createOffline(deps: OfflineDeps): OfflineEngine {
           error = updates.error(meta.audiobookId, c.id);
         }
         const chapterKind = c.kind === 'front_matter' || c.kind === 'back_matter' ? c.kind : 'story';
-        return { chapterId: c.id, index: c.index, title: c.title, kind: chapterKind, state: st, bytes, progress, error };
+        return {
+          chapterId: c.id, index: c.index, title: c.title, kind: chapterKind, state: st, bytes, progress, error,
+          wordCount: c.wordCount, textLength: c.textLength, pageCount: c.pageCount,
+          durationSeconds: record?.durationSeconds ?? meta.manifest[c.id]?.audio.duration_seconds ?? null,
+          hasHeldCopy: !!record,
+        };
       });
       const book: OfflineBook = {
         bookId: meta.bookId,
@@ -509,10 +516,24 @@ export function createOffline(deps: OfflineDeps): OfflineEngine {
       const writes: Promise<void>[] = [];
       for (const meta of downloads.metas.values()) {
         if (meta.bookId !== bookId || meta.chapters.length !== chapters.length || meta.chapters.some((c, i) => c.id !== chapters[i]!.id)) continue;
-        if (meta.chapters.every((c, i) => c.title === chapters[i]!.title && c.kind === chapters[i]!.kind)) continue;
+        if (meta.chapters.every((c, i) => {
+          const fresh = chapters[i]!;
+          return c.title === fresh.title && c.kind === fresh.kind &&
+            (fresh.word_count === undefined || c.wordCount === fresh.word_count) &&
+            (fresh.text_length === undefined || c.textLength === fresh.text_length) &&
+            (fresh.page_count === undefined || c.pageCount === fresh.page_count);
+        })) continue;
         // Keep the shared meta object: a running download may be holding it while updating its queue/settings.
         const before = meta.chapters;
-        const updated = before.map((c, i) => ({ ...c, title: chapters[i]!.title, kind: chapters[i]!.kind }));
+        const updated = before.map((c, i) => {
+          const fresh = chapters[i]!;
+          return {
+            ...c, title: fresh.title, kind: fresh.kind,
+            ...(fresh.word_count === undefined ? {} : { wordCount: fresh.word_count }),
+            ...(fresh.text_length === undefined ? {} : { textLength: fresh.text_length }),
+            ...(fresh.page_count === undefined ? {} : { pageCount: fresh.page_count }),
+          };
+        });
         meta.chapters = updated;
         writes.push(store.setValue(bookKey(meta.audiobookId), meta).catch((error) => {
           // A retry must still see the old names. Do not undo a newer refresh or concurrent queue/settings changes.
@@ -580,6 +601,10 @@ export function createOffline(deps: OfflineDeps): OfflineEngine {
     },
     heldChapter,
     heldChapters: (audiobookId) => downloads.heldIds(audiobookId),
+    heldDuration(audiobookId, chapterId) {
+      const seconds = downloads.held.get(audiobookId)?.get(chapterId)?.durationSeconds;
+      return typeof seconds === 'number' && Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+    },
     heldAudiobookIds: () => [...downloads.held.keys()],
     heldBook(bookId, preferAudiobookId) {
       const held = (id: string) => downloads.held.get(id)?.size ?? 0;
@@ -594,7 +619,7 @@ export function createOffline(deps: OfflineDeps): OfflineEngine {
         author: meta.author,
         coverColor: meta.coverColor,
         voiceName: meta.voiceName,
-        chapters: [...meta.chapters].sort((a, b) => a.index - b.index).map((c) => ({ id: c.id, index: c.index, title: c.title, kind: kinds.find((k) => k === c.kind) ?? 'story' })),
+        chapters: [...meta.chapters].sort((a, b) => a.index - b.index).map((c) => ({ id: c.id, index: c.index, title: c.title, kind: kinds.find((k) => k === c.kind) ?? 'story', wordCount: c.wordCount, textLength: c.textLength, pageCount: c.pageCount })),
       };
       const cover = coverUrls.get(meta.bookId) ?? meta.coverUrl;
       if (cover) info.coverSrc = cover;

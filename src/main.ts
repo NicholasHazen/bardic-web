@@ -10,7 +10,7 @@ if (import.meta.env.VITE_E2E) {
 
 // What this device holds keeps the audio words ("On this device") and the library's marks in step.
 void Promise.all([import('./offline/offline'), import('./state/offlineBinding'), import('./state/book'), import('./state/library')]).then(
-  ([{ offline }, { bindOfflineStores }, { deviceChapters }, { onDeviceIds }]) => bindOfflineStores(offline, { deviceChapters, onDeviceIds }),
+  ([{ offline }, { bindOfflineStores }, { deviceChapters, deviceChapterDurations }, { onDeviceIds }]) => bindOfflineStores(offline, { deviceChapters, deviceChapterDurations, onDeviceIds }),
 );
 
 // The app shell loads without the server after the first visit (production builds over https or localhost only).

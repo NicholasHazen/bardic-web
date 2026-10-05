@@ -1,7 +1,7 @@
 import { get, writable } from 'svelte/store';
 import { describe, expect, it } from 'vitest';
 import type { OfflineBook } from '../offline/types';
-import { bindOfflineStores, deviceCopies, onDeviceBookIds } from './offlineBinding';
+import { bindOfflineStores, deviceCopies, heldChapterDurations, onDeviceBookIds } from './offlineBinding';
 
 const book = (audiobookId: string, bookId: string, states: OfflineBook['chapters'][number]['state'][]): OfflineBook => ({
   bookId,
@@ -30,14 +30,22 @@ describe('offline bindings', () => {
   it('lists the books that have something playable on the device', () => {
     expect([...onDeviceBookIds(state)]).toEqual(['b1']);
   });
+  it('publishes held runtimes through replacement states and leaves manifest-only durations out', () => {
+    const b = book('a1', 'b1', ['on_device', 'out_of_date', 'downloading', 'failed', 'not_downloaded']);
+    b.chapters.forEach((c) => { c.durationSeconds = 240; });
+    b.chapters[2]!.hasHeldCopy = true;
+    b.chapters[3]!.hasHeldCopy = true;
+    expect([...heldChapterDurations({ books: [b] }).get('a1')!]).toEqual([['c0', 240], ['c1', 240], ['c2', 240], ['c3', 240]]);
+  });
   it('keeps the stores in step', () => {
     const engine = writable({ ...state, online: true, lastContact: null, storage: { usedBytes: null, freeBytes: null, persisted: false, unmetered: null }, updates: [], removedBooks: [], removeFinishedAfterDays: null, notice: null });
-    const target = { deviceChapters: writable(new Map()), onDeviceIds: writable(new Set<string>()) };
+    const target = { deviceChapters: writable(new Map()), deviceChapterDurations: writable(new Map()), onDeviceIds: writable(new Set<string>()) };
     const stop = bindOfflineStores(engine, target);
     expect([...get(target.onDeviceIds)]).toEqual(['b1']);
     engine.update((s) => ({ ...s, books: [] }));
     expect(get(target.onDeviceIds).size).toBe(0);
     expect(get(target.deviceChapters).size).toBe(0);
+    expect(get(target.deviceChapterDurations).size).toBe(0);
     stop();
   });
 });

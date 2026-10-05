@@ -19,6 +19,14 @@ export interface DeviceChapter {
   title: string;
   /** Display classification from cached chapter metadata; older device records may omit it. */
   kind?: 'story' | 'front_matter' | 'back_matter';
+  /** Measured chapter details; absent on caches created before they were available. */
+  wordCount?: number;
+  textLength?: number;
+  pageCount?: number | null;
+  /** Runtime of the held copy when present, otherwise the last ready manifest audio. */
+  durationSeconds?: number | null;
+  /** A replacement may be downloading while the old playable copy is still retained. */
+  hasHeldCopy?: boolean;
   state: DeviceChapterState;
   /** size of the audio on the server (manifest) */
   bytes: number | null;
@@ -119,6 +127,9 @@ export interface ChapterMetadata {
   id: string;
   title: string;
   kind: 'story' | 'front_matter' | 'back_matter';
+  word_count?: number;
+  text_length?: number;
+  page_count?: number | null;
 }
 
 export interface OfflineCommands {
@@ -139,7 +150,7 @@ export interface OfflineCommands {
   applyUpdate(audiobookId: string, chapterIds: string[]): Promise<void>;
   /** keep the copies held; stop offering these chapters until the server changes again */
   keepOld(audiobookId: string, chapterIds: string[]): void;
-  /** Reconcile refreshed names/kinds when the complete ordered chapter IDs match; held content/audio stay intact. */
+  /** Reconcile refreshed display metadata when the complete ordered chapter IDs match; held content/audio stay intact. */
   updateChapterMetadata(bookId: string, chapters: readonly ChapterMetadata[]): Promise<void>;
   setRemoveFinishedAfterDays(days: number | null): void;
   /** re-read the server (online state, removed books) */
@@ -206,5 +217,8 @@ export interface HeldBookInfo {
   coverColor: string;
   coverSrc?: string;
   voiceName: string;
-  chapters: { id: string; index: number; title: string; kind: 'story' | 'front_matter' | 'back_matter' }[];
+  chapters: {
+    id: string; index: number; title: string; kind: 'story' | 'front_matter' | 'back_matter';
+    wordCount?: number; textLength?: number; pageCount?: number | null;
+  }[];
 }

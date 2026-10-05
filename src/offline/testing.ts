@@ -11,6 +11,7 @@ export interface FakeChapter {
   title: string;
   kind: 'story' | 'front_matter' | 'back_matter';
   text: string;
+  pageCount?: number | null;
 }
 
 const SENTENCES = ['The lamp burned low.', ' A door opened somewhere below.', ' Nobody spoke for a long moment.'];
@@ -135,7 +136,7 @@ export class FakeServer {
         generated_at: new Date(this.generatedAt).toISOString(),
         chapters: this.chapters.filter((c) => this.current.has(c.id)).map((c): ManifestChapter => ({ chapter_id: c.id, audio: this.ref(this.files.get(this.current.get(c.id)!)!), text_sha256: sha256Text(c.text) })),
       })),
-    chapters: async () => this.gate('chapters', () => this.chapters.map((c) => ({ id: c.id, index: c.index, title: c.title, kind: c.kind, word_count: 5, text_sha256: sha256Text(c.text) }))),
+    chapters: async () => this.gate('chapters', () => this.chapters.map((c) => ({ id: c.id, index: c.index, title: c.title, kind: c.kind, word_count: 5, text_length: [...c.text].length, page_count: c.pageCount ?? null, text_sha256: sha256Text(c.text) }))),
     book: async (_l, id) => {
       this.log.push(`book ${id}`);
       if (!this.reachable) return { ok: false, status: 0, detail: 'unreachable' };

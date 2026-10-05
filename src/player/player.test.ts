@@ -43,6 +43,35 @@ async function open(h: H, opts: Parameters<H['player']['open']>[1] = {}) {
 }
 
 describe('opening', () => {
+  it('exposes measured chapter metadata and an exact Unicode place while the chapter is Not yet', async () => {
+    const h = make();
+    const text = '🕯️ Door 🌙.';
+    const length = cpLength(text);
+    h.api.chapters.mockResolvedValue({ ok: true, value: chapters.map((c) => c.id === 'c1' ? { ...c, word_count: 3, text_length: length, page_count: 2 } : c) });
+    h.api.chapterText.mockResolvedValue({ ok: true, value: { chapter_id: 'c1', text, text_sha256: 'synthetic', lines: [{ id: 'c1-l1', start: 0, end: length }] } });
+    h.api.audio.set('c1', notYet('c1'));
+    await open(h, { chapterId: 'c1', offset: 5 });
+    expect(h.st().chapterOffset).toBe(5);
+    expect(h.st().chapters.find((c) => c.id === 'c1')).toMatchObject({ audio: 'not_yet', wordCount: 3, textLength: length, pageCount: 2 });
+    expect(h.st().chapters.find((c) => c.id === 'c1')?.durationSeconds).toBeUndefined();
+    expect(h.api.requestChapter).not.toHaveBeenCalled();
+    expect(h.player.sync.readLocal(LISTENER, BOOK_ID)?.offset).toBe(5);
+    h.player.gotoOffset('c1', 7);
+    expect(h.st().chapterOffset).toBe(7);
+    expect(h.player.sync.readLocal(LISTENER, BOOK_ID)?.offset).toBe(7);
+  });
+
+  it('updates the text place during playback while exposing the selected voice runtime', async () => {
+    const h = make();
+    await open(h, { autoplay: true });
+    expect(h.st().chapters.find((c) => c.id === 'c1')).toMatchObject({ wordCount: 1500, textLength: cpLength(textOf('c1')), pageCount: null, durationSeconds: 100 });
+    h.el().tick(30);
+    expect(h.st().chapterOffset).toBe(10);
+    expect(h.player.sync.readLocal(LISTENER, BOOK_ID)?.offset).toBe(h.st().chapterOffset);
+    h.player.gotoOffset('c1', 14);
+    expect(h.st().chapterOffset).toBe(14);
+  });
+
   it('starts at the first story chapter when there is no place, paused, with the text and lines', async () => {
     const h = make();
     await open(h);

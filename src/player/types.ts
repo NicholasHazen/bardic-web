@@ -113,9 +113,15 @@ export interface PlayerState {
   timings: LineTiming[];
   /** the line being spoken now (or the one the place is at when paused) */
   currentLineId: string | null;
+  /** Unicode code point offset inside the current chapter; real snapshots retain it even before audio exists. */
+  chapterOffset?: number;
 
   /** the chapter list for the chapters sheet */
-  chapters: { id: string; title: string; index: number; storyNumber: number | null; matter: boolean; audio: 'ready' | 'on_device' | 'making' | 'not_yet' }[];
+  chapters: {
+    id: string; title: string; index: number; storyNumber: number | null; matter: boolean;
+    audio: 'ready' | 'on_device' | 'making' | 'not_yet';
+    wordCount?: number; textLength?: number; pageCount?: number | null; durationSeconds?: number;
+  }[];
 
   /** a place conflict waiting for the listener's choice (listener setting "ask"), else null */
   conflict: PlaceConflictInfo | null;

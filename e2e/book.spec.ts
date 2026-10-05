@@ -175,7 +175,7 @@ test('B4: every chapter row carries exactly one audio word', async ({ page, stac
     const text = await rows(page).nth(i).innerText();
     expect(wordsIn(text), `row ${i}: ${text}`).toHaveLength(1);
   }
-  // the chapter you are in says so, and shows your progress in place of Ready or Not yet only when ready
+  // The current chapter keeps its audio word alongside its text progress.
   await expect(rows(page).nth(2)).toContainText('You are here');
 });
 
@@ -186,15 +186,17 @@ test('B6: the matter filter leaves out front and back matter', async ({ page, st
   await expect(rows(page)).toHaveCount(5);
   await expect(page.getByText('Copyright')).toBeVisible();
   await expect(page.getByText('About the Author')).toBeVisible();
-  const filter = page.getByRole('button', { name: 'Hide front and back matter' });
-  await expect(filter).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('button', { name: 'Chapter options', exact: true }).click();
+  const filter = page.getByRole('switch', { name: 'Show front and back matter', exact: true });
+  await expect(filter).toBeChecked();
   await filter.click();
-  await expect(filter).toHaveAttribute('aria-pressed', 'true');
+  await expect(filter).not.toBeChecked();
   await expect(rows(page)).toHaveCount(3);
   await expect(page.getByText('Copyright')).toHaveCount(0);
   await expect(page.getByText('About the Author')).toHaveCount(0);
   await expect(page.getByText('The Crossing')).toBeVisible();
   await filter.click();
+  await expect(filter).toBeChecked();
   await expect(rows(page)).toHaveCount(5);
 });
 

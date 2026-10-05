@@ -45,6 +45,18 @@ describe('chapterRows', () => {
     expect(all[3]!.detail).toBeNull();
     expect(all[1]!.detail).toBe('3,900 words');
   });
+  it('shows source pages, recorded audio duration and text progress alongside the audio word', () => {
+    const chapter: SheetChapter = { ...rows[4]!, wordCount: 200, pageCount: 2, textLength: 1000, durationSeconds: 120 };
+    const [row] = chapterRows([chapter], chapter.id, false, 250);
+    expect(row).toMatchObject({ detail: '200 words · 2 pages · 2 min audio', progressText: '25% through chapter', wordText: 'Not yet', current: true });
+  });
+  it('shows progress only for the current chapter, leaving missing pagination and duration out', () => {
+    const chapters: SheetChapter[] = rows.map((r) => ({ ...r, textLength: 100 }));
+    const view = chapterRows(chapters, 'b', false, 50);
+    expect(view.filter((r) => r.progressText).map((r) => r.id)).toEqual(['b']);
+    expect(view[2]!.detail).toBe('4,310 words');
+    expect(view[2]!.progressText).toBe('50% through chapter');
+  });
 });
 
 describe('numbers', () => {

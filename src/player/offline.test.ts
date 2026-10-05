@@ -97,6 +97,13 @@ const seedLocal = (h: H, chapterId: string, offset: number, time: number | null,
   h.storage.setItem(`bardic.place.${LISTENER}.${BOOK_ID}`, JSON.stringify({ chapterId, offset, time, mode: 'listening', audiobookId: 'ab1', rev, updatedAt: 1 }));
 
 describe('this device is preferred', () => {
+  it('exposes the runtime of retained audio rather than a newer server copy', async () => {
+    const h = make();
+    h.places.server = place({ chapter_id: 'c1', offset: 0, device_id: DEVICE, revision: 2 });
+    await open(h);
+    expect(h.st().duration).toBe(50);
+    expect(h.st().chapters.find((c) => c.id === 'c1')?.durationSeconds).toBe(50);
+  });
   it('a held chapter plays from the copy and reads its held text, online; the others come from the server', async () => {
     const h = make();
     h.places.server = place({ chapter_id: 'c1', offset: 0, device_id: DEVICE, revision: 2 });
@@ -152,6 +159,17 @@ describe('this device is preferred', () => {
 });
 
 describe('opening with no connection', () => {
+  it('keeps unknown legacy word counts unknown and uses cached real counts when they exist', async () => {
+    const legacy = make();
+    legacy.cut();
+    await open(legacy);
+    expect(legacy.st().chapters.every((c) => c.wordCount === undefined)).toBe(true);
+    expect(legacy.st().chapters.find((c) => c.id === 'c1')?.textLength).toBe([...heldText('c1')].length);
+    const cached = make(['c1', 'c3'], { heldBook: { ...heldInfo, chapters: heldInfo.chapters.map((c) => ({ ...c, wordCount: 400, textLength: [...heldText(c.id)].length, pageCount: c.id === 'c1' ? 2 : null })) } });
+    cached.cut();
+    await open(cached);
+    expect(cached.st().chapters.find((c) => c.id === 'c1')).toMatchObject({ wordCount: 400, pageCount: 2, durationSeconds: 50 });
+  });
   it('builds the book from what the device remembers and the place from the local copy', async () => {
     const h = make();
     seedLocal(h, 'c3', heldChapter('c3').lines[1]!.start, 14);

@@ -17,6 +17,8 @@
     bookTitle: string;
     chapters: SheetChapter[];
     currentId: string | null;
+    /** Current chapter place in Unicode code points. */
+    chapterOffset?: number;
     /** Hide front and back matter (the chapter you are in always stays). */
     storyOnly?: boolean;
     placement?: 'bottom' | 'popover';
@@ -26,13 +28,13 @@
     onmakeready?: () => void;
     onclose?: () => void;
   }
-  let { bookTitle, chapters, currentId, storyOnly = false, placement = 'bottom', fixed = false, onselect, onstoryonly, onmakeready, onclose }: Props = $props();
+  let { bookTitle, chapters, currentId, chapterOffset, storyOnly = false, placement = 'bottom', fixed = false, onselect, onstoryonly, onmakeready, onclose }: Props = $props();
 
   let hide = $state(false);
   $effect(() => {
     hide = storyOnly;
   });
-  const rows = $derived(chapterRows(chapters, currentId, hide));
+  const rows = $derived(chapterRows(chapters, currentId, hide, chapterOffset));
   const matter = $derived(hasMatter(chapters));
   const toMake = $derived(chaptersToMake(chapters));
 
@@ -45,7 +47,9 @@
 
 <Sheet title="Chapters" eyebrow={bookTitle} {placement} {fixed} scrim={fixed ? 0.3 : undefined} {onclose}>
   {#if matter}
-    <SwitchRow label="Hide front and back matter" checked={hide} onchange={(c) => ((hide = c), onstoryonly?.(c))} />
+    <div class="matter-option">
+      <SwitchRow label="Show front and back matter" checked={!hide} detail={hide ? 'Hidden · your current chapter stays visible' : 'Shown'} onchange={(shown) => ((hide = !shown), onstoryonly?.(!shown))} />
+    </div>
   {/if}
   <div class="scroller">
     <div class="scrolling">
@@ -53,11 +57,12 @@
       <ul bind:this={list} class="rows" aria-label="Chapters">
         {#each rows as r (r.id)}
           <li>
-            <button type="button" class="row" class:current={r.current} aria-current={r.current ? 'true' : undefined} aria-label="{r.number === '–' ? '' : `Chapter ${r.number}, `}{r.title}, {r.wordText}{r.current ? ', you are here' : ''}" onclick={() => onselect?.(r.id)}>
+            <button type="button" class="row" class:current={r.current} aria-current={r.current ? 'true' : undefined} aria-label="{r.number === '–' ? '' : `Chapter ${r.number}, `}{r.title}, {r.wordText}{r.detail ? `, ${r.detail}` : ''}{r.current ? ', you are here' : ''}{r.progressText ? `, ${r.progressText}` : ''}" onclick={() => onselect?.(r.id)}>
               <span class="num">{r.number}</span>
               <span class="text">
                 <span class="title">{r.title}</span>
                 {#if r.detail}<span class="detail">{r.detail}</span>{/if}
+                {#if r.progressText}<span class="detail">You are here · {r.progressText}</span>{/if}
               </span>
               <span class="word"><Badge tone={r.tone}>{r.wordText}</Badge></span>
             </button>
@@ -78,6 +83,7 @@
 
 <style>
   span { line-height: 1.35; }
+  .matter-option :global(button) { min-height: 44px; }
   .scroller { height: 551px; max-height: max(120px, calc(100dvh - 293px)); position: relative; flex-shrink: 0; }
   .scrolling { height: 100%; overflow-y: auto; scrollbar-width: none; }
   .scrolling::-webkit-scrollbar { display: none; }
@@ -107,7 +113,7 @@
   .title { font-family: var(--font-book); font-size: 15px; font-weight: 400; color: var(--ink); }
   .current .title { font-weight: 600; }
   .detail { font-size: 12px; font-weight: 400; color: var(--muted); }
-  .word { width: 104px; display: flex; justify-content: flex-end; }
+  .word { max-width: 104px; flex-shrink: 0; display: flex; justify-content: flex-end; }
   .make { display: flex; flex-direction: column; gap: 8px; }
   .note { font-size: 13px; font-weight: 400; color: var(--muted); text-align: center; }
   @media (max-width: 300px) {

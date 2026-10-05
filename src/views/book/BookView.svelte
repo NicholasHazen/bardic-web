@@ -61,6 +61,7 @@
     onfilter?: (storyOnly: boolean) => void;
     onrefreshchapters?: () => void;
     refreshingChapters?: boolean;
+    chapterRefreshNotice?: string;
     ondismissproblem?: () => void;
   }
   let {
@@ -96,6 +97,7 @@
     onfilter,
     onrefreshchapters,
     refreshingChapters = false,
+    chapterRefreshNotice,
     ondismissproblem,
   }: Props = $props();
 
@@ -185,7 +187,7 @@
         {@render play()}
       </div>
       <div class="center">
-        <ChapterList model={chapters} {onshowall} {onfilter} onrefresh={onrefreshchapters} refreshing={refreshingChapters} {busy} />
+        <ChapterList model={chapters} {onshowall} {onfilter} onrefresh={onrefreshchapters} refreshing={refreshingChapters} refreshNotice={chapterRefreshNotice} {busy} />
       </div>
       <div class="right">
         {@render problemBox()}
@@ -212,7 +214,7 @@
     {@render problemBox()}
     {@render audiobookSection()}
     {@render othersSection()}
-    <ChapterList model={chapters} {onshowall} {onfilter} onrefresh={onrefreshchapters} refreshing={refreshingChapters} {busy} />
+    <ChapterList model={chapters} {onshowall} {onfilter} onrefresh={onrefreshchapters} refreshing={refreshingChapters} refreshNotice={chapterRefreshNotice} {busy} />
   </div>
 {/if}
 

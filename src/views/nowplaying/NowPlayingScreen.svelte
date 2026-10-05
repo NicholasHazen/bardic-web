@@ -230,6 +230,7 @@
         bookTitle={s.book.title}
         chapters={s.chapters}
         currentId={s.chapter.id}
+        chapterOffset={s.chapterOffset}
         {storyOnly}
         onstoryonly={(v) => (storyOnly = v)}
         onselect={(id) => (player.gotoChapter(id), (sheet = null))}

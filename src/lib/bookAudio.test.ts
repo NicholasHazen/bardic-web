@@ -80,6 +80,24 @@ describe('chapter rows (B4)', () => {
     const rows = chapterRows({ chapters, audio, held: new Set(['c2']), deviceState: new Map([['c3', 'downloading' as const]]) });
     expect(rows.map((r) => r.wordText)).toEqual(['Ready', 'On this device', 'Downloading', 'Not yet']);
   });
+  it('shows measured length and chapter progress before any audio is made, keeping the audio word visible', () => {
+    const row = chapterRows({
+      chapters: [{ ...ch(1), wordCount: 1500, textLength: 10000, pageCount: 6 }],
+      audio: new Map(), currentId: 'c1', currentOffset: 3400,
+    })[0]!;
+    expect(row).toMatchObject({ wordText: 'Not yet', detail: 'You are here', metadata: '1,500 words · 6 pages', progressText: '34% through chapter' });
+    expect(row.progress).toBeUndefined();
+  });
+  it('uses the retained copy runtime while newer audio downloads or has failed', () => {
+    for (const state of ['held', 'out_of_date', 'downloading', 'failed'] as const) {
+      const row = chapterRows({
+        chapters: [{ ...ch(1), wordCount: 1500 }],
+        audio: new Map([['c1', { state: 'ready', durationSeconds: 600 }]]),
+        deviceState: new Map([['c1', state]]), heldDurations: new Map([['c1', 240]]),
+      })[0]!;
+      expect(row.metadata).toBe('1,500 words · 4 min audio');
+    }
+  });
 });
 
 describe('the matter filter (B6)', () => {
@@ -95,6 +113,11 @@ describe('the matter filter (B6)', () => {
   it('rows keep the numbers of the whole book when filtered', () => {
     const rows = chapterRows({ chapters, audio: new Map(), filter: 'story' });
     expect(rows.map((r) => [r.id, r.number])).toEqual([['c2', '1'], ['c3', '2']]);
+  });
+  it('keeps the listener’s current matter chapter visible while hiding other matter', () => {
+    const rows = chapterRows({ chapters, audio: new Map(), filter: 'story', currentId: 'c1' });
+    expect(rows.map((r) => [r.id, r.number])).toEqual([['c1', '–'], ['c2', '1'], ['c3', '2']]);
+    expect(rows[0]).toMatchObject({ current: true, matter: true, detail: 'You are here' });
   });
   it('"next chapter" skips matter unless asked', () => {
     const list = [ch(1), ch(2, 'back_matter'), ch(3, 'back_matter')];
