@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
-# Node and the development dependencies are used only to produce the static site.
-FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS build
+# Shared source/dependencies for validation and the production static build.
+FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS source
 WORKDIR /app
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
@@ -12,6 +12,22 @@ COPY index.html vite.config.ts tsconfig.json ./
 COPY contract/openapi.yaml ./contract/openapi.yaml
 COPY src/ ./src/
 COPY public/ ./public/
+
+# Explicit deployment gate. Unit tests use synthetic fixtures and no providers.
+# Vitest's configuration lives in vite.config.ts and limits discovery to src/.
+FROM source AS verify
+RUN apk add --no-cache python3
+COPY scripts/spark-update.py scripts/test-spark-update.py ./scripts/
+COPY deploy/quiet-check.mjs deploy/quiet-check.test.mjs ./deploy/
+# The updater supplies this immutable paired source as a named build context.
+COPY --from=bardic_server /crates/bardic-server/migrations/ /server/crates/bardic-server/migrations/
+RUN npm run contract:types \
+    && npm run check \
+    && npx vitest run \
+    && PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-spark-update.py \
+    && BARDIC_SERVER_CONTEXT=/server node --no-warnings --test deploy/quiet-check.test.mjs
+
+FROM source AS build
 # An empty value is deliberate: "0" would still enable the truthy Vite guard.
 # Local .env files are excluded from the build context, and there is no E2E build argument.
 RUN npm run contract:types \

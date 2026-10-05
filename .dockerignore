@@ -1,4 +1,4 @@
-# Send only the files needed by the two build stages. Local data, dependencies,
+# Send only the files needed by validation and the production build. Local data, dependencies,
 # build output, credentials, design reports and browser artifacts stay on the host.
 **
 !Dockerfile
@@ -16,6 +16,11 @@
 !contract/openapi.yaml
 !deploy
 !deploy/Caddyfile
+!deploy/quiet-check.mjs
+!deploy/quiet-check.test.mjs
+!scripts
+!scripts/spark-update.py
+!scripts/test-spark-update.py
 
 # Keep local Vite overrides and credentials out even if placed under an allowed tree.
 **/.env

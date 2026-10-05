@@ -1,0 +1,11 @@
+[Unit]
+Description=Check for paired Bardic updates every five minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=5min
+AccuracySec=15s
+Unit=bardic-update.service
+
+[Install]
+WantedBy=timers.target
