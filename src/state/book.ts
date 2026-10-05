@@ -57,6 +57,7 @@ export const UNREACHABLE = 'Your Bardic computer could not be reached. Nothing w
 export interface BookGateway {
   book(listenerId: string, bookId: string): Promise<R<Book>>;
   chapters(bookId: string): Promise<R<Chapter[]>>;
+  refreshChapters(bookId: string): Promise<R<Chapter[]>>;
   audiobooks(bookId: string): Promise<R<Audiobook[]>>;
   /** null when the listener never opened the book. */
   place(listenerId: string, bookId: string): Promise<R<Place | null>>;
@@ -91,6 +92,7 @@ const map = <T, U>(r: R<T>, f: (v: T) => U): R<U> => (r.ok ? { ok: true, value: 
 export const apiGateway: BookGateway = {
   book: (l, id) => call(() => api.GET('/api/books/{book_id}', { params: { path: { book_id: id }, header: hdr(l) } })),
   chapters: async (id) => map(await call(() => api.GET('/api/books/{book_id}/chapters', { params: { path: { book_id: id } } })), (v) => v?.items ?? []),
+  refreshChapters: async (id) => map(await call(() => api.POST('/api/books/{book_id}/chapters/refresh', { params: { path: { book_id: id }, header: dev() } })), (v) => v?.items ?? []),
   audiobooks: async (id) => map(await call(() => api.GET('/api/books/{book_id}/audiobooks', { params: { path: { book_id: id } } })), (v) => v?.items ?? []),
   place: async (l, id) => {
     const r = await call(() => api.GET('/api/books/{book_id}/place', { params: { path: { book_id: id }, header: hdr(l) } }));
@@ -200,6 +202,7 @@ export function sourceLine(source: Pick<VoiceSource, 'kind' | 'name'> | undefine
 
 export interface BookState {
   status: 'idle' | 'loading' | 'ready' | 'error' | 'missing';
+  refreshingChapters: boolean;
   error?: string;
   book?: Book;
   chapters: Chapter[];
@@ -219,6 +222,7 @@ export interface BookState {
 
 export const emptyState = (): BookState => ({
   status: 'idle',
+  refreshingChapters: false,
   chapters: [],
   audiobooks: [],
   sources: [],
@@ -320,11 +324,11 @@ export function pageModel(s: BookState, ui: PageUi, device: ReadonlyMap<string, 
 }
 
 /** The options and figures of the Make ready sheet for the current audiobook. Undefined when there is nothing to choose. */
-export function makeSheet(s: BookState, selected: string): { model: MakeSheetModel; options: MakeOption[]; chosen: MakeOption } | undefined {
+export function makeSheet(s: BookState, selected: string, includeMatter = true): { model: MakeSheetModel; options: MakeOption[]; chosen: MakeOption } | undefined {
   const current = currentAudiobook(s);
   if (!current || current.tier !== 'free' || !s.chapters.length) return undefined;
   const chapters = s.chapters.map((c) => ({ ...info(c), word_count: c.word_count }));
-  const options = makeOptions({ chapters, audio: s.audio, currentId: s.place?.chapter_id });
+  const options = makeOptions({ chapters, audio: s.audio, currentId: s.place?.chapter_id, includeMatter });
   const chosen = options.find((o) => o.id === selected) ?? options[0]!;
   const est = estimateMake(chapters, chosen.chapterIds, s.audio, s.bytesPerSecond);
   return {
@@ -369,6 +373,7 @@ export class BookStore {
   private bookId: string | null = null;
   private run = 0;
   private audioRun = 0;
+  private chapterRefreshRun = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private pendingAll = false;
 
@@ -385,6 +390,7 @@ export class BookStore {
     this.bookId = bookId;
     this.run++;
     this.audioRun++;
+    this.chapterRefreshRun++;
     this.store.set(emptyState());
     if (listenerId && bookId) void this.load();
     return true;
@@ -472,6 +478,28 @@ export class BookStore {
     });
   }
 
+  /** Re-read names and matter kinds. A refused repair keeps the complete loaded book state. */
+  async refreshChapters(): Promise<ActionResult> {
+    const listenerId = this.listenerId;
+    const bookId = this.bookId;
+    const s = get(this.store);
+    if (!listenerId || !bookId || !s.book) return { ok: false, detail: 'There is no book to refresh.' };
+    if (s.refreshingChapters) return { ok: false, code: 'refresh_in_progress', detail: 'The chapter names are already being refreshed.' };
+    const mine = ++this.chapterRefreshRun;
+    const stillCurrent = () => mine === this.chapterRefreshRun && listenerId === this.listenerId && bookId === this.bookId;
+    this.store.update((current) => ({ ...current, refreshingChapters: true }));
+    try {
+      const r = await this.gw.refreshChapters(bookId);
+      if (!stillCurrent()) return { ok: false, code: 'refresh_abandoned', detail: 'The book changed while its chapter names were being refreshed.' };
+      if (!r.ok) return fail(r);
+      this.store.update((current) => ({ ...current, chapters: r.value }));
+      await this.load(false);
+      return { ok: true };
+    } finally {
+      if (stillCurrent()) this.store.update((current) => ({ ...current, refreshingChapters: false }));
+    }
+  }
+
   // ---- choosing the current audiobook (B3)
 
   /** Make another audiobook this listener's current one. The place is kept: same chapter, same offset. */
@@ -539,6 +567,8 @@ export class BookStore {
     clearTimeout(this.timer);
     this.run++;
     this.audioRun++;
+    this.chapterRefreshRun++;
+    this.store.update((s) => ({ ...s, refreshingChapters: false }));
   }
 }
 

@@ -12,8 +12,11 @@
     /** Show every chapter, not the first few. */
     onshowall?: () => void;
     onfilter?: (storyOnly: boolean) => void;
+    onrefresh?: () => void;
+    refreshing?: boolean;
+    busy?: boolean;
   }
-  let { model, onshowall, onfilter }: Props = $props();
+  let { model, onshowall, onfilter, onrefresh, refreshing = false, busy = false }: Props = $props();
 </script>
 
 <section class="section">
@@ -21,6 +24,9 @@
     <h2>Chapters</h2>
     {#if model.hasMatter}
       <Chip selected={model.storyOnly} onclick={() => onfilter?.(!model.storyOnly)}>Hide front and back matter</Chip>
+    {/if}
+    {#if onrefresh}
+      <Button variant="text" disabled={refreshing || busy} aria-busy={refreshing} onclick={onrefresh}>Refresh chapter names</Button>
     {/if}
   </div>
   <div class="card">

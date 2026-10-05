@@ -291,6 +291,7 @@ export function runningModel(job: JobLike, audiobook: { chapters_ready: number; 
 export interface ScopeBody {
   kind: 'whole_book' | 'from_chapter';
   from_chapter_id?: string | null;
+  include_matter?: boolean;
 }
 
 export interface MakeOption {
@@ -307,6 +308,8 @@ export interface MakeInput {
   audio: ReadonlyMap<string, ChapterAudio>;
   /** The chapter the listener is in; offers "From chapter N" when it is not the first. */
   currentId?: string | null;
+  /** Whether front and back matter are voiced. Omitted preserves the existing whole-book scopes. */
+  includeMatter?: boolean;
 }
 
 function scopeDetail(ids: string[], audio: ReadonlyMap<string, ChapterAudio>): string {
@@ -319,19 +322,21 @@ function scopeDetail(ids: string[], audio: ReadonlyMap<string, ChapterAudio>): s
 
 /** The scopes a free voice can be made ready for: the whole book, and from the current chapter when there is one after the first. */
 export function makeOptions(input: MakeInput): MakeOption[] {
-  const { chapters, audio, currentId } = input;
-  const all = chapters.map((c) => c.id);
-  const out: MakeOption[] = [{ id: 'whole', title: 'Whole book', detail: scopeDetail(all, audio), scope: { kind: 'whole_book' }, chapterIds: all }];
+  const { chapters, audio, currentId, includeMatter = true } = input;
+  const eligible = (c: ChapterInfo) => includeMatter || !isMatter(c);
+  const matterScope = input.includeMatter === undefined ? {} : { include_matter: includeMatter };
+  const all = chapters.filter(eligible).map((c) => c.id);
+  const out: MakeOption[] = [{ id: 'whole', title: 'Whole book', detail: scopeDetail(all, audio), scope: { kind: 'whole_book', ...matterScope }, chapterIds: all }];
   const at = currentId ? chapters.findIndex((c) => c.id === currentId) : -1;
   if (at > 0) {
-    const ids = all.slice(at);
+    const ids = chapters.slice(at).filter(eligible).map((c) => c.id);
     const c = chapters[at]!;
     const story = chapters.slice(0, at + 1).filter((x) => !isMatter(x)).length;
     out.push({
       id: 'from',
       title: isMatter(c) ? 'From here' : `From chapter ${story}`,
       detail: scopeDetail(ids, audio),
-      scope: { kind: 'from_chapter', from_chapter_id: c.id },
+      scope: { kind: 'from_chapter', from_chapter_id: c.id, ...matterScope },
       chapterIds: ids,
     });
   }

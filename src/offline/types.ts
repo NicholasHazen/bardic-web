@@ -17,6 +17,8 @@ export interface DeviceChapter {
   chapterId: string;
   index: number;
   title: string;
+  /** Display classification from cached chapter metadata; older device records may omit it. */
+  kind?: 'story' | 'front_matter' | 'back_matter';
   state: DeviceChapterState;
   /** size of the audio on the server (manifest) */
   bytes: number | null;
@@ -112,6 +114,13 @@ export type DownloadScope =
   | { kind: 'whole_book' } // what is ready now and the rest as it is made (implies keepNew)
   | { kind: 'chapters'; chapterIds: string[] };
 
+/** Server chapter metadata after a successful metadata-only refresh. */
+export interface ChapterMetadata {
+  id: string;
+  title: string;
+  kind: 'story' | 'front_matter' | 'back_matter';
+}
+
 export interface OfflineCommands {
   /** the numbers the Download sheet shows before anything starts: size, chapters, free space (nothing is downloaded) */
   preview(audiobookId: string, scope: DownloadScope): Promise<DownloadPreview>;
@@ -130,6 +139,8 @@ export interface OfflineCommands {
   applyUpdate(audiobookId: string, chapterIds: string[]): Promise<void>;
   /** keep the copies held; stop offering these chapters until the server changes again */
   keepOld(audiobookId: string, chapterIds: string[]): void;
+  /** Reconcile refreshed names/kinds when the complete ordered chapter IDs match; held content/audio stay intact. */
+  updateChapterMetadata(bookId: string, chapters: readonly ChapterMetadata[]): Promise<void>;
   setRemoveFinishedAfterDays(days: number | null): void;
   /** re-read the server (online state, removed books) */
   refresh(): Promise<void>;

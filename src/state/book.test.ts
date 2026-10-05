@@ -105,6 +105,7 @@ function fakeGateway(init: { audiobooks: Audiobook[]; place?: Place | null; defa
   const gw: BookGateway = {
     book: async () => ok(book),
     chapters: async () => ok(chapters),
+    refreshChapters: async () => (calls.push('refreshChapters'), ok(chapters)),
     audiobooks: async () => ok(init.audiobooks),
     place: async () => ok(currentPlace),
     defaultVoice: async () => ok(init.defaultVoice ?? null),
@@ -293,6 +294,94 @@ describe('the Make ready sheet figures', () => {
     const all = { c0: 'ready', c1: 'ready', c2: 'ready', c3: 'ready', c4: 'ready' } as const;
     const store = await loaded(fakeGateway({ audiobooks: [ab('free1', 'free', 5)], states: all }));
     expect(makeSheet(get(store), 'whole')!.model.nothingToMake).toBe(true);
+  });
+  it('excluding matter uses the story selection for counts, space and the submitted scope', async () => {
+    const g = fakeGateway({ audiobooks: [ab('free1', 'free', 1)], place: place('free1'), states: { c1: 'ready' } });
+    const store = await loaded(g);
+    const story = makeSheet(get(store), 'whole', false)!;
+    const all = makeSheet(get(store), 'whole', true)!;
+    expect(story.chosen.chapterIds).toEqual(['c1', 'c2', 'c3']);
+    expect(story.model.toMake).toBe('2 chapters');
+    expect(all.model.toMake).toBe('4 chapters');
+    expect(story.model.space).not.toBe(all.model.space);
+    expect(story.chosen.scope).toEqual({ kind: 'whole_book', include_matter: false });
+    await store.makeReady(story.chosen.scope);
+    expect(g.makes).toEqual([{ id: 'free1', scope: { kind: 'whole_book', include_matter: false }, key: 'key-1' }]);
+  });
+});
+
+describe('refreshing chapter display metadata', () => {
+  it('reloads corrected names and story counts while retaining chapter IDs, hashes and the selected audio/place', async () => {
+    const g = fakeGateway({ audiobooks: [ab('free1', 'free', 2)], place: place('free1'), states: { c1: 'ready', c2: 'ready' } });
+    const old = chapters.map((chapter) => ({ ...chapter, title: `Section ${chapter.index + 1}`, kind: 'story' as const }));
+    let refreshed = false;
+    g.gw.chapters = async () => ok(refreshed ? chapters : old);
+    g.gw.book = async () => ok({ ...book, chapter_count: 5, story_chapter_count: refreshed ? 3 : 5, word_count: refreshed ? 4500 : 4610 });
+    g.gw.refreshChapters = async (id) => {
+      g.calls.push(`refresh:${id}`);
+      refreshed = true;
+      return ok(chapters);
+    };
+    const store = await loaded(g);
+    const before = get(store);
+    expect(await store.refreshChapters()).toEqual({ ok: true });
+    const after = get(store);
+    expect(after.refreshingChapters).toBe(false);
+    expect(after.chapters).toEqual(chapters);
+    expect(after.chapters.map(({ id, index, text_sha256 }) => ({ id, index, text_sha256 }))).toEqual(before.chapters.map(({ id, index, text_sha256 }) => ({ id, index, text_sha256 })));
+    expect(after.book).toMatchObject({ chapter_count: 5, story_chapter_count: 3, word_count: 4500 });
+    expect(after.currentId).toBe(before.currentId);
+    expect(after.audiobooks).toEqual(before.audiobooks);
+    expect(after.audio).toEqual(before.audio);
+    expect(after.place).toEqual(before.place);
+    expect(g.calls.filter((call) => call.startsWith('refresh:'))).toEqual(['refresh:b1']);
+    expect(g.makes).toEqual([]);
+    expect(g.puts).toEqual([]);
+  });
+
+  it.each(['chapter_structure_changed', 'source_unavailable'])('keeps every loaded resource and returns %s without making audio', async (code) => {
+    const g = fakeGateway({ audiobooks: [ab('free1', 'free', 2, 'Mara', { active_job_id: 'j1' })], place: place('free1'), states: { c1: 'ready', c2: 'ready' } });
+    g.gw.refreshChapters = async () => bad(409, 'Chapter metadata was kept.', code);
+    const store = await loaded(g);
+    const before = get(store);
+    expect(await store.refreshChapters()).toEqual({ ok: false, code, detail: 'Chapter metadata was kept.' });
+    expect(get(store)).toEqual(before);
+    expect(g.makes).toEqual([]);
+    expect(g.puts).toEqual([]);
+  });
+
+  it('exposes the busy state and sends one mutation for repeated presses', async () => {
+    const g = fakeGateway({ audiobooks: [ab('free1', 'free', 0)] });
+    let settle!: (result: R<Chapter[]>) => void;
+    let requests = 0;
+    g.gw.refreshChapters = () => {
+      requests++;
+      return new Promise((resolve) => { settle = resolve; });
+    };
+    const store = await loaded(g);
+    const pending = store.refreshChapters();
+    expect(get(store).refreshingChapters).toBe(true);
+    expect(await store.refreshChapters()).toMatchObject({ ok: false, code: 'refresh_in_progress' });
+    expect(requests).toBe(1);
+    settle(bad(409, 'Chapter metadata was kept.', 'source_unavailable'));
+    await pending;
+    expect(get(store).refreshingChapters).toBe(false);
+  });
+
+  it('cannot apply a late refresh to another configured book', async () => {
+    const g = fakeGateway({ audiobooks: [] });
+    g.gw.book = async (_listener, id) => ok({ ...book, id });
+    let settle!: (result: R<Chapter[]>) => void;
+    g.gw.refreshChapters = () => new Promise((resolve) => { settle = resolve; });
+    const store = await loaded(g);
+    const pending = store.refreshChapters();
+    store.configure('l2', 'b2');
+    await store.load();
+    const next = get(store);
+    settle(ok([{ ...chapters[0]!, title: 'A stale title' }]));
+    expect(await pending).toMatchObject({ ok: false, code: 'refresh_abandoned' });
+    expect(get(store)).toEqual(next);
+    expect(get(store).book?.id).toBe('b2');
   });
 });
 

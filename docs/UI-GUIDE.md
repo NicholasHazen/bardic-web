@@ -48,6 +48,7 @@ Sheets and listener lists scroll in short windows instead of shrinking informati
 - **Read mode never grows:** controls are one capsule; a download ring appears beside the reader controls and never covers text.
 - **Places:** when two places differ, show both with device, chapter, progress and time.
 - **Unknown stays unknown:** never display a missing cost or size as zero.
+- **Chapter matter:** Hide front and back matter filters the chapter list, including downloaded books. Make ready and premium plan sheets separately offer Include front and back matter, off initially. Changing that selection updates counts and a premium estimate before approval. Refresh chapter names is available for imported books; it updates names and classification only when the saved source matches the stored text.
 - **End of book:** offer the next readable volume the listener owns, in numeric series order, and the first known missing volume before it. Opening that suggestion goes to its book page; listening and paid plans keep their existing flow. A failed lookup says that the next volume could not be checked and offers Retry. Long titles wrap and the end screen scrolls so its controls remain reachable.
 
 ## Copy rules

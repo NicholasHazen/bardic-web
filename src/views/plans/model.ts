@@ -26,6 +26,7 @@ export interface SheetInput {
   voiceName: string;
   options: ScopeOptionModel[];
   selected: string;
+  includeMatter?: boolean;
   /** null while the estimate is being made. */
   estimate: PlanEstimate | null;
   previewing?: boolean;
@@ -74,6 +75,7 @@ export function sheetModel(i: SheetInput): PlanSheetModel {
     limitShown: limit?.ok ? moneyText(limit.limit) : i.limitText,
     monthly: e ? monthlyText(e.allowance) : 'None set',
   };
+  if (i.includeMatter !== undefined) m.includeMatter = i.includeMatter;
   if (i.previewing) m.loading = true;
   if (i.busy) m.busy = true;
   if (i.notice) m.notice = i.notice;
@@ -122,6 +124,7 @@ export function blockedModel(i: BlockedInput): PlanBlockedModel {
     limitShown: limit?.ok ? moneyText(limit.limit) : i.limitText,
     left: allowanceLeftText((e ?? i.blockedFrom).allowance) ?? '$0.00',
   };
+  if (i.includeMatter !== undefined) m.includeMatter = i.includeMatter;
   if (i.previewing) m.loading = true;
   if (i.busy) m.busy = true;
   if (i.notice) m.notice = i.notice;

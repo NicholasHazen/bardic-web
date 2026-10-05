@@ -1,6 +1,6 @@
 // Pure mappings from the offline engine's state to what the connected screens take (W5). Nothing here touches the
 // network, the DOM or the engine itself; the connected wrappers in this folder call these with `$offline`.
-import { chapterRows, type ChapterRowModel, type DeviceCopy } from '../../../lib/bookAudio';
+import { chapterRows, hasMatter, type ChapterRowModel, type DeviceCopy } from '../../../lib/bookAudio';
 import type { DeviceChapter, DownloadedBook, OfflineBook, OfflineStateX } from '../../../offline/types';
 import type { BookCardModel, ContinueModel } from '../../library/types';
 import type { AudiobookCardModel, BookHeaderModel, ChaptersModel } from '../../book/types';
@@ -97,7 +97,7 @@ export interface OfflinePage {
  * know the server's words here, so a chapter that is not held shows "Ready" when its size is known (the manifest lists
  * only what was ready) and "Not yet" otherwise.
  */
-export function offlinePage(book: OfflineBook | DownloadedBook, place: LocalPlaceRef | null, expanded = false): OfflinePage {
+export function offlinePage(book: OfflineBook | DownloadedBook, place: LocalPlaceRef | null, expanded = false, storyOnly = false): OfflinePage {
   const held = heldCount(book);
   const total = book.chapters.length;
   const copies = new Map<string, DeviceCopy>();
@@ -109,12 +109,14 @@ export function offlinePage(book: OfflineBook | DownloadedBook, place: LocalPlac
     else if (c.state === 'out_of_date') copies.set(c.chapterId, 'out_of_date');
     audio.set(c.chapterId, { state: c.bytes !== null ? 'ready' : 'not_yet' });
   }
+  const chapters = book.chapters.map((c) => ({ id: c.chapterId, title: c.title, kind: c.kind ?? 'story' }));
   const rows: ChapterRowModel[] = chapterRows({
-    chapters: book.chapters.map((c) => ({ id: c.chapterId, title: c.title, kind: 'story' as const })),
+    chapters,
     audio: audio as never,
     held: new Set([...copies].filter(([, d]) => d === 'held').map(([id]) => id)),
     deviceState: new Map([...copies].filter(([, d]) => d !== 'held')),
     currentId: place?.chapterId,
+    filter: storyOnly ? 'story' : 'all',
   });
   const shown = expanded || rows.length <= 4 ? rows : rows.slice(Math.min(Math.max(0, rows.findIndex((r) => r.current)), rows.length - 4), Math.min(Math.max(0, rows.findIndex((r) => r.current)), rows.length - 4) + 4);
   return {
@@ -129,7 +131,7 @@ export function offlinePage(book: OfflineBook | DownloadedBook, place: LocalPlac
       ready: total ? held / total : 0,
       canMakeReady: false,
     },
-    chapters: { rows: shown, more: shown.length < rows.length, total: rows.length, hasMatter: false, storyOnly: false },
+    chapters: { rows: shown, more: shown.length < rows.length, total: rows.length, hasMatter: hasMatter(chapters), storyOnly },
     deviceLine: `${held} of ${total} ${total === 1 ? 'chapter' : 'chapters'} on this device`,
     primaryLabel: place ? 'Continue listening' : 'Listen',
   };

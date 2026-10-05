@@ -71,6 +71,8 @@ export interface PlayerDeps {
 export type RestoreResult = 'restored' | 'conflict_before' | 'conflict_after' | 'failed';
 
 export interface Player extends Readable<PlayerState>, PlayerCommands {
+  /** Update display names and matter kinds only when the complete chapter order is unchanged. */
+  updateChapterMetadata(bookId: string, chapters: readonly Chapter[]): boolean;
   /** Restore a recent text place, paused, through the same revision/conflict flow as ordinary places. */
   restorePlace(bookId: string, place: Place): Promise<RestoreResult>;
   /** The end of the book screen: mark finished (true) or reopen (false). The server computes the automatic finish itself (C6). */
@@ -177,6 +179,7 @@ class PlayerImpl {
   private settings: ListenerSettings = DEFAULT_SETTINGS;
 
   private run = 0;
+  private metadataRun = 0;
   private chapterRun = 0;
   private curChapterId: string | null = null;
   /** the chapter whose audio the element holds */
@@ -315,6 +318,35 @@ class PlayerImpl {
       const audio = word === 'on_device' || word === 'ready' || word === 'making' ? word : 'not_yet';
       return { id: c.id, title: c.title, index: c.index, storyNumber: matter ? null : ++story, matter, audio };
     });
+  }
+
+  /** Metadata changes never replace text, audio, places or the currently loaded media. */
+  updateChapterMetadata(bookId: string, chapters: readonly Chapter[]): boolean {
+    if (!this.st.loaded || this.bookId !== bookId || chapters.length !== this.chapters.length || chapters.some((c, i) => c.id !== this.chapters[i]?.id)) return false;
+    // An explicit refresh also supersedes an older event read still in flight.
+    this.metadataRun++;
+    this.chapters = this.chapters.map((c, i) => ({ ...c, title: chapters[i]!.title, kind: chapters[i]!.kind }));
+    const current = this.chapters.find((c) => c.id === this.curChapterId);
+    if (this.offer) {
+      const offered = this.chapters.find((c) => c.id === this.offer?.chapterId);
+      if (offered) this.offer = { ...this.offer, title: offered.title };
+    }
+    this.push({ chapters: this.chapterList(), ...(current ? { chapter: this.chapterInfo(current) } : {}) });
+    this.setSessionMeta();
+    this.recompute();
+    this.refreshState();
+    return true;
+  }
+
+  private async refreshChapterMetadata(): Promise<void> {
+    const bookId = this.bookId;
+    const listenerId = this.listenerId;
+    const run = this.run;
+    if (!bookId || !listenerId || !this.st.loaded) return;
+    const mine = ++this.metadataRun;
+    const chapters = await this.d.api.chapters(bookId);
+    if (mine !== this.metadataRun || run !== this.run || this.bookId !== bookId || this.listenerId !== listenerId || this.d.listener() !== listenerId) return;
+    if (chapters.ok) this.updateChapterMetadata(bookId, chapters.value);
   }
 
   /** In play order: the chapters after `chapterId`, matter skipped. */
@@ -747,7 +779,7 @@ class PlayerImpl {
     this.timings = [];
     this.cursorOffset = clamp(target.offset ?? 0, 0, cpLength(this.text));
     this.push({
-      chapter: this.chapterInfo(ch),
+      chapter: this.chapterInfo(this.chapters.find((c) => c.id === chapterId) ?? ch),
       text: this.text,
       lines: this.lines,
       timings: [],
@@ -1049,7 +1081,12 @@ class PlayerImpl {
       if (n.book_id === this.bookId) void this.checkRemotePlace();
       return;
     }
+    if (n.type === 'book.updated') {
+      if (n.book_id === this.bookId || (!n.book_id && n.id === this.bookId)) void this.refreshChapterMetadata();
+      return;
+    }
     if (n.type === 'resync') {
+      void this.refreshChapterMetadata();
       this.kickRefresh();
       void this.checkRemotePlace();
       return;
@@ -1670,6 +1707,7 @@ export function createPlayer(deps: PlayerDeps): Player {
     subscribe: impl.subscribe,
     preparePlayback: impl.preparePlayback,
     open: (bookId, opts) => impl.open(bookId, opts),
+    updateChapterMetadata: (bookId, chapters) => impl.updateChapterMetadata(bookId, chapters),
     switchAudiobook: impl.switchAudiobook,
     restorePlace: impl.restorePlace,
     play: impl.play,

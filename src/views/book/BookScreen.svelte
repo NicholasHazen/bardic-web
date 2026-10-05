@@ -70,8 +70,10 @@
   let storyOnly = $state(false);
   let chooser = $state(false);
   let makeOpen = $state(false);
+  let includeMatter = $state(false);
   let selected = $state('whole');
   let busy = $state(false);
+  let actionRun = 0;
   // A deleted-for-good book is hidden by the server (reading it is 404). This asks the server whether that is why.
   const beingDeleted = $derived($deletions.items.some((i) => i.bookId === bookId));
   $effect(() => {
@@ -84,13 +86,18 @@
   let updateOpen = $state(false);
   let menuOpen = $state(false);
 
-  // A different book starts with the short list and nothing open.
+  // A different book or listener starts with the short list and nothing open.
   $effect(() => {
     void bookId;
+    void listenerId;
+    actionRun++;
+    busy = false;
     expanded = false;
     storyOnly = false;
     chooser = false;
     makeOpen = false;
+    includeMatter = false;
+    sheetError = undefined;
     problem = undefined;
     downloadOpen = false;
     updateOpen = false;
@@ -99,7 +106,8 @@
 
   const page = $derived(pageModel(s, { expanded, storyOnly }, $deviceChapters));
   const palette = $derived(derivePalette(s.book?.cover?.sample));
-  const sheet = $derived(makeOpen ? makeSheet(s, selected) : undefined);
+  const sheet = $derived(makeOpen ? makeSheet(s, selected, includeMatter) : undefined);
+  const hasMatter = $derived(s.chapters.some((c) => c.kind !== 'story'));
   const current = $derived(currentAudiobook(s));
   const premium = $derived(current?.tier === 'premium');
   const planGoing = $derived(!!current && $planStore.track.active.some((p) => p.audiobook_id === current.id));
@@ -152,20 +160,47 @@
 
   async function start() {
     if (!sheet) return;
+    const mine = ++actionRun;
+    const book = bookId;
+    const listener = listenerId;
     busy = true;
     sheetError = undefined;
     const r = await bookStore.makeReady(sheet.chosen.scope);
+    if (mine !== actionRun || book !== bookId || listener !== listenerId) return;
     busy = false;
     if (r.ok) makeOpen = false;
     else sheetError = r.detail;
   }
 
   async function act(run: () => Promise<{ ok: true } | { ok: false; detail: string }>, title: string) {
+    const mine = ++actionRun;
+    const book = bookId;
+    const listener = listenerId;
     busy = true;
     problem = undefined;
     const r = await run();
+    if (mine !== actionRun || book !== bookId || listener !== listenerId) return;
     busy = false;
     if (!r.ok) problem = { title, text: r.detail };
+  }
+
+  async function refreshChapterNames() {
+    if (busy || s.refreshingChapters) return;
+    const book = bookId;
+    const listener = listenerId;
+    await act(async () => {
+      const r = await bookStore.refreshChapters();
+      if (!r.ok) return r;
+      const refreshed = $bookStore;
+      if (bookId !== book || listenerId !== listener || refreshed.book?.id !== book) return { ok: true };
+      player.updateChapterMetadata(book, refreshed.chapters);
+      try {
+        await offline.updateChapterMetadata(book, refreshed.chapters);
+      } catch {
+        return { ok: false, detail: 'Chapter names were refreshed on your Bardic computer. Downloaded text and audio are kept, but the updated names could not be saved on this device. Try refreshing again.' };
+      }
+      return { ok: true };
+    }, 'Couldn’t refresh chapter names');
   }
 
   function closeChooser() {
@@ -201,6 +236,7 @@
       const result = await chooseAudiobook(ab.id, { makeAudio: false });
       if (result.ok) {
         selected = 'whole';
+        includeMatter = false;
         sheetError = undefined;
         makeOpen = true;
       }
@@ -236,6 +272,7 @@
       {downloads}
       onmakeready={() => {
         selected = 'whole';
+        includeMatter = false;
         sheetError = undefined;
         makeOpen = true;
       }}
@@ -245,6 +282,8 @@
       onchoose={(id) => act(() => chooseAudiobook(id), 'Couldn’t switch audiobook')}
       onshowall={() => (expanded = true)}
       onfilter={(v) => (storyOnly = v)}
+      onrefreshchapters={s.book?.source_sha256 ? refreshChapterNames : undefined}
+      refreshingChapters={s.refreshingChapters}
       ondismissproblem={() => (problem = undefined)}
     />
   {:else if s.status === 'error'}
@@ -281,6 +320,8 @@
         model={{ ...sheet.model, busy, error: sheetError }}
         placement={$isTablet ? 'popover' : 'bottom'}
         onselect={(id) => (selected = id)}
+        includeMatter={hasMatter ? includeMatter : undefined}
+        onmatter={(include) => { includeMatter = include; sheetError = undefined; }}
         onstart={start}
         onclose={() => (makeOpen = false)}
       />

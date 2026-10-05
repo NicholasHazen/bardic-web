@@ -210,6 +210,8 @@ test('V3: Make ready for a free voice shows time and space, starts a job, and th
   await expect(sheet).toContainText('Mara · free');
   await expect(sheet.getByRole('radio', { name: /Whole book/ })).toBeChecked();
   await expect(sheet.getByRole('radio', { name: /From chapter 2/ })).toBeVisible();
+  // This test covers pause/resume across every chapter, including matter.
+  await sheet.getByRole('checkbox', { name: 'Include front and back matter', exact: true }).check();
   await expect(sheet).toContainText('To make');
   await expect(sheet).toContainText('5 chapters');
   await expect(sheet).toContainText(/About .*, in the background|Less than a minute, in the background/);
@@ -221,6 +223,7 @@ test('V3: Make ready for a free voice shows time and space, starts a job, and th
   expect((await apiCall(stack.api, 'GET', `/api/jobs?audiobook_id=${w.free.id}`)).json.items).toHaveLength(0);
 
   await card.getByRole('button', { name: 'Make ready' }).click();
+  await page.getByRole('dialog', { name: 'Make ready' }).getByRole('checkbox', { name: 'Include front and back matter', exact: true }).check();
   await page.getByRole('dialog', { name: 'Make ready' }).getByRole('button', { name: 'Start' }).click();
   await expect(page.getByRole('dialog', { name: 'Make ready' })).toHaveCount(0);
   await expect(card.getByText('Making it ready')).toBeVisible();

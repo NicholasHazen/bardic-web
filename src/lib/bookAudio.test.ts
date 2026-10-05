@@ -185,6 +185,16 @@ describe('the free Make ready sheet', () => {
     const o = makeOptions({ chapters: chapters.slice(0, 1), audio: audioOf({ c1: 'ready' }) });
     expect(o[0]?.detail).toBe('1 chapter · all ready');
   });
+  it('filters matter before counting whole/from scopes and retains a matter chapter as the from anchor', () => {
+    const mixed = [ch(1, 'front_matter'), ch(2), ch(3, 'front_matter'), ch(4), ch(5, 'back_matter')].map((c) => ({ ...c, word_count: 100 }));
+    const audio = audioOf({ c1: 'ready', c2: 'ready', c5: 'ready' });
+    const opts = makeOptions({ chapters: mixed, audio, currentId: 'c3', includeMatter: false });
+    expect(opts[0]).toMatchObject({ detail: '2 chapters · 1 ready', scope: { kind: 'whole_book', include_matter: false }, chapterIds: ['c2', 'c4'] });
+    expect(opts[1]).toMatchObject({ title: 'From here', detail: '1 chapter · none ready yet', scope: { kind: 'from_chapter', from_chapter_id: 'c3', include_matter: false }, chapterIds: ['c4'] });
+    const all = makeOptions({ chapters: mixed, audio, currentId: 'c3', includeMatter: true });
+    expect(all[0]!.chapterIds).toHaveLength(5);
+    expect(all[1]!.chapterIds).toEqual(['c3', 'c4', 'c5']);
+  });
   it('counts only what is not ready, and sizes it from measured audio when there is some', () => {
     const audio = audioOf({ c1: 'ready' });
     const e = estimateMake(chapters, chapters.map((c) => c.id), audio, 8000);

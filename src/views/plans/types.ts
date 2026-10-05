@@ -35,6 +35,8 @@ export interface PlanSheetModel {
   eyebrow: string;
   options: ScopeOptionModel[];
   selected: string;
+  /** Optional so reference boards retain their layout; connected flows offer the matter choice. */
+  includeMatter?: boolean;
   /** The estimate is being made; its figures are not known yet. */
   loading?: boolean;
   rows?: EstimateRowsModel;
@@ -65,6 +67,7 @@ export interface PlanBlockedModel {
   headline: ProblemModel;
   options: ScopeOptionModel[];
   selected: string;
+  includeMatter?: boolean;
   loading?: boolean;
   /** "$1.15 to $1.61" */
   cost: string;

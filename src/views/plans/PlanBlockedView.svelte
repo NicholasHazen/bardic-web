@@ -5,6 +5,7 @@
   import OptionCard from '../../components/OptionCard.svelte';
   import Sheet from '../../components/Sheet.svelte';
   import LimitRow from './LimitRow.svelte';
+  import MatterChoice from '../../components/MatterChoice.svelte';
   import PlanGlyph from './PlanGlyph.svelte';
   import type { PlanBlockedModel } from './types';
 
@@ -16,6 +17,7 @@
   interface Props {
     model: PlanBlockedModel;
     onselect?: (id: string) => void;
+    onmatter?: (include: boolean) => void;
     onlimit?: (text: string) => void;
     onapprove?: () => void;
     onallowance?: () => void;
@@ -25,7 +27,7 @@
     fixed?: boolean;
     scrim?: number;
   }
-  let { model, onselect, onlimit, onapprove, onallowance, onclose, onfix, placement = 'bottom', fixed = false, scrim }: Props = $props();
+  let { model, onselect, onmatter, onlimit, onapprove, onallowance, onclose, onfix, placement = 'bottom', fixed = false, scrim }: Props = $props();
 </script>
 
 <Sheet title="Make ready" eyebrow={model.eyebrow} {onclose} {placement} {fixed} {scrim}>
@@ -38,6 +40,9 @@
       <OptionCard title={o.title} detail={o.detail} selected={o.id === model.selected} disabled={model.busy} onselect={() => onselect?.(o.id)} />
     {/each}
   </div>
+  {#if model.includeMatter !== undefined}
+    <MatterChoice checked={model.includeMatter} disabled={model.busy} onchange={onmatter} />
+  {/if}
   <Glass radius={16} style="overflow: hidden; flex-shrink: 0">
     <dl aria-busy={model.loading ? 'true' : 'false'}>
       <div class="r"><dt>Estimated cost</dt><dd class="strong" role={model.loading ? 'status' : undefined}>{model.loading ? 'Working it out…' : model.cost}</dd></div>

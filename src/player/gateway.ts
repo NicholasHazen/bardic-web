@@ -77,7 +77,7 @@ export const apiPlayerApi: PlayerApi = {
     try {
       const r = await api.POST('/api/audiobooks/{audiobook_id}/chapters/{chapter_id}/request', {
         params: { path: { audiobook_id: audiobookId, chapter_id: chapterId }, header: { 'X-Bardic-Listener': l, 'X-Bardic-Device': deviceId() } },
-        body: { ahead },
+        body: { ahead, include_matter: false },
         fetch: withDevice,
       });
       if (r.response.status === 200 && r.data) return { ok: true, value: { kind: 'ready', chapter: r.data as AudiobookChapter } };
