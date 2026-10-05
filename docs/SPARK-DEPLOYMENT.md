@@ -54,25 +54,31 @@ curl --fail --silent --show-error http://127.0.0.1:8080/api/health
 
 Wait for the services to show healthy before reading the health endpoint. This native-host restart was exercised: the server stopped gracefully and kept its identity while the existing gateway remained running. Keep the five-minute stop grace period for provider work that has already been admitted. For a planned shutdown of the whole stack, use `~/bardic-v2/compose stop`, then the `up` command above to start it again. Run only one server against this data directory.
 
-## Complete private HTTPS
+## Private HTTPS
 
-**Pending at this checkpoint.** Tailscale Serve had no configuration. The deployment account could not configure Serve without administrator authorization, and passwordless sudo is unavailable. Run this interactive step from a trusted computer, replacing the SSH alias:
-
-```sh
-ssh -t bardic-host 'sudo tailscale serve --bg http://127.0.0.1:8080'
-```
-
-Enter the administrator password at the host's sudo prompt. If Tailscale prompts to enable tailnet HTTPS, follow its setup link. Then inspect the configuration:
+**Verified on 2026-10-05.** The administrator setup step is complete. Tailscale Serve accepts HTTPS on TCP 443 and forwards to `http://127.0.0.1:8080`; Funnel is not enabled. Inspect the configuration from a trusted computer, replacing the SSH alias:
 
 ```sh
 ssh bardic-host 'tailscale serve status'
 ```
 
-Use the HTTPS URL reported by that command, for example `https://bardic-host.your-tailnet.ts.net`, on devices signed in to the trusted tailnet. [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve) provides private access; tailnet access rules control who can reach it. Bardic has no login layer. Funnel and public port forwarding are not part of this deployment.
+Use the HTTPS URL reported by that command, for example `https://bardic-host.your-tailnet.ts.net`, on devices signed in to the trusted tailnet. [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve) provides private access; tailnet access rules control who can reach it. Bardic has no login layer. Public port forwarding is not part of this deployment.
 
-Before treating HTTPS as complete, check `/api/health` through that URL and open the live app on the intended devices. Verify that the welcome screen loads without console/application errors and that a service-worker controller is acquired. Retain this stable HTTPS origin for normal use: listener selection and downloaded chapters belong to a browser origin, so the earlier localhost SSH-tunnel origin has separate storage.
+Normal certificate-validation requests passed for `/`, `/api/health`, `/api/server`, `/api/listeners` and `/sw.js`. A HEAD request for the same nonexistent voice sample returned 404 with the application's HTTPS `Origin` and `Sec-Fetch-Site: same-origin`, and 403 with a foreign `Origin` and identical Fetch Metadata. This checks that the proxy path preserves Origin and that the server refuses the foreign request; neither request generated audio.
 
-The temporary SSH tunnel used for live verification has been closed; the stack remains running on loopback. Until Serve is configured, a deliberate tunnel can be used for maintenance from a trusted computer:
+Playwright Chromium, Firefox and WebKit opened the actual HTTPS welcome screen with normal certificate validation. Each reported a secure context, a same-origin service-worker controller, cached `index.html` and all four exact production assets, absent test hooks even with `?e2e=player`, and no application or same-origin console errors. These checks inspected service-worker installation and cache contents; they did not exercise an offline HTTPS reload or downloaded playback. No listeners, books, keys or provider work were created.
+
+Retain this stable HTTPS origin for normal use: listener selection and downloaded chapters belong to a browser origin, so the earlier localhost SSH-tunnel origin has separate storage. Physical-device checks still need to be performed.
+
+If the Serve configuration needs to be restored, its setup command requires interactive administrator authorization:
+
+```sh
+ssh -t bardic-host 'sudo tailscale serve --bg http://127.0.0.1:8080'
+```
+
+Enter the administrator password at the host's sudo prompt. If Tailscale prompts to enable tailnet HTTPS, follow its setup link, then check `tailscale serve status` and the HTTPS health endpoint again.
+
+The temporary SSH tunnel used for earlier live verification remains closed. The stack runs on loopback behind Serve. A deliberate tunnel can also be used for maintenance from a trusted computer:
 
 ```sh
 ssh -N -L 18080:127.0.0.1:8080 bardic-host
@@ -84,7 +90,7 @@ Open `http://127.0.0.1:18080` while that command runs. Stop the tunnel when fini
 
 The existing Breeze health endpoint on Tailscale, port 7860, returned HTTP 200 from both the host and the Bardic server container. These were read-only connectivity checks. Breeze is not yet configured in this fresh Bardic, and no speech or paid provider requests were made on Spark.
 
-After HTTPS is checked, add a listener and enter the reachable Breeze address in Settings → Voices. Use the actual remote Tailscale endpoint, for example `http://voice-host.your-tailnet.ts.net:7860`; `127.0.0.1` inside the server container refers to that container. Generate only the book/audio explicitly chosen in that setup. Premium provider credentials and plans remain optional and follow the existing approval flow.
+Open the verified HTTPS URL, add a listener and enter the reachable Breeze address in Settings → Voices. Use the actual remote Tailscale endpoint, for example `http://voice-host.your-tailnet.ts.net:7860`; `127.0.0.1` inside the server container refers to that container. Generate only the book/audio explicitly chosen in that setup. Premium provider credentials and plans remain optional and follow the existing approval flow.
 
 ## Updates and recovery
 
@@ -103,6 +109,7 @@ The `data` directory stays in place. Check existing library, places and audio be
 - Native ARM64 images run on Ubuntu with a UID/GID 10001 local ext4 bind mount; both health checks pass and only loopback 8080 is published.
 - A graceful native server restart preserved identity behind the unchanged gateway.
 - From macOS through a temporary SSH tunnel, Playwright Chromium, Firefox and WebKit rendered the actual live welcome screen, had no production test hooks even with `?e2e=player`, acquired a service-worker controller and reported no application exceptions. No listener was created and no playback was requested.
+- Private Tailscale HTTPS on TCP 443 passed normal certificate validation, API/static reads and the read-only Origin-refusal comparison. The three browser engines passed welcome rendering, secure-context/worker/cache inspection, absent hooks and application/same-origin console checks on that HTTPS origin. No offline playback was requested.
 - The real Breeze health endpoint was reachable from the host and server container; no synthesis was exercised.
 
-Private HTTPS, a real reboot, real-provider synthesis on Spark, native Safari/physical iOS, background playback and a backup/restore rehearsal on this host remain unverified. The disposable Docker deployment smoke's synthetic generation/export/restore results are recorded separately in [ROADMAP.md](ROADMAP.md).
+A real reboot, real-provider synthesis on Spark, native Safari/physical iOS, background playback, offline reload/playback through the live HTTPS origin and a backup/restore rehearsal on this host remain unverified. The intermittent WebKit first-Listen symptom also remains unresolved. The disposable Docker deployment smoke's synthetic generation/export/restore results are recorded separately in [ROADMAP.md](ROADMAP.md).

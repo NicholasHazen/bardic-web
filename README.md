@@ -14,7 +14,7 @@ The client half of Bardic v2: library, listening, reading along, plans and offli
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Client structure, stack, offline and sync design. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Milestones and exit criteria. |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Docker Compose on Linux/NAS, private HTTPS, persistent storage, backup and restore. |
-| [docs/SPARK-DEPLOYMENT.md](docs/SPARK-DEPLOYMENT.md) | Operate the native ARM64 Spark installation; release layout, host checks and pending private HTTPS step. |
+| [docs/SPARK-DEPLOYMENT.md](docs/SPARK-DEPLOYMENT.md) | Operate the native ARM64 Spark installation; release layout, host checks and verified private HTTPS. |
 | [contract/](contract/) | A synced copy of the server's OpenAPI contract and its version. |
 | [AGENTS.md](AGENTS.md) | Rules for coding agents and contributors. |
 

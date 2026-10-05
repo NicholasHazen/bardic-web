@@ -220,14 +220,14 @@ async function browserChecks(assets) {
       assert.deepEqual(await noHooks(), [], `${name}: production query enabled E2E hooks`);
       // A controller is acquired only after install/activation; additionally require every compiled
       // asset checked above in its app cache before cutting the origin. No cached audio is claimed.
-      await page.waitForFunction(async (compiledAssets) => {
-        if (!navigator.serviceWorker.controller) return false;
+      await page.waitForFunction(() => !!navigator.serviceWorker.controller, undefined, { timeout: 25_000 });
+      await expect.poll(async () => await page.evaluate(async (compiledAssets) => {
         const cacheName = (await caches.keys()).find((key) => key.startsWith('bardic-app-'));
         if (!cacheName) return false;
         const cache = await caches.open(cacheName);
         if (!await cache.match('/index.html')) return false;
         return (await Promise.all(compiledAssets.map(async (asset) => !!await cache.match(asset)))).every(Boolean);
-      }, assets, { timeout: 25_000 });
+      }, assets), { timeout: 25_000, message: `${name}: complete app shell and compiled assets must be cached` }).toBe(true);
       assert.deepEqual(pageErrors, [], `${name}: application exceptions online`);
       assert.deepEqual(consoleErrors, [], `${name}: same-origin console errors online`);
       const documentMarker = `before-cached-reload-${randomUUID()}`;

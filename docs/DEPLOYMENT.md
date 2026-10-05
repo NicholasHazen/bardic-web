@@ -4,7 +4,7 @@ Use [compose.yaml](../compose.yaml): Caddy serves the compiled web app and forwa
 
 Bardic has no login or access-control layer. Keep it reachable only by trusted people/devices. The default host binding is loopback; use Tailscale Serve on the host for private HTTPS. HTTPS enables the browser's service worker and offline app shell. Plain HTTP on a LAN address does not provide the full offline app.
 
-For the native ARM64 installation on Spark, see [SPARK-DEPLOYMENT.md](SPARK-DEPLOYMENT.md) for its release layout, Compose wrapper, verified host checks and pending administrator step for HTTPS.
+For the native ARM64 installation on Spark, see [SPARK-DEPLOYMENT.md](SPARK-DEPLOYMENT.md) for its release layout, Compose wrapper, verified host checks and private HTTPS configuration.
 
 ## Prepare the host
 
@@ -92,4 +92,4 @@ npm run deployment:check
 
 The check uses its own Compose project, temporary folders and loopback port, an explicit temporary environment file, and fake Breeze. It uses no existing library, `.env` or real provider. Chromium, Firefox and WebKit load the actual compiled app, create synthetic listeners, verify production hooks are absent, and reload a fresh cached document after their origin sockets are cut. Playback is muted. The check also exercises static caching, API guards, streaming events, synthetic Unicode text, audio and Range, ffmpeg export, clean SIGTERM exit, server recreation behind an unchanged gateway, and restoration of a key-free backup to a separate folder. It removes its containers and temporary data afterwards. On Linux, Playwright also needs its browser system dependencies (`npx playwright install --with-deps`). Normal types/logic/design/browser checks still apply to source changes.
 
-Results and platform limits are in [ROADMAP.md](ROADMAP.md). Native ARM64 ownership/restart and Tailscale routing to Breeze were checked on [Spark](SPARK-DEPLOYMENT.md); private HTTPS and an actual reboot remain pending there. NAS permissions and physical-device playback still need checks on the chosen devices.
+Results and platform limits are in [ROADMAP.md](ROADMAP.md). Native ARM64 ownership/restart, private HTTPS and Tailscale routing to Breeze were checked on [Spark](SPARK-DEPLOYMENT.md); an actual reboot remains unverified there. NAS permissions and physical-device playback still need checks on the chosen devices.
