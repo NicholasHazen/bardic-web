@@ -1,0 +1,146 @@
+{
+ "generated": "2026-10-05",
+ "tool": "axe-core 4.13.0 injected with page.addScriptTag (no @axe-core/playwright)",
+ "tags": [
+  "wcag2a",
+  "wcag2aa",
+  "wcag21a",
+  "wcag21aa",
+  "best-practice"
+ ],
+ "browser": "Chromium (Playwright, muted)",
+ "text200Method": "200% browser-zoom reflow equivalent: half-width and half-height CSS layout viewport, with responsive media queries; screenshots captured during inspection",
+ "viewportsPx": {
+  "phone": {
+   "width": 390,
+   "height": 844
+  },
+  "tablet-landscape": {
+   "width": 1194,
+   "height": 834
+  },
+  "tablet-portrait": {
+   "width": 834,
+   "height": 1194
+  }
+ },
+ "provenance": {
+  "date": "2026-10-05",
+  "full": "npm run audit:a11y: 77 states at three viewports; 231 records",
+  "repaired": "Rebuilt dist-audit and reran all three viewports for Book (plan running), Book (plan paused), Book (plan stopped, audio kept), and Library + Deletion undo banner; 12 replacement records",
+  "changes": "The stopped-plan fixture waits for the prior fake-provider chapter before starting fresh work. The deletion banner title wraps at narrow reflow widths. All other records are retained from the full run.",
+  "evidence": [
+   "a11y-evidence/ui-review-2026-10-05-full.json",
+   "a11y-evidence/ui-review-2026-10-05-repaired.json"
+  ],
+  "allowances": 0
+ },
+ "scans": 231,
+ "screens": [
+  "First listener",
+  "Who is listening (chooser)",
+  "Home (empty)",
+  "Library (empty)",
+  "Add a book sheet",
+  "Manage (empty)",
+  "Settings",
+  "Settings > Listening behaviour",
+  "Settings > Reader appearance",
+  "Settings > About this Bardic",
+  "Settings > Voices (nothing set up)",
+  "Settings > Breeze server (not set up)",
+  "Settings > Default voice (none)",
+  "Settings > Premium voices (no key)",
+  "Settings > Allowance (empty)",
+  "Settings > Downloads (none)",
+  "Settings > Listeners",
+  "Listeners > Add a listener sheet",
+  "Listeners > Edit a listener sheet",
+  "Switch listener sheet",
+  "Home (with books)",
+  "Library (with books)",
+  "Library > sort menu",
+  "Library > search open",
+  "Library > no match",
+  "Manage (with books)",
+  "Book (free audiobook, all ready)",
+  "Book (premium audiobook, nothing made)",
+  "Book (no audiobook yet)",
+  "Voice chooser sheet",
+  "Voice chooser sheet (premium tab)",
+  "Settings (voices set up)",
+  "Settings > Voices (Breeze and Gemini)",
+  "Settings > Breeze server (connected)",
+  "Settings > Default voice",
+  "Settings > Premium voices (connected)",
+  "Settings > Allowance (monthly limit)",
+  "Plan sheet (preview)",
+  "Plan sheet > how the estimate works",
+  "Plan sheet > limit field",
+  "Plan sheet (blocked by the monthly limit)",
+  "Book (plan running)",
+  "Book (plan paused)",
+  "Book (plan stopped, audio kept)",
+  "Book (plan finished)",
+  "Premium voices (key rejected)",
+  "Now Playing (Listen)",
+  "Now Playing (playing)",
+  "Now Playing > speed sheet",
+  "Now Playing > sleep sheet",
+  "Now Playing > chapters sheet",
+  "Now Playing (Read)",
+  "Now Playing (Read, Night)",
+  "Read > appearance sheet",
+  "Read > find in book (screen)",
+  "Read > find in book, no match",
+  "Mini-player on Library",
+  "Now Playing > place conflict sheet",
+  "End of book",
+  "Book > This book menu",
+  "Book > Recent places",
+  "Book > Free up space",
+  "Book > Delete permanently",
+  "Manage > Edit details",
+  "Manage > Removed books",
+  "Library + Deletion undo banner",
+  "Download sheet",
+  "Download sheet > choose chapters",
+  "Book + Downloads (in progress)",
+  "Settings > Downloads (in progress)",
+  "Settings > Downloads (on this device)",
+  "Home (offline)",
+  "Server offline (Library)",
+  "Book (offline, held)",
+  "Book (offline, not held)",
+  "Settings (offline)",
+  "Settings > Downloads (offline)"
+ ],
+ "viewports": [
+  "phone",
+  "tablet-landscape",
+  "tablet-portrait"
+ ],
+ "summary": {
+  "findingsByRule": {},
+  "targetsChecked": 2538,
+  "screensThatCouldNotBeScanned": []
+ },
+ "axeIncomplete": [
+  {
+   "rule": "color-contrast",
+   "nodes": 761,
+   "screens": 75
+  },
+  {
+   "rule": "aria-valid-attr-value",
+   "nodes": 21,
+   "screens": 7
+  },
+  {
+   "rule": "aria-prohibited-attr",
+   "nodes": 30,
+   "screens": 7
+  }
+ ],
+ "findings": []
+}

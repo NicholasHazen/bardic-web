@@ -5,9 +5,36 @@
   "description": "Bardic web client",
   "scripts": {
     "contract:sync": "sh scripts/sync-contract.sh",
-    "contract:types": "openapi-typescript contract/openapi.yaml -o src/api/schema.d.ts"
+    "contract:types": "openapi-typescript contract/openapi.yaml -o src/api/schema.d.ts",
+    "dev": "vite",
+    "build": "vite build",
+    "check": "svelte-check --tsconfig ./tsconfig.json && tsc --noEmit",
+    "test": "vitest run",
+    "design:refs": "node scripts/design-refs.mjs",
+    "design:check": "node scripts/design-check.mjs",
+    "e2e": "VITE_E2E=1 vite build && playwright test",
+    "audit": "sh scripts/audit.sh",
+    "audit:a11y": "sh scripts/audit.sh a11y",
+    "audit:perf": "sh scripts/audit.sh perf",
+    "deployment:check": "node scripts/deployment-smoke.mjs"
   },
   "devDependencies": {
-    "openapi-typescript": "^7.0.0"
-  }
+    "@playwright/test": "^1.63.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@types/node": "^26.6.3",
+    "@types/pngjs": "^6.0.5",
+    "axe-core": "^4.13.0",
+    "openapi-fetch": "^0.17.0",
+    "openapi-typescript": "^7.0.0",
+    "pixelmatch": "^7.2.0",
+    "playwright": "^1.63.0",
+    "pngjs": "^7.0.0",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.7.6",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.3"
+  },
+  "type": "module"
 }

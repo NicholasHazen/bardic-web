@@ -1,0 +1,42 @@
+{
+  "_note": "Deliberate differences from a board. Entries need a reason; without one the default tolerance applies. Key = board name. Accessibility notes that do not change pixels are recorded here too under 'a11y:' keys and are not read by the check.",
+  "a11y:Components/Chip": {
+    "reason": "Filter chips now have a real 44 px target, meeting docs/UI-GUIDE.md. Their small height increase is deliberate; all board comparisons still use the default 1% tolerance."
+  },
+  "a11y:Components/Toggle": {
+    "reason": "The toggle row is 30 px tall as drawn; an invisible 44 px hit area is added so the target meets the rule."
+  },
+  "live:BookMenu": {
+    "reason": "The live menu includes Recent places (C7) and Delete permanently (G3), required by PRODUCT-SPEC.md but omitted from the original BookMenu board. The static fixture continues to reproduce the supplied board."
+  },
+  "live:Settings": {
+    "reason": "The live Settings includes Listening behaviour for per-listener continuation/conflict choices, About this Bardic for G7 naming, and a full-size Voices row instead of an undersized clickable section heading. These routes extend the original Settings board. Reader appearance reuses the phone/tablet sheets and exposes the specified Dim the aura switch."
+  },
+  "live:ServerName": {
+    "reason": "Data folder is shown as Unknown because the server contract does not expose it. The board's sample path is used only in its synthetic fixture."
+  },
+  "live:ServerNaming": {
+    "reason": "G7 requires the server name in the switcher and unreachable screen. Live views show the cached name there, including after offline reload; board fixtures retain their original sample text."
+  },
+  "a11y:TextContrast": {
+    "reason": "Small text in the Home Continue card, listener details and offline notice is slightly brighter so its painted contrast meets the accessibility requirement on the translucent background. Callout headings and synthetic cover titles use contrast-safe ink. Tablet secondary text is brighter where large cover-derived glows previously reduced contrast. Default board tolerance remains 1%."
+  },
+  "live:TabletAura": {
+    "reason": "Runtime tablet glow opacity is capped for bright cover-derived palettes so the actual painted reader and interface backgrounds preserve text contrast, including green and yellow covers. Authored board fixture glows are unchanged."
+  },
+  "live:EndOfBook": {
+    "reason": "The live S9 screen adds a read-only lookup status and Retry when series ownership cannot be checked, plus acknowledgement after Mark as finished is saved. P6 requires uncertainty to remain explicit. Next-volume titles wrap and the page scrolls for long real titles or error text so all controls stay reachable. The ordinary supplied board keeps the default 1% tolerance."
+  },
+  "live:ResponsiveLayouts": {
+    "reason": "The supplied boards show 390 px phones and large tablets. At 768–1100 px the live book page uses two upper columns and a full-width Chapters section, and Library uses four columns, because the original desktop column widths clipped content on portrait tablets. At 360 px and below book/action rows and download statuses reflow to keep names and controls usable. Wider board layouts retain the default 1% tolerance."
+  },
+  "live:LongTextAndShortWindows": {
+    "reason": "Real titles and listener/voice/device names can be longer than fixture names. They wrap in metadata, chapter lists, cards, sheets and actions; decorative cover titles stay within their artwork and progress bars retain their thin height. Sheets and listener/player content scroll rather than compressing information or hiding final actions in short windows. These deliberate differences preserve the exact text and keep the original boards at the default tolerance."
+  },
+  "live:NarrowReadControls": {
+    "reason": "At 360 px and below, Read moves Back 15 to Show controls and puts the mode switch on a second header row while a download ring is present, avoiding clipped capsule controls and overlap with Text settings. The normal 390 px Read boards retain their positions and the default 1% tolerance."
+  },
+  "a11y:PlaybackControls": {
+    "reason": "The Read playback-controls modal now traps keyboard focus and makes its covered reader inert. Its Hide controls handle has a 44 px target while the drawn handle stays in place. Dismissal returns focus to Show controls. Board tolerance remains unchanged."
+  }
+}

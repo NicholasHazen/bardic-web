@@ -1,0 +1,63 @@
+# Run one server per data directory. The gateway is the only published service.
+services:
+  bardic-server:
+    image: bardic-server:${BARDIC_IMAGE_TAG:-local}
+    build:
+      context: ${BARDIC_SERVER_CONTEXT:-../bardic-server}
+    restart: unless-stopped
+    init: true
+    stop_signal: SIGTERM
+    # An admitted premium sample can take up to 240 seconds to settle.
+    stop_grace_period: 5m
+    environment:
+      BARDIC_ALLOW_HOSTS: ${BARDIC_ALLOW_HOSTS:-}
+      BARDIC_ALLOW_ORIGINS: ${BARDIC_ALLOW_ORIGINS:-}
+    volumes:
+      - type: bind
+        source: ${BARDIC_DATA_DIR:?Set BARDIC_DATA_DIR to an absolute local data directory}
+        target: /data
+        bind:
+          create_host_path: false
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,uid=10001,gid=10001,mode=1770
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --max-time, '3', http://127.0.0.1:8765/api/health]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  bardic-web:
+    image: bardic-web:${BARDIC_IMAGE_TAG:-local}
+    build:
+      context: .
+    restart: unless-stopped
+    depends_on:
+      bardic-server:
+        condition: service_healthy
+    ports:
+      - '${BARDIC_BIND_ADDRESS:-127.0.0.1}:${BARDIC_HTTP_PORT:-8080}:8080'
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,uid=10001,gid=10001,mode=1770
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8080/api/health]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'

@@ -1,0 +1,26 @@
+# Send only the files needed by the two build stages. Local data, dependencies,
+# build output, credentials, design reports and browser artifacts stay on the host.
+**
+!Dockerfile
+!.dockerignore
+!package.json
+!package-lock.json
+!index.html
+!vite.config.ts
+!tsconfig.json
+!src
+!src/**
+!public
+!public/**
+!contract
+!contract/openapi.yaml
+!deploy
+!deploy/Caddyfile
+
+# Keep local Vite overrides and credentials out even if placed under an allowed tree.
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.log
+**/.DS_Store

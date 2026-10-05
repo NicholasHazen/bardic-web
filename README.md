@@ -2,7 +2,7 @@
 
 The client half of Bardic v2: library, listening, reading along, plans and offline, in the browser on phones, tablets and computers. It talks to the Bardic server (`bardic-server`) over the HTTP contract.
 
-**Status: pre-implementation.** The design, product spec and client architecture proposal are written. There is no application code yet.
+**Status:** W0–W6 and S9 series continuation are implemented. W6 includes book management, permanent deletion with Undo, recent-place restoration, server naming, reader/listening settings and accessibility/performance audits. Local verification and remaining product/platform limitations are recorded in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Start here
 
@@ -11,8 +11,10 @@ The client half of Bardic v2: library, listening, reading along, plans and offli
 | [docs/PRODUCT-SPEC.md](docs/PRODUCT-SPEC.md) | What Bardic does, promises, requirements with ids, acceptance tests. |
 | [design/README.md](design/README.md) | Every screen as an image, by the board name the spec cites (`[Home]`, `[PlanPremium]`…). Source of the canvas is in `design/canvas/`. |
 | [docs/UI-GUIDE.md](docs/UI-GUIDE.md) | Look, tokens, components, status words, rules. |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Proposed client structure, stack, offline and sync design. |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Client structure, stack, offline and sync design. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Milestones and exit criteria. |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Docker Compose on Linux/NAS, private HTTPS, persistent storage, backup and restore. |
+| [docs/SPARK-DEPLOYMENT.md](docs/SPARK-DEPLOYMENT.md) | Operate the native ARM64 Spark installation; release layout, host checks and verified private HTTPS. |
 | [contract/](contract/) | A synced copy of the server's OpenAPI contract and its version. |
 | [AGENTS.md](AGENTS.md) | Rules for coding agents and contributors. |
 
@@ -21,3 +23,19 @@ The contract is owned by the server repository (`docs/contract/openapi.yaml`). T
 
 ## Design at a glance
 Aurora glass: a dark base with glow colours taken from the cover of the book you are in, frosted glass where content sits above them, one lifted accent. Phones are portrait only; tablets portrait and landscape.
+
+## Run and verify
+
+Use `npm ci`, then `npm run dev`. Build the server with `cargo build --release` in `bardic-server`, or provide `BARDIC_SERVER_BIN` for flow tests.
+
+```sh
+npm run check
+npx vitest run
+npx playwright install chromium firefox webkit
+npm run e2e                  # real temporary server; Chromium, Firefox and WebKit
+npm run design:check         # all board comparisons; inspect design/report/index.html
+npm run audit:a11y           # one Chromium worker; design/a11y-report.json
+npm run audit:perf           # quiet machine; 500 synthetic books; design/perf-report.json
+```
+
+Audit runs use a separate build and configuration, so browser flows do not race performance measurements or overwrite reports. Playback tests are muted while retaining real decoding and clock progress. The providers in flow tests are local fakes; no real provider key or user's books are used. The manifest and icons support installation; the offline app shell requires HTTPS or localhost. WebKit coverage is not a native Safari or physical iOS test.
