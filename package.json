@@ -15,7 +15,8 @@
     "e2e": "VITE_E2E=1 vite build && playwright test",
     "audit": "sh scripts/audit.sh",
     "audit:a11y": "sh scripts/audit.sh a11y",
-    "audit:perf": "sh scripts/audit.sh perf"
+    "audit:perf": "sh scripts/audit.sh perf",
+    "deployment:check": "node scripts/deployment-smoke.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

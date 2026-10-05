@@ -2,7 +2,7 @@
 
 The client half of Bardic v2: library, listening, reading along, plans and offline, in the browser on phones, tablets and computers. It talks to the Bardic server (`bardic-server`) over the HTTP contract.
 
-**Status:** W0–W5 and the W6 repairs are implemented. W6 includes book management, permanent deletion with Undo, recent-place restoration, server naming, reader/listening settings and accessibility/performance audits. Local verification passes: 817 logic tests, 420 browser checks, 71 boards and 231 accessibility screen/viewport pairs. Current measurements and remaining product/platform limitations are recorded in [docs/ROADMAP.md](docs/ROADMAP.md).
+**Status:** W0–W6 and S9 series continuation are implemented. W6 includes book management, permanent deletion with Undo, recent-place restoration, server naming, reader/listening settings and accessibility/performance audits. Local verification and remaining product/platform limitations are recorded in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Start here
 
@@ -13,6 +13,7 @@ The client half of Bardic v2: library, listening, reading along, plans and offli
 | [docs/UI-GUIDE.md](docs/UI-GUIDE.md) | Look, tokens, components, status words, rules. |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Client structure, stack, offline and sync design. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Milestones and exit criteria. |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Docker Compose on Linux/NAS, private HTTPS, persistent storage, backup and restore. |
 | [contract/](contract/) | A synced copy of the server's OpenAPI contract and its version. |
 | [AGENTS.md](AGENTS.md) | Rules for coding agents and contributors. |
 
