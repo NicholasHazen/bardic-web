@@ -12,7 +12,10 @@ import { resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { pathToFileURL } from 'node:url';
 
-export const SUPPORTED_SCHEMA_VERSION = 11;
+// Reviewed migration prefixes: 12 adds chapter pagination and 13 adds job
+// generation metadata. Neither changes the work/usage states checked below.
+export const SUPPORTED_SCHEMA_VERSIONS = Object.freeze([11, 12, 13]);
+export const SUPPORTED_SCHEMA_VERSION = 13;
 
 const TABLES = [
   'meta', 'devices', 'audit', 'listeners', 'listener_settings', 'books', 'chapters',
@@ -42,12 +45,15 @@ function count(db, sql, ...parameters) {
   return value;
 }
 
-function matchesSchema(db) {
+function matchesSchema(db, schemaVersion) {
   const tableCount = count(db,
     `SELECT COUNT(*) AS count FROM sqlite_schema WHERE type = 'table' AND name IN (${TABLES.map(() => '?').join(',')})`,
     ...TABLES);
   if (tableCount !== TABLES.length) return false;
-  for (const [table, columns] of Object.entries(COLUMNS)) {
+  const columnsForSchema = { ...COLUMNS };
+  if (schemaVersion >= 12) columnsForSchema.chapters = ['page_count'];
+  if (schemaVersion >= 13) columnsForSchema.jobs = [...COLUMNS.jobs, 'generation'];
+  for (const [table, columns] of Object.entries(columnsForSchema)) {
     const columnCount = count(db,
       `SELECT COUNT(*) AS count FROM pragma_table_info(?) WHERE name IN (${columns.map(() => '?').join(',')})`,
       table, ...columns);
@@ -100,9 +106,9 @@ export function checkQuiescence(databasePath = '/data/bardic.db', { stopped = fa
     // These connection settings never change the database or its journal mode.
     db.exec('PRAGMA query_only = ON; PRAGMA trusted_schema = OFF; PRAGMA busy_timeout = 1000; BEGIN');
     schemaVersion = db.prepare('PRAGMA user_version').get()?.user_version;
-    if (!Number.isSafeInteger(schemaVersion) || schemaVersion !== SUPPORTED_SCHEMA_VERSION) {
+    if (!Number.isSafeInteger(schemaVersion) || !SUPPORTED_SCHEMA_VERSIONS.includes(schemaVersion)) {
       result = blocked('unsupported_schema', Number.isSafeInteger(schemaVersion) ? schemaVersion : null);
-    } else if (!matchesSchema(db)) {
+    } else if (!matchesSchema(db, schemaVersion)) {
       result = blocked('schema_mismatch', schemaVersion);
     } else {
       const serverId = db.prepare("SELECT value FROM meta WHERE key = 'server_id'").get()?.value;

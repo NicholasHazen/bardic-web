@@ -11,7 +11,7 @@ import { join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { checkQuiescence, SUPPORTED_SCHEMA_VERSION } from './quiet-check.mjs';
+import { checkQuiescence, SUPPORTED_SCHEMA_VERSION, SUPPORTED_SCHEMA_VERSIONS } from './quiet-check.mjs';
 
 const script = fileURLToPath(new URL('./quiet-check.mjs', import.meta.url));
 const pinnedNode = 'node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1';
@@ -26,7 +26,7 @@ const migrations = readdirSync(migrationsPath)
   .sort()
   .map((name) => readFileSync(join(migrationsPath, name), 'utf8'));
 
-function fixture(t, { migrated = true, identity = true, wal = false } = {}) {
+function fixture(t, { migrated = true, identity = true, wal = false, schemaVersion = SUPPORTED_SCHEMA_VERSION } = {}) {
   const directory = mkdtempSync(join(tmpdir(), 'bardic-quiet-synthetic-'));
   const path = join(directory, 'bardic.db');
   const db = new DatabaseSync(path);
@@ -38,7 +38,7 @@ function fixture(t, { migrated = true, identity = true, wal = false } = {}) {
   db.exec('PRAGMA foreign_keys = ON');
   if (wal) db.exec('PRAGMA journal_mode = WAL');
   if (migrated) {
-    migrations.forEach((sql, index) => {
+    migrations.slice(0, schemaVersion).forEach((sql, index) => {
       db.exec(`BEGIN; ${sql} PRAGMA user_version = ${index + 1}; COMMIT;`);
     });
     if (identity) db.prepare('INSERT INTO meta(key,value) VALUES(?,?)').run('server_id', serverId);
@@ -64,10 +64,10 @@ function audiobook(db) {
     VALUES('synthetic-audiobook','synthetic-book','synthetic-voice','Synthetic Voice','r1',?)`).run(at);
 }
 
-function expectsBlocked(result, reason, countField, expected = 1) {
+function expectsBlocked(result, reason, countField, expected = 1, schemaVersion = SUPPORTED_SCHEMA_VERSION) {
   assert.equal(result.quiet, false);
   assert.ok(result.reasons.includes(reason), JSON.stringify(result));
-  assert.equal(result.schemaVersion, SUPPORTED_SCHEMA_VERSION);
+  assert.equal(result.schemaVersion, schemaVersion);
   assert.equal(result.serverId, serverId);
   if (countField) assert.equal(result.counts[countField], expected);
 }
@@ -75,15 +75,62 @@ function expectsBlocked(result, reason, countField, expected = 1) {
 test('actual shipped migrations produce the supported schema and an empty server is quiet', (t) => {
   assert.equal(migrations.length, SUPPORTED_SCHEMA_VERSION);
   const { db, path } = fixture(t);
-  assert.equal(db.prepare('PRAGMA user_version').get().user_version, 11);
+  assert.equal(db.prepare('PRAGMA user_version').get().user_version, SUPPORTED_SCHEMA_VERSION);
   const result = checkQuiescence(path);
   assert.equal(result.quiet, true);
   assert.deepEqual(result.reasons, []);
-  assert.equal(result.schemaVersion, 11);
+  assert.equal(result.schemaVersion, SUPPORTED_SCHEMA_VERSION);
   assert.equal(result.serverId, serverId);
   assert.equal(result.usageCount, 0);
   assert.ok(Object.values(result.counts).every((value) => value === 0));
 });
+
+for (const schemaVersion of SUPPORTED_SCHEMA_VERSIONS) {
+  test(`real migration prefix ${schemaVersion} supports installed/candidate live and stopped checks`, (t) => {
+    const { db, path, directory, close } = fixture(t, { schemaVersion, wal: true });
+    assert.equal(db.prepare('PRAGMA user_version').get().user_version, schemaVersion);
+    const result = checkQuiescence(path);
+    assert.equal(result.quiet, true);
+    assert.equal(result.schemaVersion, schemaVersion);
+    assert.equal(result.serverId, serverId);
+    assert.equal(result.usageCount, 0);
+    close();
+    const before = createHash('sha256').update(readFileSync(path)).digest('hex');
+    const stopped = checkQuiescence(path, { stopped: true });
+    assert.equal(stopped.quiet, true);
+    assert.equal(stopped.schemaVersion, schemaVersion);
+    assert.equal(stopped.serverId, serverId);
+    assert.deepEqual(readdirSync(directory), ['bardic.db']);
+    assert.equal(createHash('sha256').update(readFileSync(path)).digest('hex'), before);
+  });
+
+  test(`real migration prefix ${schemaVersion} still blocks work, paid WAL reservations and unknown states`, (t) => {
+    const { db, path } = fixture(t, { schemaVersion, wal: true });
+    job(db, 'running');
+    expectsBlocked(checkQuiescence(path), 'active_jobs', 'activeJobs', 1, schemaVersion);
+    db.exec("UPDATE jobs SET state='paused', current_chapter_id='synthetic-chapter'");
+    expectsBlocked(checkQuiescence(path), 'paused_chapter_in_flight', 'pausedInFlightJobs', 1, schemaVersion);
+    db.exec('UPDATE jobs SET current_chapter_id=NULL; PRAGMA wal_checkpoint(TRUNCATE)');
+    usage(db, 'reserved');
+    expectsBlocked(checkQuiescence(path), 'reserved_paid_requests', 'reservedUsage', 1, schemaVersion);
+    assert.ok(statSync(`${path}-wal`).size > 0);
+    assert.deepEqual(checkQuiescence(path, { stopped: true }), {
+      quiet: false, reasons: ['stopped_wal_not_empty'], schemaVersion: null,
+    });
+    db.exec("UPDATE spend SET status='known'; PRAGMA ignore_check_constraints=ON; UPDATE jobs SET state='a_future_state',kind='a_future_worker'");
+    const unknown = checkQuiescence(path);
+    expectsBlocked(unknown, 'unknown_work_state', 'unknownStates', 1, schemaVersion);
+    assert.ok(unknown.reasons.includes('unknown_job_kind'));
+  });
+}
+
+for (const [schemaVersion, table, column] of [[12, 'chapters', 'page_count'], [13, 'jobs', 'generation']]) {
+  test(`schema ${schemaVersion} missing its added ${column} metadata fails closed`, (t) => {
+    const { db, path } = fixture(t, { schemaVersion });
+    db.exec(`ALTER TABLE ${table} RENAME COLUMN ${column} TO synthetic_missing_column`);
+    assert.deepEqual(checkQuiescence(path), { quiet: false, reasons: ['schema_mismatch'], schemaVersion });
+  });
+}
 
 for (const state of ['queued', 'running', 'waiting']) {
   test(`${state} job blocks deployment, including future quota wakeups`, (t) => {
@@ -361,7 +408,7 @@ test('probing neither mutates the database nor reflects synthetic secrets/text',
   assert.equal(statSync(path).mtimeMs, beforeStat.mtimeMs);
 });
 
-for (const version of [0, 10, 12]) {
+for (const version of [0, 10, 14]) {
   test(`unsupported schema ${version} fails closed`, (t) => {
     const { db, path } = fixture(t);
     db.exec(`PRAGMA user_version=${version}`);
@@ -394,24 +441,24 @@ test('a non-database file and a directory fail closed without leaking errors', (
 });
 
 for (const table of ['jobs', 'imports', 'exports', 'backups', 'spend', 'job_items', 'deletions', 'voice_sources']) {
-  test(`schema claiming version 11 but missing ${table} fails closed`, (t) => {
+  test(`schema claiming version ${SUPPORTED_SCHEMA_VERSION} but missing ${table} fails closed`, (t) => {
     const { db, path } = fixture(t);
     db.exec(`DROP TABLE ${table}`);
-    assert.deepEqual(checkQuiescence(path), { quiet: false, reasons: ['schema_mismatch'], schemaVersion: 11 });
+    assert.deepEqual(checkQuiescence(path), { quiet: false, reasons: ['schema_mismatch'], schemaVersion: SUPPORTED_SCHEMA_VERSION });
   });
 }
 
 test('a missing queried column fails closed', (t) => {
   const { db, path } = fixture(t);
   db.exec('ALTER TABLE jobs RENAME COLUMN current_chapter_id TO old_current_chapter_id');
-  assert.deepEqual(checkQuiescence(path), { quiet: false, reasons: ['schema_mismatch'], schemaVersion: 11 });
+  assert.deepEqual(checkQuiescence(path), { quiet: false, reasons: ['schema_mismatch'], schemaVersion: SUPPORTED_SCHEMA_VERSION });
 });
 
 test('missing or invalid identity fails closed and is never reflected', (t) => {
   const { db, path } = fixture(t, { identity: false });
-  assert.deepEqual(checkQuiescence(path), { quiet: false, reasons: ['server_identity_missing'], schemaVersion: 11 });
+  assert.deepEqual(checkQuiescence(path), { quiet: false, reasons: ['server_identity_missing'], schemaVersion: SUPPORTED_SCHEMA_VERSION });
   db.prepare('INSERT INTO meta(key,value) VALUES(?,?)').run('server_id', 'synthetic-private-invalid-id');
-  assert.deepEqual(checkQuiescence(path), { quiet: false, reasons: ['server_identity_invalid'], schemaVersion: 11 });
+  assert.deepEqual(checkQuiescence(path), { quiet: false, reasons: ['server_identity_invalid'], schemaVersion: SUPPORTED_SCHEMA_VERSION });
 });
 
 test('CLI always emits one fixed-schema JSON line and exit 0; quiet must be checked explicitly', (t) => {
