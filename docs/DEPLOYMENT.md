@@ -31,6 +31,16 @@ The directory must exist and be writable by UID/GID 10001. Rootless Docker/NAS u
 
 The API has no published host port. It listens on the Compose network at `bardic-server:8765`; Caddy publishes host `127.0.0.1:8080` by default. Provider addresses are resolved **inside the server container**: `127.0.0.1` there means the container. Use a reachable LAN/Tailscale address for Breeze. A remote Tailscale voice server needs a route through the host from the container network; verify that on the chosen target.
 
+## Breeze request capacity
+
+`BARDIC_BREEZE_CONCURRENCY` sets the maximum simultaneous Breeze speech requests admitted by this Bardic server, from **1 to 16**, with **1** as the default. Uncached free voice samples share this limit with chapter generation. A native server accepts the equivalent `--breeze-concurrency` flag; flags override environment variables. Premium generation remains sequential and follows its approved plan.
+
+To tune it, set `BARDIC_BREEZE_CONCURRENCY=2` in the deployment host's `.env`, wait for active work to settle, then apply the environment with `docker compose up -d --wait --wait-timeout 120 bardic-server`. On Spark, edit `~/bardic-v2/.env` and use `~/bardic-v2/compose up -d --wait --wait-timeout 120 bardic-server`. A plain `restart` does not apply changed Compose environment variables. Increase the setting only after measuring the Breeze server's capacity with representative text.
+
+Parallel requests cover passages within one active chapter. Completed passages are kept durably even when they finish out of order; the chapter is assembled in its original order and becomes Ready after its complete file is saved. Progress and time estimates use observed completion throughput. Extra slots on a Breeze server with one busy GPU can merely add queued requests, so a higher setting does not promise faster generation.
+
+Bardic keeps a single configured Breeze URL. An operator can later point that URL at a balanced pool whose replicas expose identical voice identifiers, reference clips, revision metadata, synthesis settings and models. This setting does not create replicas or select a deployment topology. Keep exactly one Bardic server per data directory; request concurrency does not require scaling the database server.
+
 ## Private HTTPS
 
 Install/sign in to Tailscale on the Linux host, restrict access to trusted devices, and enable tailnet HTTPS when prompted. Forward the gateway with [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve):

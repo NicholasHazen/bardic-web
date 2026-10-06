@@ -12,10 +12,11 @@ import { resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { pathToFileURL } from 'node:url';
 
-// Reviewed migration prefixes: 12 adds chapter pagination and 13 adds job
-// generation metadata. Neither changes the work/usage states checked below.
-export const SUPPORTED_SCHEMA_VERSIONS = Object.freeze([11, 12, 13]);
-export const SUPPORTED_SCHEMA_VERSION = 13;
+// Reviewed migration prefixes: 12 adds chapter pagination, 13 adds job
+// generation metadata and 14 retains indexed Breeze request outputs. The
+// indexed rows are completed work; admission still follows job/usage states.
+export const SUPPORTED_SCHEMA_VERSIONS = Object.freeze([11, 12, 13, 14]);
+export const SUPPORTED_SCHEMA_VERSION = 14;
 
 const TABLES = [
   'meta', 'devices', 'audit', 'listeners', 'listener_settings', 'books', 'chapters',
@@ -35,6 +36,17 @@ const COLUMNS = {
   deletions: ['state'],
 };
 
+const CHAPTER_PART_COLUMNS = ['audiobook_id', 'chapter_id', 'audio_id', 'chunk_chars', 'chunks_done', 'pcm_bytes', 'timings'];
+const REQUEST_COLUMNS = [
+  { name: 'audiobook_id', type: 'TEXT', notnull: 1, pk: 1 },
+  { name: 'chapter_id', type: 'TEXT', notnull: 1, pk: 2 },
+  { name: 'request_index', type: 'INTEGER', notnull: 1, pk: 3 },
+  { name: 'audio_id', type: 'TEXT', notnull: 1, pk: 0 },
+  { name: 'pcm_bytes', type: 'INTEGER', notnull: 1, pk: 0 },
+  { name: 'timings', type: 'TEXT', notnull: 1, pk: 0 },
+  { name: 'sha256', type: 'TEXT', notnull: 1, pk: 0 },
+];
+
 // No raw exceptions, paths, job identifiers, book facts or configuration values
 // are returned. Only server_id is read from meta; provider configuration is never read.
 const blocked = (reason, schemaVersion = null) => ({ quiet: false, reasons: [reason], schemaVersion });
@@ -46,18 +58,33 @@ function count(db, sql, ...parameters) {
 }
 
 function matchesSchema(db, schemaVersion) {
+  const tables = schemaVersion >= 14 ? [...TABLES, 'chapter_requests'] : TABLES;
   const tableCount = count(db,
-    `SELECT COUNT(*) AS count FROM sqlite_schema WHERE type = 'table' AND name IN (${TABLES.map(() => '?').join(',')})`,
-    ...TABLES);
-  if (tableCount !== TABLES.length) return false;
+    `SELECT COUNT(*) AS count FROM sqlite_schema WHERE type = 'table' AND name IN (${tables.map(() => '?').join(',')})`,
+    ...tables);
+  if (tableCount !== tables.length) return false;
   const columnsForSchema = { ...COLUMNS };
   if (schemaVersion >= 12) columnsForSchema.chapters = ['page_count'];
   if (schemaVersion >= 13) columnsForSchema.jobs = [...COLUMNS.jobs, 'generation'];
+  if (schemaVersion >= 14) columnsForSchema.chapter_parts = CHAPTER_PART_COLUMNS;
   for (const [table, columns] of Object.entries(columnsForSchema)) {
     const columnCount = count(db,
       `SELECT COUNT(*) AS count FROM pragma_table_info(?) WHERE name IN (${columns.map(() => '?').join(',')})`,
       table, ...columns);
     if (columnCount !== columns.length) return false;
+  }
+  if (schemaVersion >= 14) {
+    // A version number alone cannot establish that retained requests are
+    // completed indexed outputs with the reviewed parent/cascade semantics.
+    const columns = db.prepare("SELECT name,type,\"notnull\",pk FROM pragma_table_info('chapter_requests') ORDER BY cid").all();
+    if (JSON.stringify(columns) !== JSON.stringify(REQUEST_COLUMNS)) return false;
+    const parentColumns = db.prepare("SELECT name FROM pragma_table_info('chapter_parts') ORDER BY cid").all().map((row) => row.name);
+    if (JSON.stringify(parentColumns) !== JSON.stringify(CHAPTER_PART_COLUMNS)) return false;
+    const references = db.prepare("SELECT \"table\",\"from\",\"to\",on_delete FROM pragma_foreign_key_list('chapter_requests') ORDER BY id,seq").all();
+    const expectedReferences = ['audiobook_id', 'chapter_id'].map((column) => ({ table: 'chapter_parts', from: column, to: column, on_delete: 'CASCADE' }));
+    if (JSON.stringify(references) !== JSON.stringify(expectedReferences)) return false;
+    const definition = db.prepare("SELECT sql FROM sqlite_schema WHERE type='table' AND name='chapter_requests'").get()?.sql?.replace(/\s+/g, '').toUpperCase();
+    if (!definition?.includes('CHECK(REQUEST_INDEX>=0)') || !definition.includes('CHECK(PCM_BYTES>0)')) return false;
   }
   return true;
 }

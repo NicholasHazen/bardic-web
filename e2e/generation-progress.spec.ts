@@ -284,3 +284,97 @@ test('premium progress starts only after approval; pause keeps a completed chapt
   expect(providers.freeGate.received).toBe(0);
   expect(providers.breeze.received()).toBe(0);
 });
+
+const parallelTest = test.extend({
+  stack: async ({ providers }, use) => {
+    const stack = await startStack({ env: {
+      BARDIC_GEMINI_URL: providers.gemini.url,
+      BARDIC_AUDIO_CHUNK_CHARS: '400',
+      BARDIC_BREEZE_CONCURRENCY: '3',
+    } });
+    try { await use(stack); }
+    finally { await stack.stop(); }
+  },
+});
+
+parallelTest('parallel free requests report out-of-order durable progress and retain it through pause and resume', async ({ page, stack, providers }, testInfo) => {
+  const w = await world(stack, providers, 'free');
+  await selectAndStart(page, stack, w, 'free', providers, testInfo);
+  await providers.freeGate.waitFor(3);
+  expect(providers.freeGate.received).toBe(3);
+  expect(providers.breeze.spoken).toHaveLength(3);
+  expect(providers.breeze.spoken.every((text) => text.includes('Workshop0'))).toBe(true);
+  const initial = await readJob(stack, w);
+  expect(initial).toMatchObject({ chapters_total: 2, chapters_done: 0, current_chapter_id: w.chapters[0]!.id });
+  expect(initial.generation).toMatchObject({ requests_done: 0, chapter_seconds_remaining: null, job_seconds_remaining: null });
+  await expect(progress(page)).toContainText('0% of chapter');
+  await expect(progress(page)).toContainText('Chapter time: Unknown until enough audio is made');
+
+  // The first two requests remain gated. The third response is durable even
+  // though it cannot yet be appended to the chapter's ordered audio prefix.
+  const retainedText = providers.breeze.spoken[2]!;
+  providers.freeGate.release(3);
+  await providers.freeGate.waitFor(4);
+  await expect.poll(async () => (await readJob(stack, w)).generation?.requests_done).toBe(1);
+  const measured = (await readJob(stack, w)).generation!;
+  const percentage = Math.floor(measured.characters_done / measured.characters_total * 100);
+  expect(percentage).toBeGreaterThan(0);
+  expect(percentage).toBeLessThan(100);
+  expect(measured.chapter_seconds_remaining).toBeGreaterThan(0);
+  const detail = `${percentage}% of chapter · 1 of ${measured.requests_total} requests complete`;
+  await expect(progress(page)).toContainText(detail);
+  await expect(rows(page).nth(0).locator('[data-chapter-generation]')).toContainText(detail);
+  await expect(rows(page).nth(0).getByText('Making', { exact: true })).toBeVisible();
+  await expect(rows(page).nth(0).getByText('Ready', { exact: true })).toHaveCount(0);
+  expect((await audioStates(stack, w))[0]).toMatchObject({ state: 'making', audio: null });
+  await capture(page, testInfo, 'parallel-out-of-order-progress');
+
+  await card(page).getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect.poll(async () => (await readJob(stack, w)).state).toBe('paused');
+  // Wait for the public elapsed clock to stop advancing: this observes drained
+  // cancellation without assuming how long a provider socket takes to close.
+  let previousElapsed: number | undefined;
+  await expect.poll(async () => {
+    const response = await apiCall(stack.api, 'GET', '/api/jobs', undefined, DEVICE, w.listener);
+    expect(response.status).toBe(200);
+    const elapsed = response.json.items[0].generation.elapsed_seconds as number;
+    const stopped = previousElapsed !== undefined && elapsed === previousElapsed;
+    previousElapsed = elapsed;
+    return stopped;
+  }).toBe(true);
+  const paused = (await readJob(stack, w)).generation!;
+  expect(paused).toMatchObject({
+    requests_done: 1, characters_done: measured.characters_done,
+    chapter_seconds_remaining: null, job_seconds_remaining: null,
+  });
+  await expect(progress(page)).toContainText('Chapter time: Unknown while generation is not running');
+  await expect(progress(page)).toContainText('Generation time: Unknown while generation is not running');
+  providers.freeGate.releaseAll();
+  expect((await readJob(stack, w)).generation).toEqual(paused);
+  await expect(progress(page)).toContainText(detail);
+  await capture(page, testInfo, 'parallel-paused-progress');
+
+  await card(page).getByRole('button', { name: 'Resume', exact: true }).click();
+  await completedSelection(page, stack, w);
+  expect(providers.breeze.spoken.filter((text) => text === retainedText)).toHaveLength(1);
+  expect(providers.breeze.spoken.join(' ')).not.toContain('Workshop1');
+  // Both chosen chapters retain source line order after out-of-order completion.
+  const states = await audioStates(stack, w);
+  for (const index of [0, 2]) {
+    const text = await apiCall(stack.api, 'GET', `/api/books/${w.book}/chapters/${w.chapters[index]!.id}/text`, undefined, DEVICE, w.listener);
+    expect(text.status).toBe(200);
+    const audio = states[index]!.audio as { timings_url: string };
+    const timings = await apiCall(stack.api, 'GET', audio.timings_url, undefined, DEVICE, w.listener);
+    expect(timings.status).toBe(200);
+    const lines = timings.json.lines as { line_id: string; start_ms: number; end_ms: number }[];
+    expect(lines.map((line) => line.line_id)).toEqual(text.json.lines.map((line: { id: string }) => line.id));
+    for (let line = 1; line < lines.length; line++) {
+      // A provider sentence can span the heading and the following line; their
+      // timings may overlap, but neither endpoint can move backward in text order.
+      expect(lines[line]!.start_ms).toBeGreaterThanOrEqual(lines[line - 1]!.start_ms);
+      expect(lines[line]!.end_ms).toBeGreaterThanOrEqual(lines[line - 1]!.end_ms);
+    }
+  }
+  expect(providers.paidGate.received).toBe(0);
+  expect(providers.gemini.received()).toBe(0);
+});
