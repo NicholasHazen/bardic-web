@@ -5,6 +5,7 @@
   import ProgressBar from '../../components/ProgressBar.svelte';
   import Glyph from '../shell/Glyph.svelte';
   import BookGlyph from './BookGlyph.svelte';
+  import GenerationDetail from './GenerationDetail.svelte';
   import { tierText, tierTone, type AudiobookCardModel } from './types';
 
   /** The current audiobook: voice, tier, how much is ready and on this device, and what can be done (B2). */
@@ -58,8 +59,9 @@
           <div class="lighter" style:width="{run.ready * 100}%"></div>
           <div class="fill" style:width="{run.done * 100}%"></div>
         </div>
-        {#if run.note}<span class="sub">{run.note}</span>{/if}
+        {#if run.note}<span class="sub">{model.generation && run.tone === 'making' ? 'You can listen while it works.' : run.note}</span>{/if}
       </div>
+      {#if model.generation}<GenerationDetail model={model.generation} />{/if}
       <div class="actions">
         {#if run.canResume}
           <Button variant="glass" style="flex: 1 1 150px" onclick={onresume} disabled={busy}><Glyph name="play" size={18} filled />Resume</Button>

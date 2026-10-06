@@ -4,6 +4,7 @@
   import Callout from '../../components/Callout.svelte';
   import { endedText, planCardModel } from '../../lib/planRules';
   import { planStore } from '../../state/plans';
+  import { generationModel, type GenerationJob } from '../../lib/generationProgress';
   import PlanCardView from './PlanCardView.svelte';
 
   /**
@@ -18,9 +19,11 @@
     chaptersReady?: number;
     /** A free voice to offer for the rest of the book, e.g. "Samantha". */
     freeVoiceName?: string | null;
+    job?: (GenerationJob & { id: string }) | null;
+    chapters?: { id: string; title: string }[];
     onfree?: () => void;
   }
-  let { audiobookId, voiceName, chaptersReady, freeVoiceName = null, onfree }: Props = $props();
+  let { audiobookId, voiceName, chaptersReady, freeVoiceName = null, job, chapters = [], onfree }: Props = $props();
 
   const t = $derived($planStore.track);
   const plan = $derived(t.active.find((p) => p.audiobook_id === audiobookId));
@@ -49,6 +52,7 @@
   <PlanCardView
     {model}
     {plan}
+    generation={job?.id === plan.job_id ? generationModel(job, chapters) : null}
     {freeVoiceName}
     busy={t.busy}
     {problem}

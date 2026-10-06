@@ -216,7 +216,7 @@ test('V3: Make ready for a free voice shows time and space, starts a job, and th
   await sheet.getByRole('checkbox', { name: 'Include front and back matter', exact: true }).check();
   await expect(sheet).toContainText('To make');
   await expect(sheet).toContainText('5 chapters');
-  await expect(sheet).toContainText(/About .*, in the background|Less than a minute, in the background/);
+  await expect(sheet).toContainText('Unknown until generation starts');
   await expect(sheet).toContainText('Free');
   await expect(sheet).toContainText(/About .* on the server/);
   // Escape closes without starting anything

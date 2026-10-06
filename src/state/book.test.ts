@@ -215,6 +215,19 @@ describe('shaping the page', () => {
     const s = { ...get(new BookStore(fakeGateway({ audiobooks: [] }).gw)), book, chapters, audiobooks: [ab('free1', 'free', 5)], currentId: 'free1', job: job('completed') } as BookState;
     expect(pageModel(s, { expanded: false, storyOnly: false })!.audiobook?.running).toBeUndefined();
   });
+  it('keeps measured generation progress separate from the listening place and audio word', async () => {
+    const store = await loaded(fakeGateway({ audiobooks: [ab('free1', 'free', 1)], place: place('free1'), states: { c1: 'ready', c2: 'making' } }));
+    const s = get(store);
+    s.job = job('running', { current_chapter_id: 'c2', generation: {
+      chapter_id: 'c2', requests_done: 1, requests_total: 3, characters_done: 400, characters_total: 1000,
+      elapsed_seconds: 10, chapter_seconds_remaining: 15, job_seconds_remaining: 90,
+    } });
+    const m = pageModel(s, { expanded: true, storyOnly: false })!;
+    expect(m.audiobook?.generation).toMatchObject({ title: 'What the Ledger Owes', fraction: 0.4 });
+    expect(m.chapters.rows[2]).toMatchObject({ wordText: 'Making', progressText: '12% through chapter', generationText: '40% of chapter · 1 of 3 requests complete · Less than a minute left', generationFraction: 0.4 });
+    s.job = { ...s.job, audiobook_id: 'another' };
+    expect(pageModel(s, { expanded: true, storyOnly: false })!.chapters.rows[2]!.generationText).toBeUndefined();
+  });
 });
 
 describe('B3: choosing another audiobook keeps the place', () => {
@@ -290,6 +303,17 @@ describe('making ready: free only (P2)', () => {
 });
 
 describe('the Make ready sheet figures', () => {
+  it('uses unknown generation time and submits only selected chapters, reusing ready chapters', async () => {
+    const g = fakeGateway({ audiobooks: [ab('free1', 'free', 1)], states: { c1: 'ready' } });
+    const store = await loaded(g);
+    const picked = makeSheet(get(store), 'chosen', false, ['c3', 'c1'])!;
+    expect(picked.chosen.scope).toEqual({ kind: 'chapters', chapter_ids: ['c1', 'c3'], include_matter: false });
+    expect(picked.model.toMake).toBe('1 chapter');
+    expect(picked.model.time).toBe('Unknown until generation starts');
+    expect(makeSheet(get(store), 'chosen', false, [])!.model.nothingToMake).toBe(true);
+    expect(await store.makeReady({ kind: 'chapters', chapter_ids: [] })).toMatchObject({ ok: false, code: 'empty_scope' });
+    expect(g.calls).not.toContain('makeReady');
+  });
   it('is not offered for a premium audiobook', async () => {
     const store = await loaded(fakeGateway({ audiobooks: [ab('prem1', 'premium', 0)] }));
     expect(makeSheet(get(store), 'whole')).toBeUndefined();

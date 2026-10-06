@@ -57,6 +57,9 @@
   let ready = $state(false);
   let busy = $state(false);
   let error = $state('');
+  let tabChosen = false;
+  let voiceChosen = false;
+  let alive = true;
 
   const keyOk = $derived(geminiReady($sources.items));
   const real = $derived(groupVoices($voices.items));
@@ -75,20 +78,31 @@
   onMount(() => {
     void (async () => {
       const id = $listenerStore.currentId;
-      const [, , ctx] = await Promise.all([voiceActions.openVoiceScreen(), id ? settingsActions.load(id) : undefined, id ? loadBookContext(bookId, id) : undefined]);
+      const openedBook = bookId;
+      const [, , ctx] = await Promise.all([voiceActions.openVoiceScreen(), id ? settingsActions.load(id) : undefined, id ? loadBookContext(openedBook, id) : undefined]);
+      if (!alive || id !== $listenerStore.currentId || openedBook !== bookId) return;
       if (ctx) context = ctx;
       const first = initialVoiceId($voices.items, context.audiobooks, $listenerSettings.settings);
       const v = $voices.items.find((x) => x.id === first);
       // With nothing chosen yet, the first free voice that can be used is shown as the choice (as the board does); the
       // audiobook is made when the listener presses Start listening or Make ready, or chooses a voice themselves.
-      selectedId = first ?? groupVoices($voices.items).free.find((x) => x.available)?.id ?? null;
-      tab = v ? tabForVoice(v) : groupVoices($voices.items).free.length === 0 && groupVoices($voices.items).premium.length > 0 ? 'Premium' : 'Free';
+      // Refreshing sources can take time. Defaults must not replace a choice made while it was loading.
+      if (!voiceChosen) selectedId = first ?? groupVoices($voices.items).free.find((x) => x.available)?.id ?? null;
+      if (!tabChosen) tab = v ? tabForVoice(v) : groupVoices($voices.items).free.length === 0 && groupVoices($voices.items).premium.length > 0 ? 'Premium' : 'Free';
       ready = true;
     })();
   });
-  onDestroy(() => samples.stop());
+  onDestroy(() => {
+    alive = false;
+    samples.stop();
+  });
 
   const voiceOf = (id: string) => [...$voices.items, ...previewVoices].find((v) => v.id === id);
+
+  function chooseTab(value: ChooserTab) {
+    tabChosen = true;
+    tab = value;
+  }
 
   function hear(id: string) {
     const v = voiceOf(id);
@@ -114,6 +128,8 @@
     if (!v) return;
     error = '';
     if (isPreview(id)) return; // an example of what premium offers, not yet a voice of the server
+    voiceChosen = true;
+    tabChosen = true;
     selectedId = id;
     if (v.tier === 'premium') return; // V4: selecting a premium voice requests nothing
     const ab = await audiobookFor(id);
@@ -179,7 +195,7 @@
     {placement}
     fixed
     {onclose}
-    ontab={(t) => (tab = t)}
+    ontab={chooseTab}
     onhear={hear}
     onpick={pick}
     onstart={start}
@@ -187,7 +203,7 @@
     onplanwhole={() => plan('whole_book')}
     onplanfrom={() => plan('from_chapter')}
     onaddkey={() => leaveTo('#/settings/premium')}
-    onstayfree={() => (tab = 'Free')}
+    onstayfree={() => chooseTab('Free')}
     onsources={() => leaveTo('#/settings/voices')}
   />
 {/if}

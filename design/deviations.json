@@ -44,5 +44,8 @@
   },
   "live:ChapterMetrics": {
     "reason": "Per the user's request, live book/player chapter rows add word counts, source page counts when known and the existing selected audio's runtime. Current-chapter Unicode text progress appears alongside You are here while its audio word remains visible. Downloaded rows use cached metadata and their held audio duration. Unknown pages/runtime are omitted; static fixtures retain the supplied board layout and default 1% tolerance."
+  },
+  "live:ChapterGeneration": {
+    "reason": "Per the user's audio-generation follow-up, live free and premium sheets add Choose chapters with an accessible scrollable checkbox list and an empty-selection guard. Live running cards and chapter rows show completed-request/text progress and honest measured chapter/selected-work estimates; preflight generation time is Unknown rather than a fixed machine-speed guess. Audio duration stays separate. These extend PlanFree, PlanPremium and BookRunning to meet M4 and PL13. Original static board fixtures retain their layout and default 1% tolerance."
   }
 }

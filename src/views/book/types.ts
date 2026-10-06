@@ -1,6 +1,7 @@
 // View models of the book page: what the presentational screens take. The connected screen builds them
 // from API data (src/state/book.ts); the board views build them from src/fixtures/book.ts.
 import type { BadgeTone, ChapterRowModel, RunningModel } from '../../lib/bookAudio';
+import type { GenerationModel } from '../../lib/generationProgress';
 
 export type { ChapterRowModel, RunningModel };
 
@@ -29,6 +30,7 @@ export interface AudiobookCardModel {
   ready: number;
   /** Set while a job makes it ready. */
   running?: RunningModel;
+  generation?: GenerationModel | null;
   /** Make ready would have something to make. */
   canMakeReady: boolean;
 }

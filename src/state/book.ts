@@ -25,7 +25,6 @@ import {
   shortList,
   countText,
   spaceText,
-  timeText,
   type ChapterAudio,
   type ChapterInfo,
   type DeviceCopy,
@@ -33,6 +32,7 @@ import {
   type MakeOption,
   type ScopeBody,
 } from '../lib/bookAudio';
+import { generationModel, remainingTime } from '../lib/generationProgress';
 import { deviceId } from '../lib/device';
 import { subscribeSharedEvents } from '../lib/sse';
 import { coverColor, realCoverUrl } from './library';
@@ -296,7 +296,8 @@ export function pageModel(s: BookState, ui: PageUi, device: ReadonlyMap<string, 
     };
     // A job that belongs to a plan is shown by the plan card (src/views/plans), which pauses and stops it as a plan.
     if (s.job && s.job.audiobook_id === current.id && !s.job.plan_id && isActiveJob(s.job.state as JobStateName)) {
-      card.running = runningModel(s.job, { chapters_ready: r.ready, chapters_total: r.total }, nowMs);
+      card.running = runningModel({ ...s.job, generation: s.job.generation ?? null }, { chapters_ready: r.ready, chapters_total: r.total }, nowMs);
+      card.generation = generationModel(s.job, s.chapters);
     }
   }
 
@@ -314,6 +315,12 @@ export function pageModel(s: BookState, ui: PageUi, device: ReadonlyMap<string, 
     heldDurations: durations.get(s.currentId ?? ''),
     filter: ui.storyOnly ? 'story' : 'all',
   });
+  const generation = s.job?.audiobook_id === current?.id ? generationModel(s.job, s.chapters) : null;
+  const makingRow = generation && rows.find((r) => r.id === generation.chapterId);
+  if (makingRow) {
+    makingRow.generationText = [generation.detail, remainingTime(s.job?.state === 'running' ? s.job.generation?.chapter_seconds_remaining : null)].filter(Boolean).join(' · ');
+    makingRow.generationFraction = generation.fraction;
+  }
   const list = shortList(rows, ui.expanded);
 
   return {
@@ -327,11 +334,11 @@ export function pageModel(s: BookState, ui: PageUi, device: ReadonlyMap<string, 
 }
 
 /** The options and figures of the Make ready sheet for the current audiobook. Undefined when there is nothing to choose. */
-export function makeSheet(s: BookState, selected: string, includeMatter = true): { model: MakeSheetModel; options: MakeOption[]; chosen: MakeOption } | undefined {
+export function makeSheet(s: BookState, selected: string, includeMatter = true, selectedChapterIds?: readonly string[]): { model: MakeSheetModel; options: MakeOption[]; chosen: MakeOption } | undefined {
   const current = currentAudiobook(s);
   if (!current || current.tier !== 'free' || !s.chapters.length) return undefined;
   const chapters = s.chapters.map((c) => ({ ...info(c), word_count: c.word_count }));
-  const options = makeOptions({ chapters, audio: s.audio, currentId: s.place?.chapter_id, includeMatter });
+  const options = makeOptions({ chapters, audio: s.audio, currentId: s.place?.chapter_id, includeMatter, selectedChapterIds });
   const chosen = options.find((o) => o.id === selected) ?? options[0]!;
   const est = estimateMake(chapters, chosen.chapterIds, s.audio, s.bytesPerSecond);
   return {
@@ -342,7 +349,7 @@ export function makeSheet(s: BookState, selected: string, includeMatter = true):
       options: options.map((o) => ({ id: o.id, title: o.title, detail: o.detail })),
       selected: chosen.id,
       toMake: countText(est.toMake),
-      time: timeText(est.seconds),
+      time: est.toMake === 0 ? 'Nothing to make' : 'Unknown until generation starts',
       space: spaceText(est.bytes),
       nothingToMake: est.toMake === 0,
     },
@@ -544,6 +551,7 @@ export class BookStore {
     const cur = currentAudiobook(get(this.store));
     if (!l || !cur) return { ok: false, detail: 'There is no audiobook to make ready.' };
     if (cur.tier !== 'free') return { ok: false, code: 'plan_required', detail: 'A premium voice needs a plan you approve first. Nothing was started.' };
+    if (scope.kind === 'chapters' && !scope.chapter_ids?.length) return { ok: false, code: 'empty_scope', detail: 'Choose at least one chapter. Nothing was started.' };
     const r = await this.gw.makeReady(l, cur.id, scope as Scope, this.newKey());
     if (!r.ok) return fail(r);
     this.store.update((s) => ({ ...s, job: r.value, at: this.now() }));

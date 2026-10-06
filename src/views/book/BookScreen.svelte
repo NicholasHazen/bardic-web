@@ -72,6 +72,7 @@
   let makeOpen = $state(false);
   let includeMatter = $state(false);
   let selected = $state('whole');
+  let selectedChapterIds = $state<string[]>([]);
   let busy = $state(false);
   let actionRun = 0;
   // A deleted-for-good book is hidden by the server (reading it is 404). This asks the server whether that is why.
@@ -101,6 +102,7 @@
     chooser = false;
     makeOpen = false;
     includeMatter = false;
+    selectedChapterIds = [];
     sheetError = undefined;
     problem = undefined;
     downloadOpen = false;
@@ -112,7 +114,10 @@
 
   const page = $derived(pageModel(s, { expanded, storyOnly }, $deviceChapters, s.at, $deviceChapterDurations));
   const palette = $derived(derivePalette(s.book?.cover?.sample));
-  const sheet = $derived(makeOpen ? makeSheet(s, selected, includeMatter) : undefined);
+  const sheet = $derived(makeOpen ? makeSheet(s, selected, includeMatter, selectedChapterIds) : undefined);
+  const selectionChapters = $derived(s.chapters.filter((c) => includeMatter || c.kind === 'story').map((c) => ({
+    id: c.id, title: c.title, ready: s.audio.get(c.id)?.state === 'ready', matter: c.kind !== 'story',
+  })));
   const hasMatter = $derived(s.chapters.some((c) => c.kind !== 'story'));
   const current = $derived(currentAudiobook(s));
   const premium = $derived(current?.tier === 'premium');
@@ -165,7 +170,7 @@
   const otherNeed = $derived(mine && $player.needsYou && $player.needsYou.code !== 'no_voice' ? $player.needsYou : null);
 
   async function start() {
-    if (!sheet) return;
+    if (!sheet || busy || sheet.model.nothingToMake) return;
     const mine = ++actionRun;
     const book = bookId;
     const listener = listenerId;
@@ -251,6 +256,7 @@
       const result = await chooseAudiobook(ab.id, { makeAudio: false });
       if (result.ok) {
         selected = 'whole';
+        selectedChapterIds = [];
         includeMatter = false;
         sheetError = undefined;
         makeOpen = true;
@@ -287,6 +293,7 @@
       {downloads}
       onmakeready={() => {
         selected = 'whole';
+        selectedChapterIds = [];
         includeMatter = false;
         sheetError = undefined;
         makeOpen = true;
@@ -335,9 +342,16 @@
       <MakeReadySheet
         model={{ ...sheet.model, busy, error: sheetError }}
         placement={$isTablet ? 'popover' : 'bottom'}
-        onselect={(id) => (selected = id)}
+        onselect={(id) => { selected = id; sheetError = undefined; }}
+        chapters={selectionChapters}
+        {selectedChapterIds}
+        onchapters={(ids) => { selectedChapterIds = ids; sheetError = undefined; }}
         includeMatter={hasMatter ? includeMatter : undefined}
-        onmatter={(include) => { includeMatter = include; sheetError = undefined; }}
+        onmatter={(include) => {
+          includeMatter = include;
+          if (!include) selectedChapterIds = selectedChapterIds.filter((id) => s.chapters.some((c) => c.id === id && c.kind === 'story'));
+          sheetError = undefined;
+        }}
         onstart={start}
         onclose={() => (makeOpen = false)}
       />
@@ -363,7 +377,8 @@
     <RunningPlan
       audiobookId={current.id}
       voiceName={current.voice_name}
-      chaptersReady={[...s.audio.values()].filter((a) => a.state === 'ready').length}
+      job={s.job?.audiobook_id === current.id ? s.job : null}
+      chapters={s.chapters}
       {freeVoiceName}
       onfree={() => (chooser = true)}
     />

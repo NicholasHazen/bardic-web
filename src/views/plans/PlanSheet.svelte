@@ -6,6 +6,8 @@
   import Sheet from '../../components/Sheet.svelte';
   import LimitRow from './LimitRow.svelte';
   import MatterChoice from '../../components/MatterChoice.svelte';
+  import ChapterSelection from '../../components/ChapterSelection.svelte';
+  import type { ChapterSelectionItem } from '../../lib/chapterSelection';
   import type { PlanSheetModel } from './types';
 
   /**
@@ -19,6 +21,9 @@
     model: PlanSheetModel;
     onselect?: (id: string) => void;
     onmatter?: (include: boolean) => void;
+    chapters?: readonly ChapterSelectionItem[];
+    selectedChapterIds?: readonly string[];
+    onchapters?: (ids: string[]) => void;
     onlimit?: (text: string) => void;
     /** Opens [EstimateExplained]. */
     onwhy?: () => void;
@@ -32,7 +37,7 @@
     fixed?: boolean;
     scrim?: number;
   }
-  let { model, onselect, onmatter, onlimit, onwhy, onapprove, onclose, onfix, onrefresh, placement = 'bottom', fixed = false, scrim }: Props = $props();
+  let { model, onselect, onmatter, chapters, selectedChapterIds = [], onchapters, onlimit, onwhy, onapprove, onclose, onfix, onrefresh, placement = 'bottom', fixed = false, scrim }: Props = $props();
 </script>
 
 <Sheet title="Make ready" eyebrow={model.eyebrow} {onclose} {placement} {fixed} {scrim}>
@@ -47,12 +52,16 @@
   {#if model.includeMatter !== undefined}
     <MatterChoice checked={model.includeMatter} disabled={model.busy} onchange={onmatter} />
   {/if}
+  {#if model.selected === 'chosen' && chapters}
+    <ChapterSelection {chapters} {selectedChapterIds} disabled={model.busy} onchange={onchapters} />
+  {/if}
   <Glass radius={16} style="overflow: hidden; flex-shrink: 0">
     <dl aria-busy={model.loading ? 'true' : 'false'}>
       {#if model.rows}
         <div class="r"><dt>Text to speak</dt><dd>{model.rows.characters}</dd></div>
         <div class="r"><dt>To make</dt><dd>{model.rows.toMake}</dd></div>
-        <div class="r"><dt>Length</dt><dd>{model.rows.length}</dd></div>
+        <div class="r"><dt>{chapters ? 'Audio duration' : 'Length'}</dt><dd>{model.rows.length}</dd></div>
+        {#if chapters}<div class="r"><dt>Generation time</dt><dd>Unknown until generation starts</dd></div>{/if}
         <div class="r"><dt>Estimated cost</dt><dd class="strong">{model.rows.cost}</dd></div>
         <div class="r"><dt>Most likely</dt><dd>{model.rows.likely}</dd></div>
       {:else}

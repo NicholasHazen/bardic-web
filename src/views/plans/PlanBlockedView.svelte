@@ -6,6 +6,8 @@
   import Sheet from '../../components/Sheet.svelte';
   import LimitRow from './LimitRow.svelte';
   import MatterChoice from '../../components/MatterChoice.svelte';
+  import ChapterSelection from '../../components/ChapterSelection.svelte';
+  import type { ChapterSelectionItem } from '../../lib/chapterSelection';
   import PlanGlyph from './PlanGlyph.svelte';
   import type { PlanBlockedModel } from './types';
 
@@ -18,6 +20,9 @@
     model: PlanBlockedModel;
     onselect?: (id: string) => void;
     onmatter?: (include: boolean) => void;
+    chapters?: readonly ChapterSelectionItem[];
+    selectedChapterIds?: readonly string[];
+    onchapters?: (ids: string[]) => void;
     onlimit?: (text: string) => void;
     onapprove?: () => void;
     onallowance?: () => void;
@@ -27,7 +32,7 @@
     fixed?: boolean;
     scrim?: number;
   }
-  let { model, onselect, onmatter, onlimit, onapprove, onallowance, onclose, onfix, placement = 'bottom', fixed = false, scrim }: Props = $props();
+  let { model, onselect, onmatter, chapters, selectedChapterIds = [], onchapters, onlimit, onapprove, onallowance, onclose, onfix, placement = 'bottom', fixed = false, scrim }: Props = $props();
 </script>
 
 <Sheet title="Make ready" eyebrow={model.eyebrow} {onclose} {placement} {fixed} {scrim}>
@@ -42,6 +47,9 @@
   </div>
   {#if model.includeMatter !== undefined}
     <MatterChoice checked={model.includeMatter} disabled={model.busy} onchange={onmatter} />
+  {/if}
+  {#if model.selected === 'chosen' && chapters}
+    <ChapterSelection {chapters} {selectedChapterIds} disabled={model.busy} onchange={onchapters} />
   {/if}
   <Glass radius={16} style="overflow: hidden; flex-shrink: 0">
     <dl aria-busy={model.loading ? 'true' : 'false'}>

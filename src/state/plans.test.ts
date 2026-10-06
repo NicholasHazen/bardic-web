@@ -146,7 +146,7 @@ describe('opening the sheet spends nothing (PL1)', () => {
     expect(f.count('resume')).toBe(0);
     const s = flow(f.store);
     expect(s.phase).toBe('ready');
-    expect(s.choices.map((c) => c.id)).toEqual(['whole', 'from']);
+    expect(s.choices.map((c) => c.id)).toEqual(['whole', 'from', 'chosen']);
     expect(s.choices[1]!.title).toBe('From chapter 4');
     expect(s.estimate?.estimate_id).toBe('e1');
     expect(s.limitText).toBe('$2.60');
@@ -162,7 +162,7 @@ describe('opening the sheet spends nothing (PL1)', () => {
     const noPlace = new PlanStore(g.gw, { chapters: async () => ok(chapters), audioChapters: async () => ok([]), place: async () => ok(null) }, () => NOW);
     await noPlace.open({ ...params, initial: 'from' });
     expect(get(noPlace).flow.selected).toBe('whole');
-    expect(get(noPlace).flow.choices.map((c) => c.id)).toEqual(['whole']);
+    expect(get(noPlace).flow.choices.map((c) => c.id)).toEqual(['whole', 'chosen']);
     noPlace.dispose();
   });
 
@@ -219,6 +219,102 @@ describe('opening the sheet spends nothing (PL1)', () => {
     await f.store.open(params);
     expect(flow(f.store).error?.text).toContain('Nothing was started');
     expect(flow(f.store).error?.text).toContain('could not be reached');
+  });
+});
+
+describe('choosing individual chapters', () => {
+  it('starts with an empty picker, never previews an empty scope, and prices only valid selected chapters', async () => {
+    const f = fakes();
+    await f.store.open(params);
+    await f.store.select('chosen');
+    expect(flow(f.store).selectedChapterIds).toEqual([]);
+    expect(flow(f.store).estimate).toBeNull();
+    expect(f.count('preview')).toBe(1);
+    expect((await f.store.approve()).ok).toBe(false);
+    await f.store.setChapters(['c7', 'missing', 'c2', 'c7']);
+    expect(flow(f.store).selectedChapterIds).toEqual(['c2', 'c7']);
+    expect(f.previews.at(-1)).toEqual({ kind: 'chapters', chapter_ids: ['c2', 'c7'], include_matter: false });
+    expect(f.count('create')).toBe(0);
+    const previews = f.count('preview');
+    await f.store.setChapters([]);
+    expect(flow(f.store).estimate).toBeNull();
+    expect(f.count('preview')).toBe(previews);
+    expect((await f.store.approve()).ok).toBe(false);
+  });
+
+  it('discards an old estimate immediately, ignores late replies, and approves only the latest selection', async () => {
+    const f = fakes();
+    await f.store.open(params);
+    let release!: (value: R<PlanEstimate>) => void;
+    const delayed = new Promise<R<PlanEstimate>>((resolve) => (release = resolve));
+    const preview = f.gw.preview;
+    f.gw.preview = async (listener, audiobook, scope) => scope.chapter_ids?.includes('c3') ? delayed : preview(listener, audiobook, scope);
+    const oldSelection = f.store.setChapters(['c3']);
+    expect(flow(f.store).estimate).toBeNull();
+    expect(flow(f.store).phase).toBe('previewing');
+    expect((await f.store.approve()).ok).toBe(false);
+    await f.store.setChapters(['c8']);
+    const current = flow(f.store).estimate!;
+    release(ok(estimate('late-three', { scope: { kind: 'chapters', chapter_ids: ['c3'], include_matter: false } })));
+    await oldSelection;
+    expect(flow(f.store).estimate?.estimate_id).toBe(current.estimate_id);
+    expect(flow(f.store).estimate?.scope.chapter_ids).toEqual(['c8']);
+    expect(f.count('create')).toBe(0);
+    expect((await f.store.approve()).ok).toBe(true);
+    expect(f.created[0]!.input.estimate_id).toBe(current.estimate_id);
+  });
+
+  it('filters selected matter separately and cannot keep its quote when the effective selection is empty', async () => {
+    const mixed = chapters.map((chapter, index) => ({ ...chapter, kind: index === 0 ? 'front_matter' as const : 'story' as const }));
+    const f = fakes(mixed);
+    await f.store.open(params);
+    expect(flow(f.store).chapterChoices.map((chapter) => chapter.id)).not.toContain('c1');
+    await f.store.setIncludeMatter(true);
+    await f.store.setChapters(['c1']);
+    expect(f.previews.at(-1)).toEqual({ kind: 'chapters', chapter_ids: ['c1'], include_matter: true });
+    const previews = f.count('preview');
+    await f.store.setIncludeMatter(false);
+    expect(flow(f.store).selectedChapterIds).toEqual([]);
+    expect(flow(f.store).estimate).toBeNull();
+    expect(f.count('preview')).toBe(previews);
+    expect((await f.store.approve()).ok).toBe(false);
+    await f.store.setIncludeMatter(true);
+    expect(flow(f.store).estimate).toBeNull();
+    await f.store.setChapters(['c1']);
+    expect(f.previews.at(-1)).toEqual({ kind: 'chapters', chapter_ids: ['c1'], include_matter: true });
+    expect(f.count('create')).toBe(0);
+  });
+
+  it('keeps the approved selection fixed while approval is in flight', async () => {
+    const f = fakes();
+    await f.store.open(params);
+    await f.store.setChapters(['c2', 'c9']);
+    let release!: () => void;
+    f.state.delay = new Promise((resolve) => (release = resolve));
+    const approval = f.store.approve();
+    await f.store.setChapters(['c5']);
+    await f.store.select('whole');
+    expect(flow(f.store).selectedChapterIds).toEqual(['c2', 'c9']);
+    expect(f.created[0]!.input.estimate_id).toBe('e2');
+    release();
+    await approval;
+    expect(f.count('create')).toBe(1);
+  });
+
+  it('discards a blocked headline and its cached smaller quote when the listener chooses different chapters', async () => {
+    const f = fakes();
+    const blocked = estimate('blocked', { allowance: { monthly_limit: usd(2000), remaining: usd(120) }, blocked: { code: 'allowance_exceeded', text: 'No room.' } });
+    const smaller = estimate('smaller', { chapters_to_make: 2, cost: { ...blocked.cost, low: usd(45), likely: usd(55), high: usd(70) }, suggested_limit: usd(70), allowance: blocked.allowance });
+    f.state.previewResults.push(ok(blocked), ok(smaller));
+    await f.store.open(params);
+    expect(flow(f.store).smaller?.estimate.estimate_id).toBe('smaller');
+    await f.store.setChapters(['c7', 'c9']);
+    expect(flow(f.store).selected).toBe('chosen');
+    expect(flow(f.store).smaller).toBeNull();
+    expect(flow(f.store).blockedFrom).toBeNull();
+    expect(flow(f.store).choices.some((choice) => choice.id === 'smaller')).toBe(false);
+    expect(f.previews.at(-1)).toEqual({ kind: 'chapters', chapter_ids: ['c7', 'c9'], include_matter: false });
+    expect(f.count('create')).toBe(0);
   });
 });
 
@@ -286,7 +382,7 @@ describe('choosing what matter to voice', () => {
     expect(s.selected).toBe('whole');
     expect(s.smaller).toBeNull();
     expect(s.blockedFrom).toBeNull();
-    expect(s.choices.map((c) => c.id)).toEqual(['whole', 'from']);
+    expect(s.choices.map((c) => c.id)).toEqual(['whole', 'from', 'chosen']);
     expect(s.estimate?.scope.include_matter).toBe(true);
     expect(f.previews.at(-1)).toEqual({ kind: 'whole_book', include_matter: true });
     expect(f.count('create')).toBe(0);
@@ -544,8 +640,8 @@ describe('a plan that would pass the Allowance (PL3)', () => {
     expect(s.blockedFrom?.estimate_id).toBe('whole-blocked');
     expect(s.blockedWhole).toBe(true);
     expect(f.previews[1]).toEqual({ kind: 'chapters', chapter_ids: ['c1', 'c2', 'c3', 'c4'], include_matter: false });
-    expect(s.choices.map((c) => c.id)).toEqual(['whole', 'from', 'smaller']);
-    expect(s.choices[2]).toMatchObject({ title: 'First 4 chapters', detail: 'About $0.84' });
+    expect(s.choices.map((c) => c.id)).toEqual(['whole', 'from', 'chosen', 'smaller']);
+    expect(s.choices.find((c) => c.id === 'smaller')).toMatchObject({ title: 'First 4 chapters', detail: 'About $0.84' });
     // the blocked plan cannot be approved
     expect((await f.store.approve())).toEqual({ ok: false, reason: 'blocked' });
     expect(f.count('create')).toBe(0);
@@ -573,7 +669,7 @@ describe('a plan that would pass the Allowance (PL3)', () => {
     const none = estimate('none', { allowance: { monthly_limit: usd(2000), remaining: usd(0) }, blocked: { code: 'allowance_exceeded', text: 'x' } });
     f.state.previewResults.push(ok(none));
     await f.store.open(params);
-    expect(flow(f.store).choices.map((c) => c.id)).toEqual(['whole', 'from']);
+    expect(flow(f.store).choices.map((c) => c.id)).toEqual(['whole', 'from', 'chosen']);
     expect(f.count('preview')).toBe(1);
     expect((await f.store.approve()).ok).toBe(false);
   });

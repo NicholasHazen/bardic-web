@@ -378,7 +378,8 @@ test('PL9: a monthly limit below what is spent blocks new plans: the sheet says 
   await expect(d.getByRole('button', { name: 'Open Allowance' })).toBeVisible();
   // not even a smaller plan fits, so Approve is not available at all
   await expect(d.getByRole('button', { name: /^Approve/ })).toHaveCount(0);
-  await expect(d.getByRole('radio')).toHaveCount(1);
+  await expect(d.getByRole('radio')).toHaveCount(2);
+  await expect(d.getByRole('radio', { name: /^Choose chapters/ })).toBeVisible();
   await expect(d.getByRole('radio', { name: /^Whole book/ })).toHaveAttribute('aria-checked', 'true');
   expect(approvals(writes)).toEqual([]);
   expect(await plans(stack, w)).toEqual([]);

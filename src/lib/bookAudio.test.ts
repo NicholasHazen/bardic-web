@@ -208,6 +208,20 @@ describe('the free Make ready sheet', () => {
     const o = makeOptions({ chapters: chapters.slice(0, 1), audio: audioOf({ c1: 'ready' }) });
     expect(o[0]?.detail).toBe('1 chapter · all ready');
   });
+  it('keeps an arbitrary selection in reading order, removes duplicates and unknown IDs, and respects matter inclusion', () => {
+    const mixed = [ch(1, 'front_matter'), ch(2), ch(3), ch(4), ch(5, 'back_matter')].map((chapter) => ({ ...chapter, word_count: 100 }));
+    const input = { chapters: mixed, audio: audioOf({ c2: 'ready' }), selectedChapterIds: ['c4', 'c1', 'c2', 'c4', 'missing'] };
+    expect(makeOptions({ ...input, includeMatter: false }).at(-1)).toMatchObject({
+      id: 'chosen', detail: '2 chapters · 1 ready', chapterIds: ['c2', 'c4'],
+      scope: { kind: 'chapters', chapter_ids: ['c2', 'c4'], include_matter: false },
+    });
+    expect(makeOptions({ ...input, includeMatter: true }).at(-1)?.chapterIds).toEqual(['c1', 'c2', 'c4']);
+    expect(makeOptions({ ...input, selectedChapterIds: [], includeMatter: false }).at(-1)).toMatchObject({
+      id: 'chosen', chapterIds: [], scope: { kind: 'chapters', chapter_ids: [], include_matter: false },
+    });
+    const chosen = makeOptions({ ...input, includeMatter: false }).at(-1)!;
+    expect(estimateMake(mixed, chosen.chapterIds, input.audio).toMake).toBe(1);
+  });
   it('filters matter before counting whole/from scopes and retains a matter chapter as the from anchor', () => {
     const mixed = [ch(1, 'front_matter'), ch(2), ch(3, 'front_matter'), ch(4), ch(5, 'back_matter')].map((c) => ({ ...c, word_count: 100 }));
     const audio = audioOf({ c1: 'ready', c2: 'ready', c5: 'ready' });
