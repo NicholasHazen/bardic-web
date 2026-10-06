@@ -12,6 +12,16 @@
 
 The W0–W5 notes below are historical implementation checkpoints. The current handoff is recorded under W6; older test counts and “not yet” lists describe those earlier checkpoints.
 
+## Breeze request concurrency, 2026-10-06
+
+The operator can set `BARDIC_BREEZE_CONCURRENCY` (native flag `--breeze-concurrency`) to 1–16, defaulting to 1. Compose forwards the setting explicitly; deployment smoke fixes it at 1 for reproducible isolated checks. Uncached free samples and chapter requests share the limit. Parallel passages remain within one active chapter, finish independently, are retained durably by index and assemble in exact text order. Premium requests remain sequential. Contract 0.5.4 keeps the current progress fields and bases remaining-time estimates on observed wall-clock completion throughput.
+
+The deployment guide explains applying the setting and measuring provider capacity. A single busy Breeze GPU may only queue extra requests; no speedup is claimed. A future balanced Breeze URL needs identical voices, references, revision metadata, model and settings across its replicas. No deployment topology or live installation was changed.
+
+The deployment admission probe supports reviewed schema prefixes 11–14, including the new indexed request table, while refusing newer or mismatched schemas. Its 73 synthetic checks pass in the pinned Node 24 image; the separate actual read-only Docker bind check also passes with retained out-of-order schema 14 output. Tests cover table shape, active work, unchanged stopped databases and refusal of schema 15. Compose configuration resolves the explicit concurrency setting, script syntax checks pass and the client contract/types are synchronized to 0.5.4.
+
+Verification against the rebuilt server uses synthetic text and fake providers: type checking, all 918 client logic tests, the production build and all 71 design boards pass. The BookRunning comparison was inspected visually; no screen layout changed. The full browser run passed 542 of 543 checks. The existing Firefox S9 restart check failed when a series refresh shifted its button during the pointer action; it then passed five focused repetitions without retries. The added concurrency flow passes in Chromium, Firefox and WebKit: three requests overlap, a later passage reports durable progress first, pause freezes the clock and estimates, and resume reuses the retained passage while making only the selected chapters. No live provider benchmark or Spark deployment was performed.
+
 ## Chapter selection and generation progress, 2026-10-05
 
 Free Make ready and premium plans now offer Choose chapters, including nonadjacent chapters, with an accessible checkbox list, Select all, Clear selection and ready-audio reuse. Empty selections cannot start. Chapter and matter edits invalidate premium previews immediately; late responses cannot restore a stale approval. The live premium sheet separates audio duration from generation time, and both sheets say generation time is Unknown before work starts.

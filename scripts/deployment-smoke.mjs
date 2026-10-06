@@ -50,6 +50,7 @@ async function writeEnvironment(directory, port) {
     BARDIC_DATA_DIR: directory, BARDIC_HTTP_PORT: String(port), BARDIC_BIND_ADDRESS: '127.0.0.1',
     BARDIC_IMAGE_TAG: 'local', BARDIC_SERVER_CONTEXT: path.resolve(root, '../bardic-server'),
     BARDIC_ALLOW_HOSTS: '', BARDIC_ALLOW_ORIGINS: '',
+    BARDIC_BREEZE_CONCURRENCY: '1',
   };
   Object.assign(process.env, values);
   await fs.writeFile(envFile, Object.entries(values).map(([key, value]) => `${key}=${value}`).join('\n') + '\n', { mode: 0o600 });

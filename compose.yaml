@@ -12,6 +12,7 @@ services:
     environment:
       BARDIC_ALLOW_HOSTS: ${BARDIC_ALLOW_HOSTS:-}
       BARDIC_ALLOW_ORIGINS: ${BARDIC_ALLOW_ORIGINS:-}
+      BARDIC_BREEZE_CONCURRENCY: ${BARDIC_BREEZE_CONCURRENCY:-1}
     volumes:
       - type: bind
         source: ${BARDIC_DATA_DIR:?Set BARDIC_DATA_DIR to an absolute local data directory}

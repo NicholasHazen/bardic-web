@@ -64,6 +64,21 @@ function audiobook(db) {
     VALUES('synthetic-audiobook','synthetic-book','synthetic-voice','Synthetic Voice','r1',?)`).run(at);
 }
 
+function retainedRequest(db) {
+  audiobook(db);
+  const text = 'An original synthetic passage waits beside the paper lantern.';
+  db.prepare(`INSERT INTO chapters(id,book_id,idx,title,kind,text,text_sha256,word_count)
+    VALUES('synthetic-chapter','synthetic-book',0,'Synthetic chapter','story',?,?,10)`)
+    .run(text, createHash('sha256').update(text).digest('hex'));
+  db.prepare(`INSERT INTO chapter_parts(audiobook_id,chapter_id,audio_id,chunk_chars,chunks_done,pcm_bytes,timings)
+    VALUES('synthetic-audiobook','synthetic-chapter','synthetic-retained-audio',2500,0,0,'[]')`).run();
+  // Index 1 is complete while index 0 is still missing: the reviewed table
+  // stores durable output independently of the ordered chapter_parts prefix.
+  db.prepare(`INSERT INTO chapter_requests(audiobook_id,chapter_id,request_index,audio_id,pcm_bytes,timings,sha256)
+    VALUES('synthetic-audiobook','synthetic-chapter',1,'synthetic-retained-audio',4800,?,?)`)
+    .run(JSON.stringify([{ line_id: 'synthetic-line', start_ms: 0, end_ms: 100 }]), 'a'.repeat(64));
+}
+
 function expectsBlocked(result, reason, countField, expected = 1, schemaVersion = SUPPORTED_SCHEMA_VERSION) {
   assert.equal(result.quiet, false);
   assert.ok(result.reasons.includes(reason), JSON.stringify(result));
@@ -129,6 +144,62 @@ for (const [schemaVersion, table, column] of [[12, 'chapters', 'page_count'], [1
     const { db, path } = fixture(t, { schemaVersion });
     db.exec(`ALTER TABLE ${table} RENAME COLUMN ${column} TO synthetic_missing_column`);
     assert.deepEqual(checkQuiescence(path), { quiet: false, reasons: ['schema_mismatch'], schemaVersion });
+  });
+}
+
+test('schema 14 retained out-of-order requests are settled work and survive live/stopped probes unchanged', (t) => {
+  const { db, path, close } = fixture(t, { schemaVersion: 14, wal: true });
+  retainedRequest(db);
+  job(db, 'paused');
+  const result = checkQuiescence(path);
+  assert.equal(result.quiet, true);
+  assert.equal(result.schemaVersion, 14);
+  assert.equal(result.usageCount, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM chapter_requests').get().count, 1);
+  assert.equal(db.prepare('SELECT chunks_done FROM chapter_parts').get().chunks_done, 0);
+  assert.ok(!JSON.stringify(result).includes('synthetic-retained-audio'));
+  close();
+  const before = createHash('sha256').update(readFileSync(path)).digest('hex');
+  assert.equal(checkQuiescence(path, { stopped: true }).quiet, true);
+  assert.equal(createHash('sha256').update(readFileSync(path)).digest('hex'), before);
+});
+
+test('schema 14 retained output does not hide a running or paused in-flight chapter', (t) => {
+  const { db, path } = fixture(t, { schemaVersion: 14 });
+  retainedRequest(db);
+  job(db, 'running', { current: 'synthetic-chapter' });
+  db.prepare("INSERT INTO job_items(job_id,chapter_id,position,state) VALUES('synthetic-job','synthetic-chapter',0,'queued')").run();
+  expectsBlocked(checkQuiescence(path), 'active_jobs', 'activeJobs');
+  db.exec("UPDATE jobs SET state='paused'");
+  expectsBlocked(checkQuiescence(path), 'paused_chapter_in_flight', 'pausedInFlightJobs');
+});
+
+for (const column of ['audiobook_id', 'chapter_id', 'request_index', 'audio_id', 'pcm_bytes', 'timings', 'sha256']) {
+  test(`schema 14 missing indexed request column ${column} fails closed`, (t) => {
+    const { db, path } = fixture(t, { schemaVersion: 14 });
+    db.exec(`ALTER TABLE chapter_requests RENAME COLUMN ${column} TO synthetic_missing_column`);
+    assert.deepEqual(checkQuiescence(path), { quiet: false, reasons: ['schema_mismatch'], schemaVersion: 14 });
+  });
+}
+
+test('schema 14 unexpected indexed request metadata fails closed', (t) => {
+  const { db, path } = fixture(t, { schemaVersion: 14 });
+  db.exec('ALTER TABLE chapter_requests ADD COLUMN synthetic_future_work_state TEXT');
+  assert.deepEqual(checkQuiescence(path), { quiet: false, reasons: ['schema_mismatch'], schemaVersion: 14 });
+});
+
+for (const [label, pattern, replacement] of [
+  ['request index constraint', /CHECK\s*\(request_index\s*>=\s*0\)/, ''],
+  ['PCM size constraint', /CHECK\s*\(pcm_bytes\s*>\s*0\)/, ''],
+  ['request index type', /request_index\s+INTEGER/, 'request_index TEXT'],
+  ['parent cascade', /ON DELETE CASCADE/, 'ON DELETE SET NULL'],
+]) {
+  test(`schema 14 altered ${label} fails closed`, (t) => {
+    const { db, path } = fixture(t, { schemaVersion: 14 });
+    assert.match(migrations[13], pattern);
+    db.exec('DROP TABLE chapter_requests');
+    db.exec(migrations[13].replace(pattern, replacement));
+    assert.deepEqual(checkQuiescence(path), { quiet: false, reasons: ['schema_mismatch'], schemaVersion: 14 });
   });
 }
 
@@ -362,7 +433,8 @@ test('stopped URI safely represents literal path punctuation and CLI accepts eit
 test('pinned Node 24 stopped probe works on an actual read-only WAL bind', {
   skip: process.env.BARDIC_PROBE_DOCKER_TEST !== '1',
 }, (t) => {
-  const { path, directory, close } = fixture(t, { wal: true });
+  const { db, path, directory, close } = fixture(t, { wal: true });
+  retainedRequest(db);
   close();
   assert.equal(existsSync(`${path}-wal`), false);
   assert.equal(existsSync(`${path}-shm`), false);
@@ -408,7 +480,7 @@ test('probing neither mutates the database nor reflects synthetic secrets/text',
   assert.equal(statSync(path).mtimeMs, beforeStat.mtimeMs);
 });
 
-for (const version of [0, 10, 14]) {
+for (const version of [0, 10, 15]) {
   test(`unsupported schema ${version} fails closed`, (t) => {
     const { db, path } = fixture(t);
     db.exec(`PRAGMA user_version=${version}`);
@@ -440,7 +512,7 @@ test('a non-database file and a directory fail closed without leaking errors', (
   assert.ok(!JSON.stringify(result).includes('synthetic-private-garbage'));
 });
 
-for (const table of ['jobs', 'imports', 'exports', 'backups', 'spend', 'job_items', 'deletions', 'voice_sources']) {
+for (const table of ['jobs', 'imports', 'exports', 'backups', 'spend', 'job_items', 'deletions', 'voice_sources', 'chapter_parts', 'chapter_requests']) {
   test(`schema claiming version ${SUPPORTED_SCHEMA_VERSION} but missing ${table} fails closed`, (t) => {
     const { db, path } = fixture(t);
     db.exec(`DROP TABLE ${table}`);
