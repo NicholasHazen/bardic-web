@@ -75,6 +75,9 @@
       {fixed}
       onselect={(id) => planStore.select(id)}
       onmatter={(include) => planStore.setIncludeMatter(include)}
+      chapters={f.chapterChoices}
+      selectedChapterIds={f.selectedChapterIds}
+      onchapters={(ids) => planStore.setChapters(ids)}
       onlimit={(t) => planStore.setLimit(t)}
       onapprove={() => planStore.approve()}
       onallowance={() => leave('#/settings/allowance')}
@@ -88,6 +91,9 @@
       {fixed}
       onselect={(id) => planStore.select(id)}
       onmatter={(include) => planStore.setIncludeMatter(include)}
+      chapters={f.chapterChoices}
+      selectedChapterIds={f.selectedChapterIds}
+      onchapters={(ids) => planStore.setChapters(ids)}
       onlimit={(t) => planStore.setLimit(t)}
       onwhy={() => planStore.explain(true)}
       onapprove={() => planStore.approve()}

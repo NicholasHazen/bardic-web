@@ -7,12 +7,14 @@
     detail?: string;
     metadata?: string;
     progressText?: string;
+    generationText?: string;
+    generationFraction?: number;
     /** The chapter the listener is in. */
     current?: boolean;
     /** Right side: usually a Badge. */
     trailing?: Snippet;
   }
-  let { number, title, detail, metadata, progressText, current = false, trailing }: Props = $props();
+  let { number, title, detail, metadata, progressText, generationText, generationFraction, current = false, trailing }: Props = $props();
 </script>
 
 <div class="row" class:current>
@@ -21,6 +23,12 @@
     <span class="title">{title}</span>
     {#if metadata}<span class="detail">{metadata}</span>{/if}
     {#if detail || progressText}<span class="detail">{[detail, progressText].filter(Boolean).join(' · ')}</span>{/if}
+    {#if generationText}
+      <span class="detail" data-chapter-generation>{generationText}</span>
+      <div class="generation" role="progressbar" aria-label="Audio generation for {title}" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.floor((generationFraction ?? 0) * 100)} aria-valuetext={generationText}>
+        <div style:width="{(generationFraction ?? 0) * 100}%"></div>
+      </div>
+    {/if}
   </div>
   {@render trailing?.()}
 </div>
@@ -34,4 +42,6 @@
   .title { font-family: var(--font-book); font-size: 16px; font-weight: 400; color: var(--ink); line-height: 1.35; }
   .current .title { font-weight: 600; }
   .detail { font-family: var(--font-ui); font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.35; }
+  .generation { position: relative; height: 6px; flex: 0 0 6px; margin-top: 5px; border-radius: 6px; background: rgba(255, 255, 255, 0.18); }
+  .generation > div { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: var(--accent); }
 </style>

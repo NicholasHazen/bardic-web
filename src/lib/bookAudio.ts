@@ -109,6 +109,9 @@ export interface ChapterRowModel {
   metadata?: string;
   /** Progress within this chapter by text offset; separate from the audio word. */
   progressText?: string;
+  /** Audio generation within the active chapter, separate from the listener's reading place. */
+  generationText?: string;
+  generationFraction?: number;
   current: boolean;
   matter: boolean;
   word: AudioWord;
@@ -256,6 +259,8 @@ export interface JobLike {
   chapters_total: number;
   chapters_done: number;
   created_at: string;
+  /** Undefined only in legacy board fixtures. Null means the server has no measured estimate. */
+  generation?: { job_seconds_remaining: number | null } | null;
   waiting?: { text: string } | null;
   needs_you?: { text: string } | null;
 }
@@ -274,11 +279,16 @@ export function runningModel(job: JobLike, audiobook: { chapters_ready: number; 
     canPause: false,
     canResume: false,
   };
-  const left = secondsLeft(done, total, Date.parse(job.created_at), nowMs);
+  const measuredLeft = job.generation?.job_seconds_remaining;
+  const left = job.generation === undefined
+    ? secondsLeft(done, total, Date.parse(job.created_at), nowMs)
+    : measuredLeft != null && Number.isFinite(measuredLeft) && measuredLeft >= 0 ? measuredLeft : undefined;
   switch (job.state) {
     case 'queued':
     case 'running':
-      m.note = left === undefined ? 'Getting started. You can listen while it works.' : `${durationText(left)} left. You can listen while it works.`;
+      m.note = left === undefined
+        ? job.generation === undefined ? 'Getting started. You can listen while it works.' : 'Generation time: Unknown until enough audio is made. You can listen while it works.'
+        : `${durationText(left)} left. You can listen while it works.`;
       m.canPause = true;
       break;
     case 'waiting':
@@ -309,13 +319,14 @@ export function runningModel(job: JobLike, audiobook: { chapters_ready: number; 
 // --------------------------------------------------------------------------- the free Make ready sheet
 
 export interface ScopeBody {
-  kind: 'whole_book' | 'from_chapter';
+  kind: 'whole_book' | 'from_chapter' | 'chapters';
   from_chapter_id?: string | null;
+  chapter_ids?: string[];
   include_matter?: boolean;
 }
 
 export interface MakeOption {
-  id: 'whole' | 'from';
+  id: 'whole' | 'from' | 'chosen';
   title: string;
   detail: string;
   scope: ScopeBody;
@@ -330,6 +341,8 @@ export interface MakeInput {
   currentId?: string | null;
   /** Whether front and back matter are voiced. Omitted preserves the existing whole-book scopes. */
   includeMatter?: boolean;
+  /** Enables the live chapter picker. Unknown IDs and duplicates are ignored; scopes follow reading order. */
+  selectedChapterIds?: readonly string[];
 }
 
 function scopeDetail(ids: string[], audio: ReadonlyMap<string, ChapterAudio>): string {
@@ -340,7 +353,7 @@ function scopeDetail(ids: string[], audio: ReadonlyMap<string, ChapterAudio>): s
   return `${noun} · ${ready} ready`;
 }
 
-/** The scopes a free voice can be made ready for: the whole book, and from the current chapter when there is one after the first. */
+/** Scopes for free and premium audio. Reference boards omit the optional chapter picker. */
 export function makeOptions(input: MakeInput): MakeOption[] {
   const { chapters, audio, currentId, includeMatter = true } = input;
   const eligible = (c: ChapterInfo) => includeMatter || !isMatter(c);
@@ -357,6 +370,17 @@ export function makeOptions(input: MakeInput): MakeOption[] {
       title: isMatter(c) ? 'From here' : `From chapter ${story}`,
       detail: scopeDetail(ids, audio),
       scope: { kind: 'from_chapter', from_chapter_id: c.id, ...matterScope },
+      chapterIds: ids,
+    });
+  }
+  if (input.selectedChapterIds !== undefined) {
+    const selected = new Set(input.selectedChapterIds);
+    const ids = chapters.filter((c) => eligible(c) && selected.has(c.id)).map((c) => c.id);
+    out.push({
+      id: 'chosen',
+      title: 'Choose chapters',
+      detail: scopeDetail(ids, audio),
+      scope: { kind: 'chapters', chapter_ids: ids, ...matterScope },
       chapterIds: ids,
     });
   }

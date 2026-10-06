@@ -3,6 +3,8 @@
   import Callout from '../../components/Callout.svelte';
   import Glass from '../../components/Glass.svelte';
   import MatterChoice from '../../components/MatterChoice.svelte';
+  import ChapterSelection from '../../components/ChapterSelection.svelte';
+  import type { ChapterSelectionItem } from '../../lib/chapterSelection';
   import OptionCard from '../../components/OptionCard.svelte';
   import Sheet from '../../components/Sheet.svelte';
   import type { MakeSheetModel } from './types';
@@ -16,21 +18,28 @@
     /** Live audio selection; independent of the chapter list's visibility. */
     includeMatter?: boolean;
     onmatter?: (include: boolean) => void;
+    chapters?: readonly ChapterSelectionItem[];
+    selectedChapterIds?: readonly string[];
+    onchapters?: (ids: string[]) => void;
     placement?: 'bottom' | 'popover';
     /** Position against the viewport (the app) instead of the nearest positioned parent (design boards). */
     fixed?: boolean;
   }
-  let { model, onselect, onstart, onclose, includeMatter, onmatter, placement = 'bottom', fixed = false }: Props = $props();
+  let { model, onselect, onstart, onclose, includeMatter, onmatter, chapters, selectedChapterIds = [], onchapters, placement = 'bottom', fixed = false }: Props = $props();
+  const emptySelection = $derived(model.selected === 'chosen' && !chapters?.some((chapter) => selectedChapterIds.includes(chapter.id)));
 </script>
 
 <Sheet title="Make ready" eyebrow={model.eyebrow} {onclose} {placement} {fixed}>
   <div class="options" role="radiogroup" aria-label="What to make ready">
     {#each model.options as o (o.id)}
-      <OptionCard title={o.title} detail={o.detail} selected={o.id === model.selected} onselect={() => onselect?.(o.id)} />
+      <OptionCard title={o.title} detail={o.detail} selected={o.id === model.selected} disabled={model.busy} onselect={() => onselect?.(o.id)} />
     {/each}
   </div>
   {#if includeMatter !== undefined}
     <MatterChoice checked={includeMatter} disabled={model.busy} onchange={onmatter} />
+  {/if}
+  {#if model.selected === 'chosen' && chapters}
+    <ChapterSelection {chapters} {selectedChapterIds} disabled={model.busy} onchange={onchapters} />
   {/if}
   <Glass radius={16} style="overflow: hidden">
     <dl>
@@ -46,7 +55,7 @@
     <span class="note">You can listen while it works. Stop any time; finished chapters are kept.</span>
   {/if}
   <div class="actions">
-    <Button size={52} style="width: 100%" onclick={onstart} disabled={model.busy || model.nothingToMake}>{model.nothingToMake ? 'Everything is ready' : 'Start'}</Button>
+    <Button size={52} style="width: 100%" onclick={onstart} disabled={model.busy || model.nothingToMake || emptySelection}>{model.nothingToMake && !emptySelection ? 'Everything is ready' : 'Start'}</Button>
     <Button variant="text" style="width: 100%; color: var(--ink)" onclick={onclose}>Not now</Button>
   </div>
 </Sheet>

@@ -111,6 +111,78 @@ test('V2: a premium example without a Google key explains that a key is needed a
   await expect(dialog.getByRole('radio', { name: 'Free' })).toHaveAttribute('aria-checked', 'true');
 });
 
+for (const hasKey of [false, true]) {
+  test(`V1: a delayed source refresh preserves the chosen premium ${hasKey ? 'voice' : 'tab without a key'}`, async ({ page, stack, breeze, gemini }) => {
+    const listener = await signIn(page, stack);
+    await setupBreeze(stack, breeze);
+    if (hasKey) await setupGemini(stack);
+    const book = await sampleBook(stack, listener);
+    if (hasKey) {
+      // Load real premium voices before holding the next chooser refresh. A key hides preview rows, so the
+      // first refresh cannot be held until an actual Kore row has reached the client.
+      await open(page, 'default');
+      await expect(page.getByRole('button', { name: 'Hear Kore' })).toBeVisible();
+    }
+
+    let releaseRefresh = () => {};
+    let refreshStarted = () => {};
+    const released = new Promise<void>((resolve) => (releaseRefresh = resolve));
+    const started = new Promise<void>((resolve) => (refreshStarted = resolve));
+    await page.route('**/api/voice-sources/breeze/refresh', async (route) => {
+      const response = await route.fetch();
+      refreshStarted();
+      await released;
+      await route.fulfill({ response });
+    });
+    let sampleCalls = 0;
+    page.on('request', (request) => request.url().includes('/sample') && sampleCalls++);
+
+    try {
+      if (hasKey) {
+        // Hash navigation retains the loaded voice store; open() deliberately reloads the document.
+        await page.evaluate((id) => (location.hash = `#/book/${id}`), book);
+        await page.getByRole('button', { name: /^(Change|Choose a voice)/ }).first().click();
+      } else {
+        await open(page, 'chooser', book);
+      }
+      await started;
+      const dialog = page.getByRole('dialog', { name: 'Choose a voice' });
+      const premium = dialog.getByRole('radio', { name: 'Premium', exact: true });
+      await premium.click();
+      if (hasKey) {
+        await dialog.getByRole('radio', { name: /Kore/ }).click();
+        await expect(dialog.getByRole('radio', { name: /Kore/ })).toHaveAttribute('aria-checked', 'true');
+      } else {
+        await expect(dialog.getByText('Premium voices need an account')).toBeVisible();
+      }
+      await expect(premium).toHaveAttribute('aria-checked', 'true');
+
+      // Both lists are read again after refresh. Wait for their bodies and the browser's render before checking
+      // the selection, so this assertion cannot accidentally pass while initialization is still gated.
+      const reloaded = Promise.all(['/api/voices', '/api/voice-sources'].map((path) => page.waitForResponse((response) => new URL(response.url()).pathname === path)));
+      releaseRefresh();
+      await Promise.all((await reloaded).map((response) => response.finished()));
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+
+      await expect(premium).toHaveAttribute('aria-checked', 'true');
+      if (hasKey) {
+        await expect(dialog.getByRole('radio', { name: /Kore/ })).toHaveAttribute('aria-checked', 'true');
+      } else {
+        await expect(dialog.getByRole('button', { name: 'Hear Kore' })).toBeVisible();
+        await expect(dialog.getByText('Premium voices need an account')).toBeVisible();
+      }
+      expect(sampleCalls).toBe(0);
+      expect(breeze.received()).toBe(0);
+      expect(gemini.received()).toBe(0);
+      expect(await audiobooks(stack, listener, book)).toEqual([]);
+      expect((await apiCall(stack.api, 'GET', '/api/jobs', undefined, DEV, listener)).json.items).toEqual([]);
+      expect((await apiCall(stack.api, 'GET', '/api/plans', undefined, DEV, listener)).json.items).toEqual([]);
+    } finally {
+      releaseRefresh();
+    }
+  });
+}
+
 test('V3: choosing a free voice makes the audiobook for the book, and the first choice becomes the default', async ({ page, stack, breeze }) => {
   const listener = await signIn(page, stack);
   await setupBreeze(stack, breeze);

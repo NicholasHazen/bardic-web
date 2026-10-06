@@ -47,7 +47,7 @@
     {#snippet rows()}
       <div class="rows" data-chapter-rows>
         {#each model.rows as r (r.id)}
-          <ChapterRow number={r.number} title={r.title} detail={r.detail} metadata={r.metadata} progressText={r.progressText} current={r.current}>
+          <ChapterRow number={r.number} title={r.title} detail={r.detail} metadata={r.metadata} progressText={r.progressText} generationText={r.generationText} generationFraction={r.generationFraction} current={r.current}>
             {#snippet trailing()}
               {#if r.progress}
                 <span class="sr">{r.wordText}</span>

@@ -183,6 +183,7 @@ Requirement IDs are stable references for tests and tasks. "Must" is required fo
 - **M2.** Jobs reuse existing audio wherever identical audio exists, at no cost and no time.
 - **M3.** Chapter audio is produced in order from the listener's place outward when making ahead; on-demand requests jump the queue.
 - **M4.** Jobs are **cancellable**, **pausable** and **resumable**, and report progress per chapter. They survive server restarts: a chapter either has complete audio or is *Not yet*.
+  Progress shows the active chapter's completed requests and share of exact text made, with estimates for the chapter and selected work based on observed request time. Time remains unknown before a sample and while work is paused, waiting or needs a decision. A request in flight does not imply its text is complete; a chapter becomes Ready only after its complete audio is saved. Changing future request sizes does not discard valid completed requests of a partial chapter.
 - **M5.** Providers can refuse content (policy) or fail transiently. The job records a per-chapter reason. Transient failures retry a bounded number of times, then the chapter is *Needs you* with a retry. Policy refusals are shown as such and never retried automatically.
 - **M6.** Only one job per audiobook and chapter runs at a time; a second request joins the running one.
 - **M7.** Free-voice jobs may run concurrently only as far as the computer allows; a setting limits concurrency.
@@ -204,6 +205,7 @@ See section 8 for the model. Requirements:
 - **PL10.** Every plan, approval, stop and Allowance change records which listener and device did it.
 - **PL11.** A rejected or expired key stops running plans at the next request, keeps completed chapters, and shows the key problem (`[KeyProblem]`). Free voices are unaffected.
 - **PL12.** Free make-ready confirmation and premium plan preview offer **Include front and back matter**, off by default in new client flows. The selected chapters determine the text size, estimate and audio made; changing this choice requires a new preview before approval. An approved plan keeps its chapter selection. Matter omitted now can be made later; finished audio is kept.
+- **PL13.** Free make-ready and premium plan sheets offer **Choose chapters**, including nonadjacent chapters. Empty selection cannot start work. Selecting or clearing chapters spends nothing; every premium selection change discards the previous preview before another approval is possible. Existing ready chapters are reused. Audio duration and time to generate are labelled separately, and unknown generation time is explicit.
 
 ### 5.9 Offline and downloads
 
@@ -358,6 +360,7 @@ Each promise and decision has at least these tests.
 - **A3.** Re-adding the same file warns with the existing book; adding a different file with the same title does not.
 - **A11.** Synthetic EPUB 3 navigation and EPUB 2 NCX recover chapter names in spine order. Structural matter labels take precedence over title guesses. Refresh names on an existing book: every chapter/line id, text hash, stored text, audio and place revision remains unchanged; a text or boundary mismatch changes nothing.
 - **B6 / PL12.** Hide matter, show it again, and read it directly. Make audio with matter excluded: only story chapters are generated, premium estimates include only those chapters, and the approved plan cannot spend on excluded matter. Include matter later: existing story audio is reused.
+- **M4 / PL13.** Select two nonadjacent chapters, approve only their premium estimate, and verify only those chapters are spoken. Observe completed request progress while a chapter is still Making; generation time starts unknown, then follows measured request throughput. Pause or restart preserves finished requests and audio. Tuning future request sizes does not repeat retained paid work.
 - **O3.** Airplane mode: downloaded chapters play and Read works; others say why they are unavailable.
 
 ## 12. Screen and state inventory

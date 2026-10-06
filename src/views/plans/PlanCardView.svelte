@@ -6,6 +6,8 @@
   import { checkRaise, type Plan, type PlanCardModel } from '../../lib/planRules';
   import PlanGlyph, { type PlanGlyphName } from './PlanGlyph.svelte';
   import type { ProblemModel } from './types';
+  import type { GenerationModel } from '../../lib/generationProgress';
+  import GenerationDetail from '../book/GenerationDetail.svelte';
 
   /**
    * A plan that is going, as the book page shows it ([PlanPaused] and the running states of [BookRunning]; PL4 to
@@ -24,6 +26,7 @@
     /** The free voice offered for the rest of the book, e.g. "Samantha". */
     freeVoiceName?: string | null;
     busy?: boolean;
+    generation?: GenerationModel | null;
     problem?: ProblemModel;
     /** A resume was refused for the limit: open the field for a higher one. */
     wantsRaise?: boolean;
@@ -36,7 +39,7 @@
     onfix?: (what: 'key' | 'allowance') => void;
     ondismissproblem?: () => void;
   }
-  let { model, plan, freeVoiceName = null, busy = false, problem, wantsRaise = false, onpause, onresume, onraise, onstop, onfree, onfix, ondismissproblem }: Props = $props();
+  let { model, plan, freeVoiceName = null, busy = false, generation, problem, wantsRaise = false, onpause, onresume, onraise, onstop, onfree, onfix, ondismissproblem }: Props = $props();
 
   const tones: Record<PlanCardModel['tone'], { title: string; disc: string; icon: PlanGlyphName; iconColor: string }> = {
     making: { title: '#bcdcff', disc: 'color-mix(in srgb, var(--accent) 18%, transparent)', icon: 'headphones', iconColor: 'var(--accent)' },
@@ -68,6 +71,7 @@
       <div class="fill" style:width="{model.progress * 100}%"></div>
     </div>
     <span class="body">{model.body}</span>
+    {#if generation}<GenerationDetail model={generation} />{/if}
 
     {#if problem}
       <Callout tone="error" title={problem.title}>

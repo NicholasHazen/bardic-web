@@ -28,6 +28,7 @@ import {
   type Scope,
 } from '../lib/planRules';
 import { hasMatter, makeOptions, type ChapterAudio, type ChapterInfo, type MakeInput } from '../lib/bookAudio';
+import type { ChapterSelectionItem } from '../lib/chapterSelection';
 import { moneyText, type Money } from '../lib/money';
 import { apiGateway as bookGateway, call, hdr, UNREACHABLE, type BookGateway, type R } from './book';
 
@@ -64,7 +65,7 @@ export const planGateway: PlanGateway = {
 // --------------------------------------------------------------------------- state
 
 export interface ScopeChoice {
-  /** 'whole', 'from' or 'smaller' */
+  /** 'whole', 'from', 'chosen' or 'smaller' */
   id: string;
   title: string;
   detail: string;
@@ -83,6 +84,9 @@ export interface FlowState {
   voiceName: string;
   choices: ScopeChoice[];
   selected: string;
+  /** Explicit chapter choices, independent of scope and the visible list on the book page. */
+  selectedChapterIds: string[];
+  chapterChoices: ChapterSelectionItem[];
   /** Independent of the book page's chapter visibility: what this plan will voice. */
   includeMatter: boolean;
   matterAvailable: boolean;
@@ -130,6 +134,8 @@ export const closedFlow = (): FlowState => ({
   voiceName: '',
   choices: [],
   selected: 'whole',
+  selectedChapterIds: [],
+  chapterChoices: [],
   includeMatter: false,
   matterAvailable: false,
   estimate: null,
@@ -220,15 +226,15 @@ export class PlanStore {
     this.makeInput = { chapters: infos, audio: audioMap, currentId: place.ok ? place.value?.chapter_id : null };
     const choices = this.scopeChoices(false);
     const selected = choices.some((c) => c.id === p.initial) ? p.initial! : 'whole';
-    this.setFlow({ choices, selected, matterAvailable: hasMatter(infos) });
+    this.setFlow({ choices, selected, chapterChoices: this.chapterChoices(false), matterAvailable: hasMatter(infos) });
     await this.price(mine);
   }
 
-  private scopeChoices(includeMatter: boolean): ScopeChoice[] {
+  private scopeChoices(includeMatter: boolean, selectedChapterIds = this.flow().selectedChapterIds): ScopeChoice[] {
     if (!this.makeInput) return [];
     const { chapters, audio } = this.makeInput;
     const words = new Map(chapters.map((c) => [c.id, c.word_count]));
-    return makeOptions({ ...this.makeInput, includeMatter }).map((o) => ({
+    return makeOptions({ ...this.makeInput, includeMatter, selectedChapterIds }).map((o) => ({
       id: o.id,
       title: o.title,
       detail: o.detail,
@@ -237,17 +243,46 @@ export class PlanStore {
     }));
   }
 
+  private chapterChoices(includeMatter: boolean): ChapterSelectionItem[] {
+    if (!this.makeInput) return [];
+    return this.makeInput.chapters.filter((chapter) => includeMatter || chapter.kind === 'story').map((chapter) => ({
+      id: chapter.id,
+      title: chapter.title,
+      matter: chapter.kind !== 'story',
+      ready: this.makeInput!.audio.get(chapter.id)?.state === 'ready',
+    }));
+  }
+
+  /** Editing individual chapters only gets a new free preview; every previous estimate is discarded immediately. */
+  async setChapters(ids: readonly string[]): Promise<void> {
+    const f = this.flow();
+    if (f.phase === 'closed' || f.phase === 'approving' || !this.makeInput) return;
+    const requested = new Set(ids);
+    const selectedChapterIds = this.makeInput.chapters.filter((chapter) => requested.has(chapter.id)).map((chapter) => chapter.id);
+    if (f.selected === 'chosen' && selectedChapterIds.length === f.selectedChapterIds.length && selectedChapterIds.every((id, index) => id === f.selectedChapterIds[index])) return;
+    const mine = ++this.run;
+    this.clearExpiry();
+    this.setFlow({
+      selected: 'chosen', selectedChapterIds, choices: this.scopeChoices(f.includeMatter, selectedChapterIds),
+      phase: 'previewing', estimate: null, limitText: '', limitEdited: false,
+      smaller: null, blockedFrom: null, blockedWhole: false, notice: null, error: null, explain: false,
+    });
+    await this.price(mine);
+  }
+
   /** Changing what is voiced invalidates every estimate, including a cached smaller plan. Repricing is free. */
   async setIncludeMatter(includeMatter: boolean): Promise<void> {
     const f = this.flow();
     if (f.phase === 'closed' || f.phase === 'approving' || !this.makeInput || f.includeMatter === includeMatter) return;
     const mine = ++this.run;
     this.clearExpiry();
-    const choices = this.scopeChoices(includeMatter);
+    const eligible = new Set(this.chapterChoices(includeMatter).map((chapter) => chapter.id));
+    const selectedChapterIds = f.selectedChapterIds.filter((id) => eligible.has(id));
+    const choices = this.scopeChoices(includeMatter, selectedChapterIds);
     const requested = f.selected === 'smaller' ? (f.blockedWhole ? 'whole' : 'from') : f.selected;
     const selected = choices.some((c) => c.id === requested) ? requested : 'whole';
     this.setFlow({
-      includeMatter, choices, selected, phase: 'previewing', estimate: null, limitText: '', limitEdited: false,
+      includeMatter, choices, selected, selectedChapterIds, chapterChoices: this.chapterChoices(includeMatter), phase: 'previewing', estimate: null, limitText: '', limitEdited: false,
       smaller: null, blockedFrom: null, blockedWhole: false, notice: null, error: null, explain: false,
     });
     await this.price(mine);
@@ -267,13 +302,13 @@ export class PlanStore {
     this.setFlow({ ...closedFlow(), approved: f.approved });
   }
 
-  /** Choose what to plan (whole book, from a chapter, a smaller plan): prices it again (free). */
+  /** Choose what to plan: prices it again (free). */
   async select(id: string): Promise<void> {
     const f = this.flow();
     if (f.phase === 'closed' || f.phase === 'approving' || id === f.selected || !f.choices.some((c) => c.id === id)) return;
     const mine = ++this.run;
     this.clearExpiry();
-    this.setFlow({ selected: id, limitEdited: false, notice: null, error: null });
+    this.setFlow({ selected: id, limitEdited: false, notice: null, error: null, ...(id === 'chosen' ? { smaller: null, blockedFrom: null, blockedWhole: false, choices: f.choices.filter((choice) => choice.id !== 'smaller') } : {}) });
     const cached = id === 'smaller' ? f.smaller : null;
     if (cached && Date.parse(cached.estimate.expires_at) > this.now()) {
       this.adopt(cached.estimate);
@@ -311,6 +346,11 @@ export class PlanStore {
     const choice = this.choice();
     if (!f.listenerId || !f.audiobookId || !choice) return;
     this.setFlow({ phase: 'previewing', estimate: null });
+    // An empty picker is a valid editing state, never a request to make the whole book.
+    if (choice.scope.kind === 'chapters' && choice.chapters.length === 0) {
+      this.setFlow({ phase: 'ready', estimate: null, limitText: '', limitEdited: false });
+      return;
+    }
     const r = await this.gw.preview(f.listenerId, f.audiobookId, choice.scope);
     if (mine !== this.run) return;
     if (!r.ok) {
